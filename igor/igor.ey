@@ -1,0 +1,73 @@
+#!./loaded
+
+<
+  txt .consume .|hu "%" defq
+  { "2120" "-" | |le "021" "-" | |ge |and } /in defq
+  { "Unconfigured peek/take/get/set/noErr/snip" die } -000000 =*peek =*take =*get =*set =*noErr =*snip
+
+  # parser generator
+  { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take } each r _ |noErr rep } } { } ? * } /lit deffd
+  { lit =*p { get ==s [ p { ] _ len dearray } { ] -- s set } ? * 1 } } ",?" deffd
+  { lit =*p { get ==s { get =s [ p } { ] _ len dearray } loop ] -- s set 1 } } ",*" deffd
+  { _ ,* ,; } ",+" deffd
+  { lit =*q lit =*p { get ==s [ p { ] _ len dearray 1 } { ] -- s set q } ? * } } ",|" deffd
+  { lit ==q lit =*p { p q { 0 } ? * } } ",;" deffd
+  { [ [ } { ] |lit each ] ",;" | fold } -01 ",[" deffd ",]" deffd
+  { defvst }' =*:defp
+  # FIXME: remove the useless { * }_ once static / typed are correctly discerned by optimizations
+  { ==name "}" | * { ,[ } -01 ; { ,] } ; { * { * }_ _ name defp * }_ name defp } "}==" defq
+  "{" | "(" defq { 1 "}" | * } ")" defq
+
+  { lit =*p lit =*q { get ==s
+    { get =s [ p { ] -- s set [ 0 } { ] -- s set [ q } ? * } { ] _ len dearray } loop ] -- s set 1
+  } } /upto deffd
+  { txt .consume .hu ==h ==l { peek take l h in } } "-%" defq
+
+  # compare Specification of the Metamath Language
+  { peek take [ %09 %0A %0C %0D %20 ] eq any } ==whitechar
+  { peek take ==c c %41 %5A in c %61 %7A in or c %30 %39 in or c %2D eq or c %5F eq or c %2E eq or } ==labelchar
+  { peek take ==c c %41 %5A in c %3F eq or } ==compressedchar
+  { peek take ==c c %24 neq c %20 gt and c %7F lt and } ==mathchar
+  { peek take ==c c %20 gt c %7F lt and c [ %09 %0A %0C %0D %20 ] eq any or } ==anychar
+
+  { "$(" anychar "$)" upto "$)" white }==comment
+  { whitechar comment ,| include ,|  ,+ }==white
+  { "$[" white ( get ) mathchar ,* ( get snip "including: " dump dump ) white "$]" white }==include
+
+  { mathchar ,* white }==mathsymbol
+  { labelchar ,* white }==label
+
+  { "$c" white mathsymbol ,+ "$." white }==cstatement
+  { "$v" white mathsymbol ,+ "$." white }==vstatement
+  { label "$f" white mathsymbol mathsymbol "$." white }==fstatement
+  { label "$e" white mathsymbol mathsymbol ,* "$." white }==estatement
+  { "$d" white mathsymbol mathsymbol ,+ "$." white }==dstatement
+  { label "$a" white mathsymbol mathsymbol ,* "$." white }==astatement
+
+  { "?" white }==questionmark
+  { label questionmark ,| ,* }==proof
+  { "(" white label ,* ")" white ,[ compressedchar ,+ white ,] ,* }==compressedproof
+  { label "$p" white mathsymbol mathsymbol ,* "$=" white compressedproof proof ,| "$." white }==pstatement
+
+  { "${" white statements "$}" white }==block
+  { [ white block cstatement vstatement fstatement estatement dstatement astatement pstatement ] ",|" | fold ,* }==statements
+
+  { ":" via
+    "" ==s 0 ==i 0 ==last
+    {
+      i s len lt not { s 4096 :read _ dump cat =s } rep
+      i s len lt { i s * } { 1 neg } ? *
+    } =peek
+    { i 1 add =i } =take { i } =get { =i } =set { i =last } =noErr { s str .infix } =snip
+
+    { statements * { i s len neq { ??metamath.trailing-garbage } rep } { ??metamath } ? * }
+      { -- < last s str .postfix ==remaining > ??!' } ?!metamath
+  }
+> -- /parse deffd
+
+sys .|argv len 2 neq { "usage: ./igor input.mm" die } rep
+sys .file _ ":" via 1 sys .argv * :open
+  |parse { "Error during parse, remaining content: " dump .remaining dump } ?!metamath
+:close
+
+# vim: syn=elymas
