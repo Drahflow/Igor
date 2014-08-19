@@ -5,8 +5,15 @@
 } /childBlock deffd
 < map ==?c map ==?assertions > childBlock ==currentBlock
 
-map ==stringCache
-{ _ ==s stringCache .has { s stringCache * } { s _ _ stringCache =[] } ? * } /makeUnique deffd
+< map ==:cache { _ cache .has not { _ _ cache =[] } rep cache * } > -- /makeUnique deffd
+
+<
+  { sys .linux .gettimeofday -- 1000000 mul add } /t deffd
+  < { == }' > ==time =*setTime
+  < { == }' > ==count =*setCount
+  { ==l =*f { t ==start f t start sub time l . add l setTime count l . 1 add l setCount } 0 l setTime 0 l setCount }
+  { time keys { _ dump _ time -01 . txt .produce .u dump count -01 . txt .produce .u dump } each }
+> -- /perfstats deffd "τ" deffd
 
 <
   txt .consume .|hu "%" defq
@@ -32,14 +39,13 @@ map ==stringCache
 
   # compare Specification of the Metamath Language
   { { peek take %24 neq } { } loop 1 } ==sequenceEndingInDollar
-  { peek take [ %09 %0A %0C %0D %20 ] eq any } ==whitechar
+  { peek take ==c c %09 eq c %0A eq or c %0C eq or c %0D eq or c %20 eq or } ==whitechar
   { peek take ==c c %41 %5A in c %61 %7A in or c %30 %39 in or c %2D eq or c %5F eq or c %2E eq or } ==labelchar
   { peek take ==c c %41 %5A in c %3F eq or } ==compressedchar
   { peek take ==c c %24 neq c %20 gt and c %7F lt and } ==mathchar
-  { peek take ==c c %20 gt c %7F lt and c [ %09 %0A %0C %0D %20 ] eq any or } ==anychar
 
   { "$(" sequenceEndingInDollar ")" upto ")" white }==comment
-  { whitechar comment ,| include ,|  ,+ }==white
+  { whitechar comment ,| include ,| ,+ }==white
   { "$[" white ( get ) mathchar ,* ( get snip "including: " dump dump ) white "$]" white }==include
 
   { ( get ) mathchar ,* ( get snip makeUnique ) white }==mathsymbol
@@ -51,10 +57,8 @@ map ==stringCache
   { label "$e" white ( _ "$e " -01 cat dump [ ) mathsymbol mathsymbol ,* ( ] -01 currentBlock .e =[] ) "$." white }==estatement
   { "$d" white ( [ ) mathsymbol mathsymbol ,+ ( ] currentBlock .d .append1 ) "$." white }==dstatement
   { label "$a" white ( _ "$a " -01 cat dump [ ) mathsymbol mathsymbol ,* ( ]
-    < currentBlock ==ctx ==thm { "Assumption has no proof" die } =*proof { ==hyps }' { ==disj }' { ==allDisj }' >
-      _ allDisjunct -102*
-      _ mandatoryDisjunct -102*
-      _ mandatoryHypotheses -102*
+    < currentBlock ==ctx ==thm { "Assumption has no proof" die } =*proof
+      { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
     -01 currentBlock .assertions =[] ) "$." white
   }==astatement
 
@@ -80,26 +84,25 @@ map ==stringCache
     } > -- ) }==compressedproof
   { label "$p" white ( _ "$p " -01 cat dump [ ) mathsymbol mathsymbol ,* ( ] ) "$="
     white compressedproof proof ,| (
-    < currentBlock ==ctx -01 ==thm =*proof { ==hyps }' { ==disj }' { ==allDisj }' >
-      _ allDisjunct -102*
-      _ mandatoryDisjunct -102*
-      _ mandatoryHypotheses -102*
-    -01
+    < currentBlock ==ctx -01 ==thm =*proof
+      { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
+    # -101 "simpl31" eq { perfstats "done" die } rep
+    # -101 "vtoclga" eq { perfstats "done" die } rep
     # _ "a17d" eq { -101 verifyProof "done" die } rep # TODO: this line is just debugging
-    -101 verifyProof dump
-    currentBlock .assertions =[] ) "$." white
+    # -100 verifyProof dump
+    -01 currentBlock .assertions =[] ) "$." white
     }==pstatement
 
   { "${" ( currentBlock childBlock =currentBlock ) white statements ( currentBlock .parent =currentBlock ) "$}" white }==block
-  { [ white block cstatement vstatement fstatement estatement dstatement astatement pstatement ] ",|" | fold ,* }==statements
+  { [ white estatement pstatement dstatement block vstatement fstatement astatement cstatement ] ",|" | fold ,* }==statements
 
   { ":" via
     "" ==s 0 ==i 0 ==last
     {
       i s len lt not { s 1024 1024 mul :read cat =s "Just read to: " dump s len dump } rep
       i s len lt { i s * } { 1 neg } ? *
-    } =peek
-    { i 1 add =i } =take { i } =get { =i } =set { i =last } =noErr { s str .infix } =snip
+    }' =peek
+    { i 1 add =i }' =take { i }' =get { =i }' =set { i =last }' =noErr { s str .infix }' =snip
 
     { block statements * { i s len neq { ??metamath.trailing-garbage } rep } { ??metamath } ? * }
       { -- < last s str .postfix ==remaining > ??!' } ?!metamath
@@ -165,75 +168,59 @@ map ==stringCache
   hyps pstm .proof
 } /computeProof deffd
 
-{ _ ==pstm _ .ctx ==ctx computeProof ==proof
-  proof dump
-
-  list ==savedTheorems # Z-saved theorems
-  list ==stack # the verification stack
-  proof { ==lbl
+{ _ ==pstm _ .ctx ==ctx computeProof
+    list ==stack # the verification stack
+    list ==savedTheorems # Z-saved theorems
+  _ dump { ==lbl
     [
       { lbl ctx isEHyp } { lbl ctx getEHyp stack .append1 }
       { lbl ctx isFHyp } { lbl ctx getFHyp stack .append1 }
       { lbl "!" eq } { stack len 1 sub stack * savedTheorems .append1 }
       { lbl len _ { -- 0 lbl * 0 "@" * eq } rep }
         { 2 lbl str .postfix txt .consume .u savedTheorems * stack .append1 }
-      { lbl ctx .assertions .has } { lbl ctx .assertions * ==ass
+      { lbl ctx .assertions .has } {
         "Applying: " lbl cat dump
+        
+        lbl ctx .assertions * _ ==ass .hyps ==hyps
         map ==substitution
-        ass .hyps ==hyps
-        "Mandatory hypotheses:" dump
-        0 hyps _ dump len range { hyps * dump } each
 
-        0 hyps len range { ==i
-          i hyps * ==h
-          h ass .ctx isFHyp {
-            stack len hyps len sub i add stack * ==target
+        "Mandatory hypotheses:" dump
+        hyps dump
+        0 hyps len range
+          _ { hyps * dump } each
+        _ { _ ==i hyps * _ ==h ass .ctx isFHyp {
             h ass .ctx getFHyp ==mask
+            stack len hyps len sub i add stack * ==target
             0 mask * 0 target * neq { mask dump target dump "Constant symbol mismatch" die } rep
             [ 1 target len range { target * } each ] 1 mask * substitution =[]
-          } rep
-        } each
+          } rep } each
 
-        substitution dom dump
-        substitution dom { ==k k " => " cat k substitution * { " " -01 cat cat } fold cat dump } each
+          substitution dom { ==k k " => " cat k substitution * { " " -01 cat cat } fold cat dump } each
 
-        0 hyps len range { ==i
-          i hyps * ==h
-          h ass .ctx isEHyp {
-            stack len hyps len sub i add stack * ==target
-            [ h ass .ctx getEHyp { ==sym
-              sym ass .ctx isVar { sym substitution * _ len dearray } { sym } ? *
-            } each ] ==mask
-            mask target eq all not { mask dump target dump "Hypthesis does not match stack" die } rep
-          } rep
-        } each
+          { _ ==i hyps * _ ==h ass .ctx isEHyp {
+              stack len hyps len sub i add stack * ==target
+              [ h ass .ctx getEHyp { # ==sym
+                _ ass .ctx isVar { substitution * _ len dearray } rep
+              } each ] ==mask
+              mask target eq all not { mask dump target dump "Hypthesis does not match stack" die } rep
+          } rep } each
 
-        ass .disj ==disj
-        disj { =*d
+        ass .disj { =*d
           "Checking disjunct " 0 d cat " <=> " cat 1 d cat dump
-          0 d substitution * { ==v
-            v ass .ctx isVar {
-              1 d substitution * { ==w
-                w ass .ctx isVar {
-                  v " :=: " w cat cat dump
-                  v w eq { "Disjunct variable requirement broken" die } rep
-                  [ pstm .allDisj { =*d 0 d v eq 1 d w eq and 0 d w eq 1 d v eq and or } each ] any not
-                    { "Disjunct variable requirement not carried" die } rep
-                } rep
-              } each
-            } rep
+          0 d substitution * { ass .ctx isVar } grep { ==v
+            1 d substitution * { ass .ctx isVar } grep { ==w
+                v " :=: " w cat cat dump
+                v w eq { "Disjunct variable requirement broken" die } rep
+                [ pstm .allDisj { =*d 0 d v eq 1 d w eq and 0 d w eq 1 d v eq and or } each ] any not
+                  { "Disjunct variable requirement not carried" die } rep
+            } each
           } each
         } each
 
         "All checks ok. Inserting new statement." dump
 
-        # TODO introduce pop into elymas lists
-        list ==newStack
-        0 stack len hyps len sub range _ dump { stack * newStack .append1 } each
-        [ ass .thm { ==sym
-          sym ass .ctx isVar { sym substitution * _ len dearray } { sym } ? *
-        } each ] newStack .append1
-        newStack =stack
+        hyps len { stack .pop } rep
+        [ ass .thm { _ ass .ctx isVar { substitution * _ len dearray } rep } each ] stack .append1
       }
       { 1 } { "Invalid proof step: " lbl cat die }
     ] conds
