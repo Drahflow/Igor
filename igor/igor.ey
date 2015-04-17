@@ -11,9 +11,12 @@
   { sys .linux .gettimeofday -- 1000000 mul add } /t deffd
   < { == }' > ==time =*setTime
   < { == }' > ==count =*setCount
-  { ==l =*f { t ==start f t start sub time l . add l setTime count l . 1 add l setCount } 0 l setTime 0 l setCount }
-  { time keys { _ dump _ time -01 . txt .produce .u dump count -01 . txt .produce .u dump } each }
-> -- /perfstats deffd "τ" deffd
+  { ==l 0 l setTime 0 l setCount 
+    { =*f { t ==start f t start sub time l . add l setTime count l . 1 add l setCount } }
+    quoted not { * } rep
+  }
+  { time keys { _ dump _ time -01 . txt .produce .u " μs" cat dump count -01 . txt .produce .u " calls" cat dump } each }
+> -- /perfstats deffd "τ" defq
 
 <
   txt .consume .|hu "%" defq
@@ -94,7 +97,7 @@
     }==pstatement
 
   { "${" ( currentBlock childBlock =currentBlock ) white statements ( currentBlock .parent =currentBlock ) "$}" white }==block
-  { [ white estatement pstatement dstatement block vstatement fstatement astatement cstatement ] ",|" | fold ,* }==statements
+  { [ estatement pstatement dstatement block vstatement fstatement astatement cstatement white ] ",|" | fold ,* }==statements
 
   { ":" via
     "" ==s 0 ==i 0 ==last
