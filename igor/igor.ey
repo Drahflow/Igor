@@ -24,17 +24,19 @@
   { "Unconfigured peek/take/get/set/noErr/snip" die } -000000 =*peek =*take =*get =*set =*noErr =*snip
 
   # parser generator
-  { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take }' each r _ |noErr rep } } { }" ? * } /lit deffd
+  { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take }' each r _ |noErr rep }' } { }" ? * } /lit deffd
   { lit =*p { get ==s [ p { ] _ len dearray }' { ] -- s set }' ? * 1 } } ",?" deffd
   { lit =*p { get ==s { get =s [ p }' { ] _ len dearray }' loop ] -- s set 1 } } ",*" deffd
   { _ ,* ,; } ",+" deffd
   { lit =*q lit =*p { get ==s [ p { ] _ len dearray 1 }' { ] -- s set q }' ? * } } ",|" deffd
-  { lit ==q lit =*p { p q { 0 }' ? * }' } ",;" deffd
+  { 0 } ==:ZERO { lit ==q lit =*p { p q ZERO ? * }' } ",;" deffd
   { [ [ }' { ] |lit each ] ",;" | fold }' -01 ",[" deffd ",]" deffd
   { defvst }' =*:defp
-  # FIXME: remove the useless { * }_ once static / typed are correctly discerned by optimizations
-  { ==name "}" | * { ,[ }' -01 ; { ,] }' ; { * { * }_ _ name defp * }_ name defp } "}==" defq
-  "{" | "(" defq { 1 "}" | * }' ")" defq
+  {
+    ==name "}'" | * { ,[ }' -01 ; { ,] }' ; { * _ name "_make" cat defp * }_ name "_make" cat defp
+    "{" | * name "_make" cat "|" | "*" | "}'" | * name defp
+  } "}==" defq
+  "{" | "(" defq { 1 "}'" | * }' ")" defq
 
   { lit =*p lit =*q { get ==s
     { get =s [ p { ] -- s set [ 0 }' { ] -- s set [ q }' ? * }' { ] _ len dearray }' loop ] -- s set 1
@@ -90,7 +92,7 @@
     < currentBlock ==ctx -01 ==thm =*proof
       { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
     # -101 "simpl31" eq { perfstats "done" die } rep
-    -101 "vtoclga" eq { perfstats "done" die } rep
+    # -101 "vtoclga" eq { perfstats "done" die } rep
     # _ "a17d" eq { -101 verifyProof "done" die } rep # TODO: this line is just debugging
     # -100 verifyProof dump
     -01 currentBlock .assertions =[] ) "$." white
@@ -100,10 +102,10 @@
   { [ estatement pstatement dstatement block vstatement fstatement astatement cstatement white ] ",|" | fold ,* }==statements
 
   { ":" via
-    "" ==s 0 ==i 0 ==last
+    "" ==s 0 ==i 0 ==slen 0 ==last 0 ==eof
     {
-      i s len lt not { s 1024 1024 mul :read cat =s "Just read to: " dump s len dump }" rep
-      i s len lt { i s * }" { 1 neg }" ? *
+      i slen lt not { eof not { s 1024 1024 mul :read cat =s "Just read to: " dump s len _ =slen dump } rep }" rep
+      i slen lt { i s * }" { 1 neg 1 =eof }" ? *
     }' =peek
     { i 1 add =i }' =take { i }' =get { =i }' =set { i =last }' =noErr { s str .infix }' =snip
 
@@ -244,5 +246,10 @@
 
 sys .|argv len 2 neq { "usage: ./igor input.mm" die } rep
 1 sys .argv * parseFile
+#
+# {
+#   sys .argv len { 0 sys .argv * } { "/proc/self/fd/0" } ? * include
+#   0 sys .exit
+# }' "igor.loaded" sys .freeze
 
 # vim: syn=elymas
