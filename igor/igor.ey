@@ -24,11 +24,11 @@
   { "Unconfigured peek/take/get/set/noErr/snip" die } -000000 =*peek =*take =*get =*set =*noErr =*snip
 
   # parser generator
-  { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take }' each r _ |noErr rep }' } { }" ? * } /lit deffd
-  { lit =*p { get ==s [ p { ] _ len dearray }" { ] -- s set }" ? * 1 } } ",?" deffd
-  { lit =*p { get ==s { get =s [ p }" { ] _ len dearray }" loop ] -- s set 1 } } ",*" deffd
+  { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take }" each r _ |noErr rep }' } { }" ? * } /lit deffd
+  { lit =*p { get [ p { ] -01 -- _ len dearray }" { ] -- set }" ? * 1 }' } ",?" deffd
+  { lit =*p { { get [ p }" { ] -01 -- _ len dearray }" loop ] -- set 1 }' } ",*" deffd
   { _ ,* ,; } ",+" deffd
-  { lit =*q lit =*p { get ==s [ p { ] _ len dearray 1 }" { ] -- s set q }" ? * } } ",|" deffd
+  { lit =*q lit =*p { get [ p { ] -01 -- _ len dearray 1 }" { ] -- set q }" ? * }' } ",|" deffd
   { 0 } ==:ZERO { lit ==q lit =*p { p q ZERO ? * }' } ",;" deffd
   { [ [ }" { ] |lit each ] ",;" | fold }" -01 ",[" deffd ",]" deffd
   { defvst }' =*:defp
@@ -38,9 +38,9 @@
   } "}==" defq
   "{" | "(" defq { 1 "}'" | * }' ")" defq
 
-  { lit =*p lit =*q { get ==s
-    { get =s [ p { ] -- s set [ 0 }' { ] -- s set [ q }' ? * }' { ] _ len dearray }' loop ] -- s set 1
-  } } /upto deffd
+  { lit =*p lit =*q {
+    { get [ p { ] -- _ set [ 0 }' { ] -- _ set [ q }' ? * }' { ] -01 -- _ len dearray }' loop ] -- set 1
+  }' } /upto deffd
 
   # compare Specification of the Metamath Language
   { { peek take %24 neq }" { }" loop 1 }" ==sequenceEndingInDollar
