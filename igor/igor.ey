@@ -69,7 +69,7 @@
 
   { "?" ( "?" ) white }==questionmark
   { ( [ ) label questionmark ,| ,* ( ] { -- }_ ) }==proof
-  { "(" white ( [ ) label ,* ( ] ) ")" white ( [ ) ,[ ,[ ( get ) compressedchar ( get snip ) ,] ,+ white ,] ,* ( ] |cat fold
+  { "(" white ( [ ) label ,* ( ] ) ")" white ( [ ) ,[ ( get ) ,[ compressedchar ,] ,+ ( get snip ) white ,] ,* ( ] |cat fold
     < ==data _ ==labels len ==labelCount { _ ==hypotheses len ==hypCount
       [ 0 data { ==c
         [
