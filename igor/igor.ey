@@ -25,12 +25,12 @@
 
   # parser generator
   { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take }' each r _ |noErr rep }' } { }" ? * } /lit deffd
-  { lit =*p { get ==s [ p { ] _ len dearray }' { ] -- s set }' ? * 1 } } ",?" deffd
-  { lit =*p { get ==s { get =s [ p }' { ] _ len dearray }' loop ] -- s set 1 } } ",*" deffd
+  { lit =*p { get ==s [ p { ] _ len dearray }" { ] -- s set }" ? * 1 } } ",?" deffd
+  { lit =*p { get ==s { get =s [ p }" { ] _ len dearray }" loop ] -- s set 1 } } ",*" deffd
   { _ ,* ,; } ",+" deffd
-  { lit =*q lit =*p { get ==s [ p { ] _ len dearray 1 }' { ] -- s set q }' ? * } } ",|" deffd
+  { lit =*q lit =*p { get ==s [ p { ] _ len dearray 1 }" { ] -- s set q }" ? * } } ",|" deffd
   { 0 } ==:ZERO { lit ==q lit =*p { p q ZERO ? * }' } ",;" deffd
-  { [ [ }' { ] |lit each ] ",;" | fold }' -01 ",[" deffd ",]" deffd
+  { [ [ }" { ] |lit each ] ",;" | fold }" -01 ",[" deffd ",]" deffd
   { defvst }' =*:defp
   {
     ==name "}'" | * { ,[ }' -01 ; { ,] }' ; { * _ name "_make" cat defp * }_ name "_make" cat defp
