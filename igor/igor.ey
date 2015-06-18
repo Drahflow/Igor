@@ -28,12 +28,12 @@ map ==assertions
   str .|infix =*:infix
 
   # parser generator
-  { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take }" each r _ |noErr rep }' } { }" ? * } /lit deffd
+  { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take }' each r _ |noErr rep }' } { }" ? * } /lit deffd
   { lit =*p { get [ p { ] -01 -- _ len dearray }" { ] -- set }" ? * 1 }' } ",?" deffd
   { lit =*p { { get [ p }" { ] -01 -- _ len dearray }" loop ] -- set 1 }' } ",*" deffd
   { _ ,* ,; } ",+" deffd
   { lit =*q lit =*p { get [ p { ] -01 -- _ len dearray 1 }" { ] -- set q }" ? * }' } ",|" deffd
-  { 0 }" ==:ZERO { lit ==q lit =*p { p q ZERO ? * }' } ",;" deffd
+  { lit ==q lit =*p { p q { 0 }" ? * }' } ",;" deffd
   { [ [ }" { ] |lit each ] ",;" | fold }" -01 ",[" deffd ",]" deffd
   { defvst }' =*:defp
   {
@@ -140,19 +140,19 @@ map ==assertions
 
 { _ ==pstm mandatoryVariables ==vars list _ ==hyps # will be returned
   [ pstm .ctx { _ .?e } { _ .parent } loop -- ] reverse ==ctxs
-  ctxs { _ ==ctx .f dom { _ ==k ctx .f * 1 -01 * vars .has { k hyps .append1 } rep } each } each
-  ctxs { .e dom { hyps .append1 } each } each
+  ctxs { _ ==ctx .f dom { _ ==k ctx .f * 1 -01 * vars .has { k hyps .append1 }' rep } each } each
+  ctxs { .e dom { hyps .append1 }' each }' each
 } /mandatoryHypotheses deffd
 
 { ==pstm list _ ==disj # will be returned
   [ pstm .ctx { _ .?d } { _ .parent } loop -- ] reverse ==ctxs
-  ctxs { .d { ==dstm
-    0 dstm len range { ==i
-      i 1 add dstm len range { ==j
+  ctxs { .d { _ len ==l ==dstm
+    0 l range { ==i
+      i 1 add l range { ==j
         [ i dstm * j dstm * ] disj .append1
       } each
     } each
-  } each } each
+  } each }' each
 } /allDisjunct deffd
 
 { _ ==pstm mandatoryVariables ==vars list _ ==disj # will be returned
@@ -164,9 +164,9 @@ map ==assertions
     0 dstm len range { _ ==i dstm * vars .has {
       i 1 add dstm len range { _ ==j dstm * vars .has {
         [ i dstm * j dstm * ] disj .append1
-      } rep } each
-    } rep } each
-  } each } each
+      }' rep } each
+    }' rep } each
+  } each }' each
 } /mandatoryDisjunct deffd
 
 { _ ==pstm _ .hyps ==hyps .disj ==disj
