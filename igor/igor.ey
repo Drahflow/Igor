@@ -30,7 +30,7 @@ map ==assertions
   # parser generator
   { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take }' each r _ |noErr rep }' } { }" ? * } /lit deffd
   { lit =*p { get , p { --, ,-- }" { ,--- set }" ? * 1 }' } ",?" deffd
-  { lit =*p { { get , p }" { --, ,-- }" loop ,--- set 1 }' } ",*" deffd
+  { lit =*p { { get , p }' { --, ,-- }' loop ,--- set 1 }' } ",*" deffd
   { _ ,* ,; } ",+" deffd
   { lit =*q lit =*p { get , p { --, ,-- 1 }" { ,--- set q }" ? * }' } ",|" deffd
   { lit ==q lit =*p { p q { 0 }" ? * }' } ",;" deffd
@@ -43,11 +43,11 @@ map ==assertions
   "{" | "(" defq { 1 "}'" | * }' ")" defq
 
   { lit =*p lit =*q {
-    { get , p { ,--- _ set , 0 }" { ,--- _ set , q }" ? * }" { --, ,-- }" loop ,--- set 1
+    { get , p { ,--- _ set , 0 }" { ,--- _ set , q }" ? * }' { --, ,-- }' loop ,--- set 1
   }' } /upto deffd
 
   # compare Specification of the Metamath Language
-  { { peek take %24 neq }" { }" loop 1 }" ==sequenceEndingInDollar
+  { { peek take %24 neq }' { }' loop 1 }" ==sequenceEndingInDollar
   { peek take ==c c %09 eq c %0A eq or c %0C eq or c %0D eq or c %20 eq or } ==whitechar
   { peek take ==c c %41 %5A in c %61 %7A in or c %30 %39 in or c %2D eq or c %5F eq or c %2E eq or } ==labelchar
   { peek take ==c c %41 %5A in c %3F eq or } ==compressedchar
@@ -120,11 +120,11 @@ map ==assertions
 
 { sys .file _ ":" via -01 :open parse :close } /parseFile deffd
 
-{ ==ctx ==sym 0 ==found { ctx .?'v found not and }" { sym ctx .v .has found or =found ctx .parent =ctx }" loop found } /isVar deffd
-{ ==ctx ==lbl 0 ==found { ctx .?'e found not and }" { lbl ctx .e .has found or =found ctx .parent =ctx }" loop found } /isEHyp deffd
-{ ==ctx ==lbl 0 ==found { ctx .?'f found not and }" { lbl ctx .f .has found or =found ctx .parent =ctx }" loop found } /isFHyp deffd
-{ -01 ==lbl { _ .e lbl -01 .has not }" { .parent }" loop .e lbl -01 * } /getEHyp deffd
-{ -01 ==lbl { _ .f lbl -01 .has not }" { .parent }" loop .f lbl -01 * } /getFHyp deffd
+{ ==ctx ==sym 0 ==found { ctx .?'v found not and }' { sym ctx .v .has found or =found ctx .parent =ctx }' loop found } /isVar deffd
+{ ==ctx ==lbl 0 ==found { ctx .?'e found not and }' { lbl ctx .e .has found or =found ctx .parent =ctx }' loop found } /isEHyp deffd
+{ ==ctx ==lbl 0 ==found { ctx .?'f found not and }' { lbl ctx .f .has found or =found ctx .parent =ctx }' loop found } /isFHyp deffd
+{ -01 ==lbl { _ .e lbl -01 .has not }' { .parent }' loop .e lbl -01 * } /getEHyp deffd
+{ -01 ==lbl { _ .f lbl -01 .has not }' { .parent }' loop .f lbl -01 * } /getFHyp deffd
 { constants .has }' /isConst deffd
 
 { _ ==pstm .ctx ==ctx map _ ==vars # will be returned
@@ -135,17 +135,17 @@ map ==assertions
   ] conds } ==collect
 
   pstm .thm collect each
-  ctx { _ .?'e }" { _ .e { collect each }' each .parent }" loop --
+  ctx { _ .?'e }' { _ .e { collect each }' each .parent }' loop --
 } /mandatoryVariables deffd
 
 { _ ==pstm mandatoryVariables ==vars list _ ==hyps # will be returned
-  [ pstm .ctx { _ .?'e } { _ .parent } loop -- ] reverse ==ctxs
+  [ pstm .ctx { _ .?'e }' { _ .parent }' loop -- ] reverse ==ctxs
   ctxs { _ ==ctx .f dom { _ ==k ctx .f * 1 -01 * vars .has { k hyps .append1 }' rep } each } each
   ctxs { .e dom { hyps .append1 }' each }' each
 } /mandatoryHypotheses deffd
 
 { ==pstm list _ ==disj # will be returned
-  [ pstm .ctx { _ .?'d } { _ .parent } loop -- ] reverse ==ctxs
+  [ pstm .ctx { _ .?'d }' { _ .parent }' loop -- ] reverse ==ctxs
   ctxs { .d { _ len ==l ==dstm
     0 l range { ==i
       i 1 add l range { ==j
@@ -158,7 +158,7 @@ map ==assertions
 { _ ==pstm mandatoryVariables ==vars list _ ==disj # will be returned
   # "Vars: " dump
   # vars dom dump
-  [ pstm .ctx { _ .?'d } { _ .parent } loop -- ] reverse ==ctxs
+  [ pstm .ctx { _ .?'d }' { _ .parent }' loop -- ] reverse ==ctxs
   ctxs { .d { # _ dump
     ==dstm
     0 dstm len range { _ ==i dstm * vars .has {
