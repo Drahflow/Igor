@@ -21,6 +21,8 @@ map ==assertions
 > -- /perfstats deffd "τ" defq
 
 <
+  { -- } "$$" defq # { ==name _ "$" name cat " " cat -01 cat dump } "$$" deffd
+
   txt .consume .|hu "%" defq
   { "2120" "-" | |le "021" "-" | |ge |and } /in defq
   { "Unconfigured peek/take/get/set/noErr/snip" die } -000000 =*peek =*take =*get =*set =*noErr =*snip { } =*setupInput
@@ -60,12 +62,12 @@ map ==assertions
   { ( get ) mathchar ,+ ( get snip makeUnique ) white }==mathsymbol
   { ( get ) labelchar ,+ ( get snip makeUnique ) white }==label
 
-  { "$c" white ,[ mathsymbol ( _ "$c " -01 cat dump 1 -01 constants =[] ) ,] ,+ "$." white }==cstatement
-  { "$v" white ,[ mathsymbol ( _ "$v " -01 cat dump 1 -01 currentBlock .v =[] ) ,] ,+ "$." white }==vstatement
-  { label "$f" white ( _ "$f " -01 cat dump [ ) mathsymbol mathsymbol ( ] -01 currentBlock .f =[] ) "$." white }==fstatement
-  { label "$e" white ( _ "$e " -01 cat dump [ ) mathsymbol mathsymbol ,* ( ] -01 currentBlock .e =[] ) "$." white }==estatement
+  { "$c" white ,[ mathsymbol ( $$c 1 -01 constants =[] ) ,] ,+ "$." white }==cstatement
+  { "$v" white ,[ mathsymbol ( $$v 1 -01 currentBlock .v =[] ) ,] ,+ "$." white }==vstatement
+  { label "$f" white ( $$f [ ) mathsymbol mathsymbol ( ] -01 currentBlock .f =[] ) "$." white }==fstatement
+  { label "$e" white ( $$e [ ) mathsymbol mathsymbol ,* ( ] -01 currentBlock .e =[] ) "$." white }==estatement
   { "$d" white ( [ ) mathsymbol mathsymbol ,+ ( ] currentBlock .d .append1 ) "$." white }==dstatement
-  { label "$a" white ( _ "$a " -01 cat dump [ ) mathsymbol mathsymbol ,* ( ]
+  { label "$a" white ( $$a [ ) mathsymbol mathsymbol ,* ( ]
     < currentBlock ==ctx ==thm { "Assumption has no proof" die }" =*proof
       { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
     -01 assertions =[] ) "$." white
@@ -91,7 +93,7 @@ map ==assertions
         ] conds
       } each -- ]
     } > -- ) }==compressedproof
-  { label "$p" white ( _ "$p " -01 cat dump [ ) mathsymbol mathsymbol ,* ( ] ) "$="
+  { label "$p" white ( $$p [ ) mathsymbol mathsymbol ,* ( ] ) "$="
     white compressedproof proof ,| (
     < currentBlock ==ctx -01 ==thm =*proof
       { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
@@ -109,7 +111,12 @@ map ==assertions
     "" ==s 0 ==i 0 ==slen 0 ==last 0 ==eof
     {
       {
-        i slen lt not { eof not { s 1024 1024 mul :read cat =s "Just read to: " dump s len _ =slen dump }" rep }" rep
+        i slen lt not {
+          eof not {
+            s 1024 1024 mul :read cat =s
+            s len _ =slen
+                    txt .produce .u "Just read to: " -01 cat dump }" rep
+        }" rep
         i slen lt { i s * }" { 1 neg 1 =eof }" ? *
       }' =peek
       { i 1 add =i }' =take { i }' =get { =i }' =set { i =last }' =noErr { s infix }' =snip
@@ -120,7 +127,7 @@ map ==assertions
   }
 > -- /parse deffd
 
-{ "Parse file start" dump sys .file _ ":" via -01 :open parse :close "Parse file end" dump } /parseFile deffd
+{ sys .file _ ":" via -01 :open parse :close } /parseFile deffd
 
 { ==ctx ==sym 0 ==found { ctx .?'v found not and }' { sym ctx .v ==v v .has found or =found ctx .parent =ctx }' loop found } /isVar deffd
 { ==ctx ==lbl 0 ==found { ctx .?'e found not and }' { lbl ctx .e ==e e .has found or =found ctx .parent =ctx }' loop found } /isEHyp deffd
