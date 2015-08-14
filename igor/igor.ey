@@ -5,7 +5,7 @@ map ==assertions
 { # ==parentBlock
   < map ==f map ==e list ==d map ==v _ ==parent >'
 } /childBlock deffd
-< > childBlock ==currentBlock
+< > childBlock _ ==emptyBlock ==currentBlock
 
 < map ==:cache { _ cache .has not { _ _ cache =[] }" rep cache * }' > -- /makeUnique deffd
 
@@ -57,7 +57,9 @@ map ==assertions
 
   { "$(" sequenceEndingInDollar ")" upto ")" white }==comment
   { whitechar comment ,| include ,| ,+ }==white
-  { "$[" white ( |setupInput get ) mathchar ,* ( get snip "including: " -101 cat dump parseFile * ) white "$]" white }==include
+  { "$[" white ( |setupInput get ) mathchar ,* (
+    get snip "including: " -1101 cat dump parseFile "finished " -01 cat dump *
+  ) white "$]" white }==include
 
   { ( get ) mathchar ,+ ( get snip makeUnique ) white }==mathsymbol
   { ( get ) labelchar ,+ ( get snip makeUnique ) white }==label
@@ -68,7 +70,7 @@ map ==assertions
   { label "$e" white ( $$e [ ) mathsymbol mathsymbol ,* ( ] -01 currentBlock .e =[] ) "$." white }==estatement
   { "$d" white ( [ ) mathsymbol mathsymbol ,+ ( ] currentBlock .d .append1 ) "$." white }==dstatement
   { label "$a" white ( $$a [ ) mathsymbol mathsymbol ,* ( ]
-    < currentBlock ==ctx ==thm { "Assumption has no proof" die }" =*proof
+    < "a" ==type currentBlock ==ctx ==thm { "Assumption has no proof" die }" =*proof
       { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
     -01 assertions =[] ) "$." white
   }==astatement
@@ -95,14 +97,14 @@ map ==assertions
     } > -- ) }==compressedproof
   { label "$p" white ( $$p [ ) mathsymbol mathsymbol ,* ( ] ) "$="
     white compressedproof proof ,| (
-    < currentBlock ==ctx -01 ==thm =*proof
+    < "p" ==type currentBlock ==ctx -01 ==thm =*proof
       { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
     # -101 "simpl31" eq { perfstats "done" die } rep
     # -101 "vtoclga" eq { perfstats "done" die } rep
     # _ "a17d" eq { -101 verifyProof "done" die } rep # TODO: this line is just debugging
     # -100 verifyProof dump
     -01 assertions =[] ) "$." white
-    }==pstatement
+  }==pstatement
 
   { "${" ( currentBlock childBlock =currentBlock ) white statements ( currentBlock .parent =currentBlock ) "$}" white }==block
   { [ estatement pstatement dstatement block vstatement fstatement astatement cstatement white ] ",|" | fold ,* }==statements
@@ -261,6 +263,92 @@ map ==assertions
   sys .|argv len 2 neq { "usage: ./igor input.mm" die } rep
   1 sys .argv * parseFile
 } { _ dump _ keys dump .remaining die } ?!metamath
+
+<
+  { [ } "[|" deffd { ] |cat fold } "|]" deffd
+
+  emptyBlock ==renderContext
+  emptyBlock ==userContext
+
+  { ==name
+    [
+      { name constants .has } {
+        [| "\e[37m" name "\e[0m" |]
+      }
+      { name assertions .has } {
+        name assertions * ==a
+        [
+          { a .type "p" eq } { [| "\e[36m" name "\e[0m" |] }
+          { a .type "a" eq } { [| "\e[31m" name "\e[0m" |] }
+          { 1 } { name }
+        ] conds
+      }
+      { name renderContext isVar } { [| "\e[32m" name "\e[0m" |] }
+      { 1 } { name }
+    ] conds
+  } /renderName deffd
+
+  sys .out .|writeall /out deffd
+
+  { -- } /showBlock deffst
+
+  { ==a
+    a .ctx _ =renderContext _ =userContext showBlock
+    [| "assuming: " a .hyps { renderName " " } each "\n" |] out
+    [| a .thm { renderName " " } each "\n" |] out
+    " " ==sep
+    [| "mandatory disjunct:" a .disj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
+    " " =sep
+    [| "all disjunct:" a .allDisj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
+  } /showAssertion deffst
+
+  { ==p
+    p showAssertion
+  } /showProposition deffst
+
+  { ==name
+    [
+      { name constants .has } {
+        [| "$c " name renderName "\n" |] out
+      }
+      { name assertions .has } {
+        name assertions * ==a
+        [
+          { a .type "p" eq } { [| "$p " name renderName "\n" |] out a showProposition }
+          { a .type "a" eq } { [| "$a " name renderName "\n" |] out a showAssertion }
+          { 1 } { [| name " is an assertion of unknown type (probably a bug)\n" |] out }
+        ] conds
+      }
+      { name userContext isEHyp } {
+        [| "$e " name renderName "\n" |] out
+        [| name userContext getEHyp { renderName " " } each "\n" |] out
+      }
+      { name userContext isFHyp } {
+        [| "$f " name renderName "\n" |] out
+        [| name userContext getFHyp { renderName " " } each "\n" |] out
+      }
+      { 1 } {
+        [| name " is not known" "\n" |] out
+      }
+    ] conds
+  } /show deffd
+
+  {
+    1 ==running
+    { running } {
+      "> " sys .out .writeall
+      63356 sys .in .read ==input
+
+      [
+        { input "" eq } { 0 =running }
+        { input "quit\n" eq } { 0 =running }
+        { input "^show (.*)\n" regex } { show }
+      ] conds
+    } loop
+  }
+> -- /interactive deffd
+
+interactive
 #
 # {
 #   sys .argv len { 0 sys .argv * } { "/proc/self/fd/0" } ? * include
