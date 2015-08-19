@@ -269,6 +269,7 @@ map ==assertions
 
   emptyBlock ==renderContext
   emptyBlock ==userContext
+  emptyBlock ==proofContext
 
   { ==name
     [
@@ -290,7 +291,7 @@ map ==assertions
 
   sys .out .|writeall /out deffd
 
-  { -- } /showBlock deffst
+  { -- } /showBlock deffd
 
   { ==a
     a .ctx _ =renderContext _ =userContext showBlock
@@ -300,11 +301,11 @@ map ==assertions
     [| "mandatory disjunct:" a .disj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
     " " =sep
     [| "all disjunct:" a .allDisj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
-  } /showAssertion deffst
+  } /showAssertion deffd
 
   { ==p
     p showAssertion
-  } /showProposition deffst
+  } /showProposition deffd
 
   { ==name
     [
@@ -327,11 +328,200 @@ map ==assertions
         [| "$f " name renderName "\n" |] out
         [| name userContext getFHyp { renderName " " } each "\n" |] out
       }
+      { name userContext isVar } {
+        [| "$v " name renderName "\n" |] out
+      }
       { 1 } {
         [| name " is not known" "\n" |] out
       }
     ] conds
   } /show deffd
+
+  { ==prompt
+    0 ==numberRead
+    { numberRead not } {
+      prompt "> " cat sys .out .writeall
+      63356 sys .in .read ==input
+      input "^(\\d+)\n" regex { 1 =numberRead txt .consume .u } rep
+    } loop
+  } /readNumber deffd
+
+  { ==assertion ==tokens list ==result
+    assertion .thm { 0 } '*0.0 ==starts
+    assertion .thm { 0 } '*0.0 ==ends
+    assertion .thm len ==tokenCount
+
+    { ==i
+      i assertion .thm * ==var
+      var constants .has {
+        i 0 eq { 0 } { i 1 sub ends * } ? * ==pos
+        pos tokens * var eq {
+          pos i starts =[]
+          pos 1 add i ends =[]
+          i 1 add handleToken
+        } rep
+      } {
+        i 0 eq { 0 } { i 1 sub ends * } ? * ==start
+        start i starts =[]
+        start tokens len 1 add range {
+          i ends =[]
+          i 1 add handleToken
+        } each
+      } ? *
+    } /moveToken deffst
+
+    { ==i
+      i tokenCount eq not {
+        i moveToken
+      } {
+        tokenCount 1 sub ends * tokens len eq {
+          map ==substitution
+          0 tokenCount range { ==j
+            j assertion .thm * ==var
+            var constants .has not {
+              j starts * j ends * range tokens * var substitution =[]
+            } rep
+          } each
+          substitution result .append1
+        } rep
+      } ? *
+    } /handleToken deffst
+
+    0 handleToken
+
+    result
+  } /possibleSubstitutions deffd
+
+  { =*substitution ==tokens
+    [
+      tokens { _ constants .has not { substitution _ len dearray } rep } each
+    ]
+  } /applySubstitution deffst
+
+  { ==proposition
+    proposition .ctx _ =proofContext
+    list ==goals
+    proposition .thm goals .append1
+    list ==disj
+    proposition .allDisj { disj .append1 } each
+    0 ==selectedGoal
+    0 ==nextMetaVariable
+
+    { ==substitution ==theorem
+      [| "applying with:\n" |] out
+      substitution dom { ==name
+        [| name " = " name substitution * { renderName " " } each "\n" |] out
+      } each
+
+      theorem mandatoryVariables dom { ==var
+        var constants .has not {
+          var substitution .has not {
+            [| "$" var "." nextMetaVariable _ 1 add =nextMetaVariable txt .produce .u |] ==newVar
+            [ newVar ] var substitution =[]
+          } rep
+        } rep
+      } each
+
+      list ==newGoals
+      # TODO: make a list .remove
+      0 selectedGoal range selectedGoal 1 add goals len range cat { goals * newGoals .append1 } each
+
+      theorem .hyps { ==name
+        [
+          { name theorem .ctx isEHyp } {
+            name theorem .ctx getEHyp substitution applySubstitution newGoals .append1
+          }
+          { name theorem .ctx isFHyp } {
+            name theorem .ctx getFHyp substitution applySubstitution newGoals .append1
+          }
+          { 1 } {
+            [| "hypothesis " name " cannot be resolved" "\n" |] out
+          }
+        ] conds
+      } each
+      newGoals =goals
+    } /applyTheorem deffd
+
+    { ==name
+      [
+        { name assertions .has } {
+          name assertions * ==a
+          [
+            { a .type "p" eq } { [| "$p " name renderName "\n" |] out a showProposition }
+            { a .type "a" eq } {
+              selectedGoal goals * a possibleSubstitutions ==choices
+
+              [
+                { choices len 0 eq } {
+                  [| "no possible substitutions\n" |] out
+                  name show
+                }
+                { choices len 1 eq } {
+                  a 0 choices * applyTheorem
+                }
+                { choices len 1 ge } {
+                  [| "multiple substitutions possible\n" |] out
+                  name show
+                  0 choices len range { ==i
+                    [| i txt .produce .u ") " a .thm i choices * applySubstitution { renderName " " } each "\n" |] out
+                  } each
+
+                  a "choice" readNumber choices * applyTheorem
+                }
+              ] conds
+            }
+            { 1 } { [| name " is an assertion of unknown type (probably a bug)\n" |] out }
+          ] conds
+        }
+        { name userContext isEHyp } {
+          [| "$e " name renderName "\n" |] out
+          [| name userContext getEHyp { renderName " " } each "\n" |] out
+        }
+        { name userContext isFHyp } {
+          [| "$f " name renderName "\n" |] out
+          [| name userContext getFHyp { renderName " " } each "\n" |] out
+        }
+        { 1 } {
+          [| name " is not usable" "\n" |] out
+          name show
+        }
+      ] conds
+    } /use deffst
+
+    1 ==running
+    { running } {
+      proofContext _ =userContext =renderContext
+
+      " " ==sep
+      [| disj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
+      goals dom { ==i
+        i selectedGoal eq "\e[1m" "" ? ==hl
+        [| hl i txt .produce .u ") " i goals * { hl -01 renderName " " } each "\e[0m\n" |] out
+      } each
+
+      "proof> " sys .out .writeall
+      63356 sys .in .read ==input
+
+      [
+        { input "" eq } { 0 =running }
+        { input "done\n" eq } { 0 =running }
+        { input "^show (.*)\n" regex } { show }
+        { input "^(\\d+)\n" regex } {
+          txt .consume .u _ goals len ge { -- goals len 1 sub } rep =selectedGoal
+        }
+        { input "^use (.*)\n" regex } { use }
+      ] conds
+    } loop
+  } /proofProposition deffd
+
+  { ==name
+    name assertions .has { name assertions * .type "p" eq } { 0 } ? * {
+      name assertions * proofProposition
+    } {
+      [| name " is not a provable proposition\n" |] out
+      name show
+    } ? *
+  } /proof deffd
 
   {
     1 ==running
@@ -343,6 +533,7 @@ map ==assertions
         { input "" eq } { 0 =running }
         { input "quit\n" eq } { 0 =running }
         { input "^show (.*)\n" regex } { show }
+        { input "^proof (.*)\n" regex } { proof }
       ] conds
     } loop
   }
