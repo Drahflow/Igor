@@ -415,17 +415,21 @@ map ==assertions
   } /openGoals deffst
 
   { ==proposition
-    proposition .ctx _ =proofContext
-    proposition .thm goal ==mainGoal
+
     map ==disj
-    proposition .allDisj { 2 dearray ==x ==y
+    { ==x ==y
       x y gt { x y =x =y } rep
       x disj .has not { map x disj =[] } rep
       1 y x disj * =[]
-    } each
+    } /markDisj deffst
+
+    proposition .ctx _ =proofContext
+    proposition .thm goal ==mainGoal
+    proposition .allDisj { 2 dearray markDisj } each
     0 ==selectedGoal
     0 ==nextMetaVariable
     map ==metaSubstitution
+    1 ==redisplay
 
     { metaSubstitution applySubstitution } /expandMeta deffst
 
@@ -448,11 +452,7 @@ map ==assertions
         x substitution * { ==xTok
           xTok constants .has not {
             y substitution * { ==yTok
-              yTok constants .has not { xTok ==xt yTok ==yt
-                xt yt gt { xt yt =xt =yt } rep
-                xt disj .has not { map xt disj =[] } rep
-                1 yt xt disj * =[]
-              } rep
+              yTok constants .has not { xTok yTok markDisj } rep
             } each
           } rep
         } each
@@ -489,6 +489,7 @@ map ==assertions
               [
                 { choices len 0 eq } {
                   [| "\e[31mno possible substitutions\e[0m\n" |] out
+                  0 =redisplay
                   name show
                 }
                 { choices len 1 eq } {
@@ -496,6 +497,7 @@ map ==assertions
                 }
                 { choices len 1 ge } {
                   [| "\e[31mmultiple substitutions possible\e[0m\n" |] out
+                  0 =redisplay
                   name show
                   0 choices len range { ==i
                     [| i txt .produce .u ") " a .thm i choices * applySubstitution { renderName " " } each "\n" |] out
@@ -509,14 +511,19 @@ map ==assertions
           ] conds
         }
         { name userContext isEHyp } {
-          [| "$e " name renderName "\n" |] out
-          [| name userContext getEHyp { renderName " " } each "\n" |] out
+          goal .thm expandMeta name userContext getEHyp eq all {
+            list map < "f" ==type userContext ==ctx name userContext getEHyp ==thm > step goal .close
+          } {
+            [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
+            0 =redisplay
+          } ? *
         }
         { name userContext isFHyp } {
           goal .thm expandMeta name userContext getFHyp eq all {
             list map < "f" ==type userContext ==ctx name userContext getFHyp ==thm > step goal .close
           } {
             [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
+            0 =redisplay
           } ? *
         }
         { 1 } {
@@ -534,17 +541,27 @@ map ==assertions
           y x disj * .has {
             1 =disjunctionsViolated
             [| "\e[31mproposed let would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+            0 =redisplay
           } rep
         } rep
       } each
-      disjunctionsViolated not { tokens metaVar metaSubstitution =[] } rep
+      disjunctionsViolated not {
+        tokens metaVar metaSubstitution =[]
+
+        disj dom { ==x
+          x disj * dom { ==y
+            x metaVar eq { tokens { ==t t constants .has not { t y markDisj } rep } each } rep
+            y metaVar eq { tokens { ==t t constants .has not { t x markDisj } rep } each } rep
+          } each
+        } each
+      } rep
     } /let deffst
 
     1 ==running
-    1 ==redisplay
 
     { running } {
       proofContext _ =userContext =renderContext
+      mainGoal openGoals ==goals
 
       redisplay {
         " " ==sep
@@ -554,7 +571,6 @@ map ==assertions
           } each
         } each "\n" |] out
 
-        mainGoal openGoals ==goals
         goals dom { ==i
           i selectedGoal eq "\e[1m" "" ? ==hl
           [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
