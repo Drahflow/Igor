@@ -595,16 +595,16 @@ map ==assertions
         { input "^unlet (\\$[^=]+)\n" regex } { ==v [ v ] v metaSubstitution =[] }
       ] conds
     } loop
-  } /proofProposition deffd
+  } /proveProposition deffd
 
   { ==name
     name assertions .has { name assertions * .type "p" eq } { 0 } ? * {
-      name assertions * proofProposition
+      name assertions * proveProposition
     } {
       [| name " is not a provable proposition\n" |] out
       name show
     } ? *
-  } /proof deffd
+  } /prove deffd
 
   {
     1 ==running
@@ -616,7 +616,7 @@ map ==assertions
         { input "" eq } { 0 =running }
         { input "quit\n" eq } { 0 =running }
         { input "^show (.*)\n" regex } { show }
-        { input "^proof (.*)\n" regex } { proof }
+        { input "^prove (.*)\n" regex } { prove }
       ] conds
     } loop
   }
