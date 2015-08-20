@@ -285,6 +285,7 @@ map ==assertions
         ] conds
       }
       { name renderContext isVar } { [| "\e[32m" name "\e[0m" |] }
+      { name "^\\$" regex } { [| "\e[33m" name "\e[0m" |] }
       { 1 } { name }
     ] conds
   } /renderName deffd
@@ -382,6 +383,7 @@ map ==assertions
               j starts * j ends * range tokens * var substitution =[]
             } rep
           } each
+
           substitution result .append1
         } rep
       } ? *
@@ -392,22 +394,42 @@ map ==assertions
     result
   } /possibleSubstitutions deffd
 
-  { =*substitution ==tokens
-    [
-      tokens { _ constants .has not { substitution _ len dearray } rep } each
-    ]
+  { ==substitution ==tokens
+    [ tokens { _ substitution .has { substitution * _ len dearray } rep } each ]
   } /applySubstitution deffst
+
+  { <
+    ==thm < > ==resolution 1 ==isopen
+
+    { < > =resolution 1 =isopen } =*open
+    { =resolution 0 =isopen } =*close
+  > } /goal deffst
+
+  { < ==theorem ==substitution ==hypotheses > } /step deffst
+
+  { # ==goal
+    {
+      _ .isopen { } { .resolution .hypotheses |collect each } ? *
+    } /collect deffst
+    [ -01 collect ]
+  } /openGoals deffst
 
   { ==proposition
     proposition .ctx _ =proofContext
-    list ==goals
-    proposition .thm goals .append1
-    list ==disj
-    proposition .allDisj { disj .append1 } each
+    proposition .thm goal ==mainGoal
+    map ==disj
+    proposition .allDisj { 2 dearray ==x ==y
+      x y gt { x y =x =y } rep
+      x disj .has not { map x disj =[] } rep
+      1 y x disj * =[]
+    } each
     0 ==selectedGoal
     0 ==nextMetaVariable
+    map ==metaSubstitution
 
-    { ==substitution ==theorem
+    { metaSubstitution applySubstitution } /expandMeta deffst
+
+    { ==closedGoal ==substitution ==theorem
       [| "applying with:\n" |] out
       substitution dom { ==name
         [| name " = " name substitution * { renderName " " } each "\n" |] out
@@ -422,51 +444,64 @@ map ==assertions
         } rep
       } each
 
-      list ==newGoals
-      # TODO: make a list .remove
-      0 selectedGoal range selectedGoal 1 add goals len range cat { goals * newGoals .append1 } each
+      theorem .disj { 2 dearray ==x ==y
+        x substitution * { ==xTok
+          xTok constants .has not {
+            y substitution * { ==yTok
+              yTok constants .has not { xTok ==xt yTok ==yt
+                xt yt gt { xt yt =xt =yt } rep
+                xt disj .has not { map xt disj =[] } rep
+                1 yt xt disj * =[]
+              } rep
+            } each
+          } rep
+        } each
+      } each
 
+      list ==hypotheses
       theorem .hyps { ==name
         [
           { name theorem .ctx isEHyp } {
-            name theorem .ctx getEHyp substitution applySubstitution newGoals .append1
+            name theorem .ctx getEHyp substitution applySubstitution goal hypotheses .append1
           }
           { name theorem .ctx isFHyp } {
-            name theorem .ctx getFHyp substitution applySubstitution newGoals .append1
+            name theorem .ctx getFHyp substitution applySubstitution goal hypotheses .append1
           }
           { 1 } {
             [| "hypothesis " name " cannot be resolved" "\n" |] out
           }
         ] conds
       } each
-      newGoals =goals
+
+      # TODO: index open goals and reuse
+
+      hypotheses substitution theorem step closedGoal .close
     } /applyTheorem deffd
 
-    { ==name
+    { ==goal ==name
       [
         { name assertions .has } {
           name assertions * ==a
           [
-            { a .type "p" eq } { [| "$p " name renderName "\n" |] out a showProposition }
-            { a .type "a" eq } {
-              selectedGoal goals * a possibleSubstitutions ==choices
+            { a .type "p" eq a .type "a" eq or } {
+              goal .thm expandMeta a possibleSubstitutions ==choices
 
               [
                 { choices len 0 eq } {
-                  [| "no possible substitutions\n" |] out
+                  [| "\e[31mno possible substitutions\e[0m\n" |] out
                   name show
                 }
                 { choices len 1 eq } {
-                  a 0 choices * applyTheorem
+                  a 0 choices * goal applyTheorem
                 }
                 { choices len 1 ge } {
-                  [| "multiple substitutions possible\n" |] out
+                  [| "\e[31mmultiple substitutions possible\e[0m\n" |] out
                   name show
                   0 choices len range { ==i
                     [| i txt .produce .u ") " a .thm i choices * applySubstitution { renderName " " } each "\n" |] out
                   } each
 
-                  a "choice" readNumber choices * applyTheorem
+                  a "choice" readNumber choices * goal applyTheorem
                 }
               ] conds
             }
@@ -478,8 +513,11 @@ map ==assertions
           [| name userContext getEHyp { renderName " " } each "\n" |] out
         }
         { name userContext isFHyp } {
-          [| "$f " name renderName "\n" |] out
-          [| name userContext getFHyp { renderName " " } each "\n" |] out
+          goal .thm expandMeta name userContext getFHyp eq all {
+            list map < "f" ==type userContext ==ctx name userContext getFHyp ==thm > step goal .close
+          } {
+            [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
+          } ? *
         }
         { 1 } {
           [| name " is not usable" "\n" |] out
@@ -488,16 +526,41 @@ map ==assertions
       ] conds
     } /use deffst
 
+    { ==metaVar ==tokens
+      0 ==disjunctionsViolated
+      tokens { ==x metaVar ==y
+        x y gt { x y =x =y } rep
+        x disj .has {
+          y x disj * .has {
+            1 =disjunctionsViolated
+            [| "\e[31mproposed let would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+          } rep
+        } rep
+      } each
+      disjunctionsViolated not { tokens metaVar metaSubstitution =[] } rep
+    } /let deffst
+
     1 ==running
+    1 ==redisplay
+
     { running } {
       proofContext _ =userContext =renderContext
 
-      " " ==sep
-      [| disj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
-      goals dom { ==i
-        i selectedGoal eq "\e[1m" "" ? ==hl
-        [| hl i txt .produce .u ") " i goals * { hl -01 renderName " " } each "\e[0m\n" |] out
-      } each
+      redisplay {
+        " " ==sep
+        [| disj dom sort { ==x
+          x disj * dom sort { ==y
+            sep ", " =sep x renderName " <!> " y renderName
+          } each
+        } each "\n" |] out
+
+        mainGoal openGoals ==goals
+        goals dom { ==i
+          i selectedGoal eq "\e[1m" "" ? ==hl
+          [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
+        } each
+      } rep
+      1 =redisplay
 
       "proof> " sys .out .writeall
       63356 sys .in .read ==input
@@ -505,11 +568,15 @@ map ==assertions
       [
         { input "" eq } { 0 =running }
         { input "done\n" eq } { 0 =running }
-        { input "^show (.*)\n" regex } { show }
+        { input "^show (.*)\n" regex } { show 0 =redisplay }
         { input "^(\\d+)\n" regex } {
           txt .consume .u _ goals len ge { -- goals len 1 sub } rep =selectedGoal
         }
-        { input "^use (.*)\n" regex } { use }
+        { input "^use (.*)\n" regex } { selectedGoal goals * use }
+        { input "^let (\\$[^=]+) = (.*)\n" regex } { ==metaVar " " str .split ==tokens
+          tokens metaVar let
+        }
+        { input "^unlet (\\$[^=]+)\n" regex } { ==v [ v ] v metaSubstitution =[] }
       ] conds
     } loop
   } /proofProposition deffd
