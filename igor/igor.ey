@@ -296,7 +296,23 @@ map ==assertions
 
   { ==a
     a .ctx _ =renderContext _ =userContext showBlock
-    [| "assuming: " a .hyps { renderName " " } each "\n" |] out
+    [| "assuming:\n" |] out
+    a .hyps { ==hyp
+      [
+        { hyp userContext isEHyp } {
+          [| "$e " hyp renderName "\n" |] out
+          [| hyp userContext getEHyp { renderName " " } each "\n" |] out
+        }
+        { hyp userContext isFHyp } {
+          [| "$f " hyp renderName "\n" |] out
+          [| hyp userContext getFHyp { renderName " " } each "\n" |] out
+        }
+        { 1 } {
+          [| "\e[31mcould not resolve hypothesis:\e[0m " hyp "\n" |] out
+        }
+      ] conds
+    } each
+    [| "gives:\n" |] out
     [| a .thm { renderName " " } each "\n" |] out
     " " ==sep
     [| "mandatory disjunct:" a .disj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
