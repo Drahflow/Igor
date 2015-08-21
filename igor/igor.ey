@@ -70,7 +70,7 @@ map ==assertions
   { label "$e" white ( $$e [ ) mathsymbol mathsymbol ,* ( ] -01 currentBlock .e =[] ) "$." white }==estatement
   { "$d" white ( [ ) mathsymbol mathsymbol ,+ ( ] currentBlock .d .append1 ) "$." white }==dstatement
   { label "$a" white ( $$a [ ) mathsymbol mathsymbol ,* ( ]
-    < "a" ==type currentBlock ==ctx ==thm { "Assumption has no proof" die }" =*proof
+    < "a" ==type currentBlock ==ctx ==thm { "Assumption has no proof" die }" =*proof _ ==name
       { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
     -01 assertions =[] ) "$." white
   }==astatement
@@ -97,7 +97,7 @@ map ==assertions
     } > -- ) }==compressedproof
   { label "$p" white ( $$p [ ) mathsymbol mathsymbol ,* ( ] ) "$="
     white compressedproof proof ,| (
-    < "p" ==type currentBlock ==ctx -01 ==thm =*proof
+    < "p" ==type currentBlock ==ctx -01 ==thm =*proof _ ==name
       { mandatoryHypotheses ==hyps }' { mandatoryDisjunct ==disj }' { allDisjunct ==allDisj }' > -01*02*03*0
     # -101 "simpl31" eq { perfstats "done" die } rep
     # -101 "vtoclga" eq { perfstats "done" die } rep
@@ -512,7 +512,8 @@ map ==assertions
         }
         { name userContext isEHyp } {
           goal .thm expandMeta name userContext getEHyp eq all {
-            list map < "f" ==type userContext ==ctx name userContext getEHyp ==thm > step goal .close
+            list map < "f" ==type userContext ==ctx name userContext getEHyp ==thm { "no proof" die } =*proof name ==name >
+              step goal .close
           } {
             [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
             0 =redisplay
@@ -520,7 +521,8 @@ map ==assertions
         }
         { name userContext isFHyp } {
           goal .thm expandMeta name userContext getFHyp eq all {
-            list map < "f" ==type userContext ==ctx name userContext getFHyp ==thm > step goal .close
+            list map < "f" ==type userContext ==ctx name userContext getFHyp ==thm { "no proof" die } =*proof name ==name >
+              step goal .close
           } {
             [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
             0 =redisplay
@@ -556,6 +558,51 @@ map ==assertions
         } each
       } rep
     } /let deffst
+
+    { ==ctx map _ ==result # returned
+      [ ctx { _ .?'e }' { _ .parent }' loop -- ] reverse ==ctxs
+      ctxs { _ ==c .f _ =*fs dom { _ fs -01 result =[] } each } each
+    } /collectFHyps deffst
+
+    { ==ctx map _ ==result # returned
+      [ ctx { _ .?'e }' { _ .parent }' loop -- ] reverse ==ctxs
+      ctxs { _ ==c .e _ =*es dom { _ es -01 result =[] } each } each
+    } /collectEHyps deffst
+
+    0 ==theoremIndexBuilt
+    < map ==theoremIndex
+      { theoremIndexBuilt not {
+        assertions dom { ==name
+          name [| name assertions * .thm { " " } each |] theoremIndex =[]
+        } each
+        [ |collectEHyps |collectFHyps ] { =*collect
+          proofContext collect ==hyps hyps dom { ==name
+            name [| name hyps * { " " } each |] theoremIndex =[]
+          } each
+        } each
+        1 =theoremIndexBuilt
+      } rep theoremIndex }
+    > -- /theoremIndex deffst
+
+    { ==goal
+      [| goal .thm expandMeta { " " } each |] ==txt
+      txt theoremIndex .has {
+        [| "using: " txt theoremIndex * "\n" |] out
+        txt theoremIndex * goal use
+      } rep
+    } /auto deffst
+
+    {
+      { ==indent ==goal
+        [|
+          indent { " " } rep
+          goal .isopen { "\e[31m???\e[0m " } { goal .resolution .theorem .name " " } ? *
+          goal .thm expandMeta { renderName " " } each "\n"
+        |] out
+        goal .isopen not { goal .resolution .hypotheses { indent 2 add recurse } each } rep
+      } /recurse deffst
+      mainGoal 0 recurse
+    } /tree deffst
 
     1 ==running
 
@@ -593,6 +640,8 @@ map ==assertions
           tokens metaVar let
         }
         { input "^unlet (\\$[^=]+)\n" regex } { ==v [ v ] v metaSubstitution =[] }
+        { input "auto\n" eq } { selectedGoal goals * auto }
+        { input "tree\n" eq } { tree }
       ] conds
     } loop
   } /proveProposition deffd
