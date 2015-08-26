@@ -264,6 +264,21 @@ map ==assertions
   1 sys .argv * parseFile
 } { _ dump _ keys dump .remaining die } ?!metamath
 
+{ { _ sys .asm .rawAddress txt .produce .u defv }' scope }
+<
+  /generate deffd
+  0 ==m # placeholder, zero value is never read
+  { =m [ m .v keys { m .v -01 . } each ] }' "#dom" defmd
+  { =m m .v ==v =*f v keys { v -01 . f }' each } "#each" defmd
+  { 0 } "#istart" deffd
+  { =m m .v keys len eq }' "#iend" defmd
+  { 1 add }" "#istep" deffd
+  { =m m .v keys * }' "#itrans" defmd
+  { =m m .v -01 sys .asm .rawAddress txt .produce .u .?' }' /has defmd
+  { =m m .v ==v "#iclone" | * ==n v keys { _ v -01 . -01 n =[] } each n }' /clone defmd
+  { < generate ==v "put" =* > }' _ "#iclone" deffd
+> -- /objset deffd
+
 <
   { [ } "[|" deffd { ] |cat fold } "|]" deffd
 
@@ -517,6 +532,7 @@ map ==assertions
                   name show
                   0 choices len range { ==i
                     [| i txt .produce .u ") " a .thm i choices * applySubstitution { renderName " " } each "\n" |] out
+                    [| "(with " i choices * dom { ==v v "=" v i choices * * { " " } each " " } each ")\n" |] out
                   } each
 
                   a "choice" readNumber choices * goal applyTheorem
@@ -585,20 +601,23 @@ map ==assertions
       ctxs { _ ==c .e _ =*es dom { _ es -01 result =[] } each } each
     } /collectEHyps deffst
 
-    0 ==theoremIndexBuilt
-    < map ==theoremIndex
-      { theoremIndexBuilt not {
-        assertions dom { ==name
-          name [| name assertions * .thm { " " } each |] theoremIndex =[]
+    { =*f 0 ==computed "" ==?result {
+      computed not { 1 =computed f =result } rep
+      result
+    } } /memoized deffst
+
+    { map _ ==theoremIndex # returned
+      [| "Indexing theorems by text...\n" |] out
+
+      assertions dom { ==name
+        name [| name assertions * .thm { " " } each |] theoremIndex =[]
+      } each
+      [ |collectEHyps |collectFHyps ] { =*collect
+        proofContext collect ==hyps hyps dom { ==name
+          name [| name hyps * { " " } each |] theoremIndex =[]
         } each
-        [ |collectEHyps |collectFHyps ] { =*collect
-          proofContext collect ==hyps hyps dom { ==name
-            name [| name hyps * { " " } each |] theoremIndex =[]
-          } each
-        } each
-        1 =theoremIndexBuilt
-      } rep theoremIndex }
-    > -- /theoremIndex deffst
+      } each
+    } memoized /theoremIndex deffst
 
     { ==goal
       [| goal .thm expandMeta { " " } each |] ==txt
@@ -608,17 +627,77 @@ map ==assertions
       } rep
     } /auto deffst
 
+    # Models all known truths as an accepting FSM. Theorem variables become
+    # self-loops, theorem tokens become transitions.
+    { < map ==transitions objset ==theorems > } /tokenNode deffst
+
+    { tokenNode _ ==theoremTokenIndex # returned
+      [| "Indexing theorems by tokens...\n" |] out
+
+      { ==name ==tokens
+        objset ==i theoremTokenIndex i .put
+
+        tokens { ==tok
+          tok constants .has {
+            objset ==newI
+            i { ==n
+              tok n .transitions .has not { tokenNode tok n .transitions =[] } rep
+              tok n .transitions * newI .put
+            } each
+            newI =i
+          } rep
+        } each
+
+        i { ==n
+          name n .theorems .put
+        } each
+      } /index deffst
+
+      assertions dom { ==name name assertions * .thm name index } each
+      [ |collectEHyps |collectFHyps ] { =*collect
+        proofContext collect ==hyps hyps dom { ==name
+          name hyps * name index
+        } each
+      } each
+    } memoized /theoremTokenIndex deffst
+
+    { ==goal
+      objset ==i
+      theoremTokenIndex i .put
+      goal .thm expandMeta { ==tok
+        i { ==n
+          tok n .transitions .has {
+            tok n .transitions * i .put
+          } rep
+        } each
+      } each
+
+      [| "Possible theorems:\n" |] out
+      i { .theorems { " " cat out } each } each "\n" out
+    } /suggest deffst
+
     {
+      0 ==i
       { ==indent ==goal
         [|
-          indent { " " } rep
+          i _ 1 add =i txt .produce .u _ out ")" out len
+          indent -01 sub { " " } rep
           goal .isopen { "\e[31m???\e[0m " } { goal .resolution .theorem .name " " } ? *
           goal .thm expandMeta { renderName " " } each "\n"
         |] out
         goal .isopen not { goal .resolution .hypotheses { indent 2 add recurse } each } rep
       } /recurse deffst
-      mainGoal 0 recurse
+      mainGoal 4 recurse
     } /tree deffst
+
+    { ==toReopen
+      0 ==i
+      { ==goal
+        i _ 1 add =i toReopen eq { goal .open } rep
+        goal .isopen not { goal .resolution .hypotheses |recurse each } rep
+      } /recurse deffst
+      mainGoal recurse
+    } /reopen deffst
 
     1 ==running
 
@@ -658,6 +737,8 @@ map ==assertions
         { input "^unlet (\\$[^=]+)\n" regex } { ==v [ v ] v metaSubstitution =[] }
         { input "auto\n" eq } { selectedGoal goals * auto }
         { input "tree\n" eq } { tree }
+        { input "reopen (\\d+)\n" regex } { txt .consume .u reopen }
+        { input "sug\n" eq } { selectedGoal goals * suggest }
       ] conds
     } loop
   } /proveProposition deffd
