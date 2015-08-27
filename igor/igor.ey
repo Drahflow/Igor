@@ -379,8 +379,8 @@ map ==assertions
   } /readNumber deffd
 
   { ==assertion ==tokens list ==result
-    assertion .thm { 0 } '*0.0 ==starts
-    assertion .thm { 0 } '*0.0 ==ends
+    assertion .thm { -- 0 } '*0.0 ==starts
+    assertion .thm { -- 0 } '*0.0 ==ends
     assertion .thm len ==tokenCount
 
     { ==i
@@ -408,14 +408,25 @@ map ==assertions
       } {
         tokenCount 1 sub ends * tokens len eq {
           map ==substitution
+          1 ==valid
           0 tokenCount range { ==j
             j assertion .thm * ==var
             var constants .has not {
-              j starts * j ends * range tokens * var substitution =[]
+              var substitution .has {
+                j starts * j ends * range tokens * ==newValue
+                var substitution * ==oldValue
+                newValue len oldValue len eq {
+                  newValue oldValue eq all =valid
+                } {
+                  0 =valid
+                } ? *
+              } {
+                j starts * j ends * range tokens * var substitution =[]
+              } ? *
             } rep
           } each
 
-          substitution result .append1
+          valid { substitution result .append1 } rep
         } rep
       } ? *
     } /handleToken deffst
@@ -439,10 +450,11 @@ map ==assertions
   { < ==theorem ==substitution ==hypotheses > } /step deffst
 
   { # ==goal
+    objset ==goals
     {
-      _ .isopen { } { .resolution .hypotheses |collect each } ? *
+      _ .isopen { goals .put } { .resolution .hypotheses |collect each } ? *
     } /collect deffst
-    [ -01 collect ]
+    collect goals dom
   } /openGoals deffst
 
   { ==proposition
@@ -567,6 +579,26 @@ map ==assertions
       ] conds
     } /use deffst
 
+    { ==goal ==name
+      0 ==usable
+      [
+        { name assertions .has } {
+          name assertions * ==a
+          a .type "p" eq a .type "a" eq or {
+            goal .thm expandMeta a possibleSubstitutions ==choices
+            choices len 1 ge =usable
+          } rep
+        }
+        { name userContext isEHyp } {
+          goal .thm expandMeta name userContext getEHyp eq all =usable
+        }
+        { name userContext isFHyp } {
+          goal .thm expandMeta name userContext getFHyp eq all =usable
+        }
+      ] conds
+      usable
+    } /canUse deffst
+
     { ==metaVar ==tokens
       0 ==disjunctionsViolated
       tokens { ==x metaVar ==y
@@ -619,12 +651,38 @@ map ==assertions
       } each
     } memoized /theoremIndex deffst
 
+    { map _ ==closedGoalIndex # returned
+      { ==goal
+        goal .isopen not {
+          [| goal .thm expandMeta { " " } each |] ==txt
+          goal txt closedGoalIndex =[]
+          goal .resolution .hypotheses |recurse each
+        } rep
+      } /recurse deffst
+      mainGoal recurse
+    } /closedGoalIndex deffst
+
     { ==goal
       [| goal .thm expandMeta { " " } each |] ==txt
-      txt theoremIndex .has {
-        [| "using: " txt theoremIndex * "\n" |] out
-        txt theoremIndex * goal use
-      } rep
+      [
+        { txt theoremIndex .has } {
+          [| "using: " txt theoremIndex * "\n" |] out
+          txt theoremIndex * goal use
+        }
+        { txt closedGoalIndex .has } {
+          [| "re-using earlier proof\n" |] out
+          txt closedGoalIndex * .resolution goal .close
+        }
+        { txt "class ([^ ]+) " regex } { ==obj
+          [| "set " obj " " |] ==setthm
+          setthm theoremIndex .has {
+            [| "using (1): cv\n" |] out
+            "cv" goal use
+            [| "using (2): " setthm "\n" |] out
+            setthm theoremIndex * 0 goal .resolution .hypotheses * use
+          } rep
+        }
+      ] conds
     } /auto deffst
 
     # Models all known truths as an accepting FSM. Theorem variables become
@@ -661,10 +719,10 @@ map ==assertions
       } each
     } memoized /theoremTokenIndex deffst
 
-    { ==goal
+    { ==tokens
       objset ==i
       theoremTokenIndex i .put
-      goal .thm expandMeta { ==tok
+      tokens { ==tok
         i { ==n
           tok n .transitions .has {
             tok n .transitions * i .put
@@ -673,8 +731,13 @@ map ==assertions
       } each
 
       [| "Possible theorems:\n" |] out
-      i { .theorems { " " cat out } each } each "\n" out
-    } /suggest deffst
+      i { .theorems 0 ==some { ==thm
+        # thm goal canUse { thm " " cat out } rep
+        thm " " cat out 1 =some
+      } each some { "\n" out } rep } each
+    } /search deffst
+
+    { .thm expandMeta search } /suggest deffst
 
     {
       0 ==i
@@ -735,10 +798,24 @@ map ==assertions
           tokens metaVar let
         }
         { input "^unlet (\\$[^=]+)\n" regex } { ==v [ v ] v metaSubstitution =[] }
-        { input "auto\n" eq } { selectedGoal goals * auto }
+        { input "lets\n" eq } {
+          metaSubstitution dom { ==v
+            [| v " = " v metaSubstitution * { renderName " " } each "\n" |] out
+          } each
+          0 =redisplay
+        }
+        { input "auto\n" eq
+          input "\n" eq or } {
+          goals len {
+            selectedGoal goals * auto
+          } {
+            "\e[32mWe are done here.\e[0m\n" out
+          } ? *
+        }
         { input "tree\n" eq } { tree }
         { input "reopen (\\d+)\n" regex } { txt .consume .u reopen }
         { input "sug\n" eq } { selectedGoal goals * suggest }
+        { input "search (.*)\n" regex } { " " str .split search }
       ] conds
     } loop
   } /proveProposition deffd
