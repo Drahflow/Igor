@@ -753,6 +753,15 @@ map ==assertions
       mainGoal 4 recurse
     } /tree deffst
 
+    {
+      { ==goal
+        goal .isopen not { goal .resolution .hypotheses |recurse each } rep
+        [| goal .isopen { "? " } { goal .resolution .theorem .name " " } ? * |] out
+      } /recurse deffst
+      mainGoal recurse
+      "$.\n" out
+    } /export deffst
+
     { ==toReopen
       0 ==i
       { ==goal
@@ -813,6 +822,7 @@ map ==assertions
           } ? *
         }
         { input "tree\n" eq } { tree }
+        { input "export\n" eq } { export }
         { input "reopen (\\d+)\n" regex } { txt .consume .u reopen }
         { input "sug\n" eq } { selectedGoal goals * suggest }
         { input "search (.*)\n" regex } { " " str .split search }
