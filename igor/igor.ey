@@ -473,6 +473,7 @@ map ==assertions
     0 ==nextMetaVariable
     map ==metaSubstitution
     1 ==redisplay
+    [ ] ==lastSearch
 
     { metaSubstitution applySubstitution } /expandMeta deffst
 
@@ -519,7 +520,7 @@ map ==assertions
       # TODO: index open goals and reuse
 
       hypotheses substitution theorem step closedGoal .close
-    } /applyTheorem deffd
+    } /applyTheorem deffst
 
     { ==goal ==name
       [
@@ -825,7 +826,8 @@ map ==assertions
         { input "export\n" eq } { export }
         { input "reopen (\\d+)\n" regex } { txt .consume .u reopen }
         { input "sug\n" eq } { selectedGoal goals * suggest }
-        { input "search (.*)\n" regex } { " " str .split search }
+        { input "search (.*)\n" regex } { " " str .split _ =lastSearch search }
+        { input "search\n" regex } { lastSearch search }
       ] conds
     } loop
   } /proveProposition deffd
