@@ -492,34 +492,51 @@ map ==assertions
         } rep
       } each
 
+      0 ==disjunctionsViolated
       theorem .disj { 2 dearray ==x ==y
         x substitution * { ==xTok
           xTok constants .has not {
             y substitution * { ==yTok
-              yTok constants .has not { xTok yTok markDisj } rep
+              yTok constants .has not { xTok yTok eq {
+                1 =disjunctionsViolated
+                [| "\e[31mproposed application would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+                0 =redisplay
+              } rep } rep
             } each
           } rep
         } each
       } each
 
-      list ==hypotheses
-      theorem .hyps { ==name
-        [
-          { name theorem .ctx isEHyp } {
-            name theorem .ctx getEHyp substitution applySubstitution goal hypotheses .append1
-          }
-          { name theorem .ctx isFHyp } {
-            name theorem .ctx getFHyp substitution applySubstitution goal hypotheses .append1
-          }
-          { 1 } {
-            [| "hypothesis " name " cannot be resolved" "\n" |] out
-          }
-        ] conds
-      } each
+      disjunctionsViolated not {
+        theorem .disj { 2 dearray ==x ==y
+          x substitution * { ==xTok
+            xTok constants .has not {
+              y substitution * { ==yTok
+                yTok constants .has not { xTok yTok markDisj } rep
+              } each
+            } rep
+          } each
+        } each
 
-      # TODO: index open goals and reuse
+        list ==hypotheses
+        theorem .hyps { ==name
+          [
+            { name theorem .ctx isEHyp } {
+              name theorem .ctx getEHyp substitution applySubstitution goal hypotheses .append1
+            }
+            { name theorem .ctx isFHyp } {
+              name theorem .ctx getFHyp substitution applySubstitution goal hypotheses .append1
+            }
+            { 1 } {
+              [| "hypothesis " name " cannot be resolved" "\n" |] out
+            }
+          ] conds
+        } each
 
-      hypotheses substitution theorem step closedGoal .close
+        # TODO: index open goals and reuse
+
+        hypotheses substitution theorem step closedGoal .close
+      } rep
     } /applyTheorem deffst
 
     { ==goal ==name
