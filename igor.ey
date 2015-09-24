@@ -416,7 +416,7 @@ map ==assertions
                 j starts * j ends * range tokens * ==newValue
                 var substitution * ==oldValue
                 newValue len oldValue len eq {
-                  newValue oldValue eq all =valid
+                  newValue oldValue eq all valid and =valid
                 } {
                   0 =valid
                 } ? *
@@ -821,7 +821,7 @@ map ==assertions
           txt .consume .u _ goals len ge { -- goals len 1 sub } rep =selectedGoal
         }
         { input "^use (.*)\n" regex } { selectedGoal goals * use }
-        { input "^let (\\$[^=]+) = (.*)\n" regex } { ==metaVar " " str .split ==tokens
+        { input "^let (\\$[^=]+) = (.*)\n" regex } { ==metaVar " " str .split { "" neq } grep ==tokens
           tokens metaVar let
         }
         { input "^unlet (\\$[^=]+)\n" regex } { ==v [ v ] v metaSubstitution =[] }
