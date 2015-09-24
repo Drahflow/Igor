@@ -1,9 +1,25 @@
 #!/home/drahflow/elymas/elymas/loaded
 
+{ { _ sys .asm .rawAddress txt .produce .u defv }' scope }
+<
+  /generate deffd
+  0 ==m # placeholder, zero value is never read
+  { =m [ m .v keys { m .v -01 . } each ] }' "#dom" defmd
+  { =m m .v ==v =*f v keys { v -01 . f }' each } "#each" defmd
+  { 0 } "#istart" deffd
+  { =m m .v keys len eq }' "#iend" defmd
+  { 1 add }" "#istep" deffd
+  { =m m .v keys * }' "#itrans" defmd
+  { =m m .v -01 sys .asm .rawAddress txt .produce .u .?' }' /has defmd
+  { =m m .v ==v "#iclone" | * ==n v keys { _ v -01 . -01 n =[] } each n }' /clone defmd
+  { < generate ==v "put" =* > }' _ "#iclone" deffd
+> -- /objset deffd
+
 map ==constants
 map ==assertions
+objset ==blocks
 { # ==parentBlock
-  < map ==f map ==e list ==d map ==v _ ==parent >'
+  < map ==f map ==e list ==d map ==v _ ==parent >' _ blocks .put
 } /childBlock deffd
 < > childBlock _ ==emptyBlock ==currentBlock
 
@@ -264,20 +280,20 @@ map ==assertions
   1 sys .argv * parseFile
 } { _ dump _ keys dump .remaining die } ?!metamath
 
-{ { _ sys .asm .rawAddress txt .produce .u defv }' scope }
-<
-  /generate deffd
-  0 ==m # placeholder, zero value is never read
-  { =m [ m .v keys { m .v -01 . } each ] }' "#dom" defmd
-  { =m m .v ==v =*f v keys { v -01 . f }' each } "#each" defmd
-  { 0 } "#istart" deffd
-  { =m m .v keys len eq }' "#iend" defmd
-  { 1 add }" "#istep" deffd
-  { =m m .v keys * }' "#itrans" defmd
-  { =m m .v -01 sys .asm .rawAddress txt .produce .u .?' }' /has defmd
-  { =m m .v ==v "#iclone" | * ==n v keys { _ v -01 . -01 n =[] } each n }' /clone defmd
-  { < generate ==v "put" =* > }' _ "#iclone" deffd
-> -- /objset deffd
+{ =*f 0 ==computed "" ==?result {
+  computed not { 1 =computed f =result } rep
+  result
+} } /memoized deffst
+
+{ ==ctx map _ ==result # returned
+  [ ctx { _ .?'e }' { _ .parent }' loop -- ] reverse ==ctxs
+  ctxs { _ ==c .f _ =*fs dom { _ fs -01 result =[] } each } each
+} /collectFHyps deffst
+
+{ ==ctx map _ ==result # returned
+  [ ctx { _ .?'e }' { _ .parent }' loop -- ] reverse ==ctxs
+  ctxs { _ ==c .e _ =*es dom { _ es -01 result =[] } each } each
+} /collectEHyps deffst
 
 <
   { [ } "[|" deffd { ] |cat fold } "|]" deffd
@@ -641,21 +657,6 @@ map ==assertions
       } rep
     } /let deffst
 
-    { ==ctx map _ ==result # returned
-      [ ctx { _ .?'e }' { _ .parent }' loop -- ] reverse ==ctxs
-      ctxs { _ ==c .f _ =*fs dom { _ fs -01 result =[] } each } each
-    } /collectFHyps deffst
-
-    { ==ctx map _ ==result # returned
-      [ ctx { _ .?'e }' { _ .parent }' loop -- ] reverse ==ctxs
-      ctxs { _ ==c .e _ =*es dom { _ es -01 result =[] } each } each
-    } /collectEHyps deffst
-
-    { =*f 0 ==computed "" ==?result {
-      computed not { 1 =computed f =result } rep
-      result
-    } } /memoized deffst
-
     { map _ ==theoremIndex # returned
       [| "Indexing theorems by text...\n" |] out
 
@@ -858,6 +859,63 @@ map ==assertions
     } ? *
   } /prove deffd
 
+  # generate parser functions
+  # { ==toks ==start [...] used_theorem end success[0/1] }
+
+  { [| "Generating logic parser...\n" |] out
+    map _ ==nonterminals # returned
+    map ==variables map ==variableTypedefs
+
+    blocks { .f _ =*d dom 
+      { _ ==n d _ 0 -01 * ==nonterminal 1 -01 * ==var
+        nonterminal var variables =[]
+        var variableTypedefs .has { var variableTypedefs * len n len gt } { 1 } ? *
+          { n var variableTypedefs =[] } rep
+      } each
+    } each
+
+    variables dom { _ ==var variables * ==nonterminal
+      { -- -- 0 } =*alt
+      nonterminal nonterminals .has { nonterminal nonterminals * =alt } rep
+
+      { ==toks ==start
+        start toks * var eq { var variableTypedefs * start 1 add 1 } { start toks alt } ? *
+      } nonterminal nonterminals =[]
+    } each
+
+    assertions dom { _ ==name assertions * ==a
+      a .type "a" eq {
+        0 a .thm * _ ==nt nonterminals .has {
+          a .ctx collectEHyps dom len 0 eq {
+            1 a .thm len range a .thm * ==expectedTokens
+            nt nonterminals * =*alt
+            { ==toks _ ==start ==i 1 ==success
+              ,
+              expectedTokens { ==tok success {
+                tok constants .has {
+                  i toks * tok eq { i 1 add =i } { 0 =success } ? *
+                } {
+                  i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
+                } ? *
+              } rep } each
+              success { ,-- name i 1 } { ,--- start toks alt } ? *
+            } nt nonterminals =[]
+          } rep
+        } rep
+      } rep
+    } each
+  } memoized /logicParsers deffd
+
+  { ==name
+    [
+      { name assertions .has } {
+        name assertions * ==a
+        [ 1 a .thm /wff logicParsers * * ] dump
+      }
+      { 1 } { [| "\e[31m" name " is not a proposition\e[0m" |] dump }
+    ] conds
+  } /parseTokens deffd
+
   {
     1 ==running
     { running } {
@@ -868,6 +926,7 @@ map ==assertions
         { input "" eq } { 0 =running }
         { input "quit\n" eq } { 0 =running }
         { input "^show (.*)\n" regex } { show }
+        { input "^parse (.*)\n" regex } { parseTokens }
         { input "^prove (.*)\n" regex } { prove }
       ] conds
     } loop
