@@ -696,22 +696,15 @@ objset ==blocks
           txt closedGoalIndex * .resolution goal .close
         }
         { 0 tokens * logicParsers .has } {
-          [ 1 tokens 0 tokens * logicParsers * * { -- ==parse
+          { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
+          1 tokens 0 tokens * logicParsers * * { tokens len eq { ==parse
             # parse tree order is by token sequence, but hypothesis order is by set.mm
             # only apply topmost parse rule and handle rest via big recursion
-            parse len 1 sub parse * goal use
+            parse len 1 sub parse * ==thm [| "using: " thm "\n" |] out
+            thm goal use
             goal .resolution .hypotheses |auto each
-          } { ] -- [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } ? *
+          } |failed ? * } |failed ? *
         }
-        # { txt "class ([^ ]+) " regex } { ==obj
-        #   [| "set " obj " " |] ==setthm
-        #   setthm directTheoremIndex .has {
-        #     [| "using (1): cv\n" |] out
-        #     "cv" goal use
-        #     [| "using (2): " setthm "\n" |] out
-        #     setthm directTheoremIndex * 0 goal .resolution .hypotheses * use
-        #   } rep
-        # }
       ] conds
     } /auto deffst
 
