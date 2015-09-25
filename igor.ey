@@ -878,8 +878,9 @@ objset ==blocks
       { -- -- 0 } =*alt
       nonterminal nonterminals .has { nonterminal nonterminals * =alt } rep
 
+      var variableTypedefs * ==name
       { ==toks ==start
-        start toks * var eq { var variableTypedefs * start 1 add 1 } { start toks alt } ? *
+        start toks * var eq { name start 1 add 1 } { start toks alt } ? *
       } nonterminal nonterminals =[]
     } each
 
@@ -889,16 +890,19 @@ objset ==blocks
           a .ctx collectEHyps dom len 0 eq {
             1 a .thm len range a .thm * ==expectedTokens
             nt nonterminals * =*alt
-            { ==toks _ ==start ==i 1 ==success
-              ,
-              expectedTokens { ==tok success {
-                tok constants .has {
-                  i toks * tok eq { i 1 add =i } { 0 =success } ? *
-                } {
-                  i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
-                } ? *
-              } rep } each
-              success { ,-- name i 1 } { ,--- start toks alt } ? *
+
+            { ==toks _ ==start ==i
+              start toks alt { 1 } {
+                1 ==success ,
+                expectedTokens { ==tok success {
+                  tok constants .has {
+                    i toks * tok eq { i 1 add =i } { 0 =success } ? *
+                  } {
+                    i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
+                  } ? *
+                } rep } each
+                success { ,-- name i 1 } { ,--- 0 } ? *
+              } ? *
             } nt nonterminals =[]
           } rep
         } rep
