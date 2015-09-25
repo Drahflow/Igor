@@ -657,18 +657,20 @@ objset ==blocks
       } rep
     } /let deffst
 
-    { map _ ==theoremIndex # returned
+    { map _ ==directTheoremIndex # returned
       [| "Indexing theorems by text...\n" |] out
 
       assertions dom { ==name
-        name [| name assertions * .thm { " " } each |] theoremIndex =[]
+        name assertions * .ctx collectEHyps dom len not {
+          name [| name assertions * .thm { " " } each |] directTheoremIndex =[]
+        } rep
       } each
       [ |collectEHyps |collectFHyps ] { =*collect
         proofContext collect ==hyps hyps dom { ==name
-          name [| name hyps * { " " } each |] theoremIndex =[]
+          name [| name hyps * { " " } each |] directTheoremIndex =[]
         } each
       } each
-    } memoized /theoremIndex deffst
+    } memoized /directTheoremIndex deffst
 
     { map _ ==closedGoalIndex # returned
       { ==goal
@@ -682,25 +684,34 @@ objset ==blocks
     } /closedGoalIndex deffst
 
     { ==goal
-      [| goal .thm expandMeta { " " } each |] ==txt
+      goal .thm expandMeta ==tokens
+      [| tokens { " " } each |] ==txt
       [
-        { txt theoremIndex .has } {
-          [| "using: " txt theoremIndex * "\n" |] out
-          txt theoremIndex * goal use
+        { txt directTheoremIndex .has } {
+          [| "using: " txt directTheoremIndex * "\n" |] out
+          txt directTheoremIndex * goal use
         }
         { txt closedGoalIndex .has } {
           [| "re-using earlier proof\n" |] out
           txt closedGoalIndex * .resolution goal .close
         }
-        { txt "class ([^ ]+) " regex } { ==obj
-          [| "set " obj " " |] ==setthm
-          setthm theoremIndex .has {
-            [| "using (1): cv\n" |] out
-            "cv" goal use
-            [| "using (2): " setthm "\n" |] out
-            setthm theoremIndex * 0 goal .resolution .hypotheses * use
-          } rep
+        { 0 tokens * logicParsers .has } {
+          [ 1 tokens 0 tokens * logicParsers * * { -- ==parse
+            # parse tree order is by token sequence, but hypothesis order is by set.mm
+            # only apply topmost parse rule and handle rest via big recursion
+            parse len 1 sub parse * goal use
+            goal .resolution .hypotheses |auto each
+          } { ] -- [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } ? *
         }
+        # { txt "class ([^ ]+) " regex } { ==obj
+        #   [| "set " obj " " |] ==setthm
+        #   setthm directTheoremIndex .has {
+        #     [| "using (1): cv\n" |] out
+        #     "cv" goal use
+        #     [| "using (2): " setthm "\n" |] out
+        #     setthm directTheoremIndex * 0 goal .resolution .hypotheses * use
+        #   } rep
+        # }
       ] conds
     } /auto deffst
 
@@ -861,7 +872,6 @@ objset ==blocks
 
   # generate parser functions
   # { ==toks ==start [...] used_theorem end success[0/1] }
-
   { [| "Generating logic parser...\n" |] out
     map _ ==nonterminals # returned
     map ==variables map ==variableTypedefs
@@ -880,7 +890,7 @@ objset ==blocks
 
       var variableTypedefs * ==name
       { ==toks ==start
-        start toks * var eq { name start 1 add 1 } { start toks alt } ? *
+        start toks * var eq { [ name ] start 1 add 1 } { start toks alt } ? *
       } nonterminal nonterminals =[]
     } each
 
@@ -893,7 +903,7 @@ objset ==blocks
 
             { ==toks _ ==start ==i
               start toks alt { 1 } {
-                1 ==success ,
+                1 ==success , [
                 expectedTokens { ==tok success {
                   tok constants .has {
                     i toks * tok eq { i 1 add =i } { 0 =success } ? *
@@ -901,7 +911,7 @@ objset ==blocks
                     i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
                   } ? *
                 } rep } each
-                success { ,-- name i 1 } { ,--- 0 } ? *
+                success { ,-- name ] i 1 } { ,--- 0 } ? *
               } ? *
             } nt nonterminals =[]
           } rep
