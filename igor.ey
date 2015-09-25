@@ -446,7 +446,7 @@ objset ==blocks
 
           valid {
             substitution dom { ==var
-              0 var substitution * var variables * logicParsers * * { var substitution * len eq =valid -- } { 0 =valid } ? *
+              0 var substitution * var variables * logicParsers * * { var substitution * len eq valid and =valid -- } { 0 =valid } ? *
             } each
           } rep
 
