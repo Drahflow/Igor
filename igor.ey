@@ -15,6 +15,8 @@
   { < generate ==v "put" =* > }' _ "#iclone" deffd
 > -- /objset deffd
 
+{ { 0 } ? * } /andif deffd
+
 map ==constants
 map ==assertions
 objset ==blocks
@@ -442,6 +444,12 @@ objset ==blocks
             } rep
           } each
 
+          valid {
+            substitution dom { ==var
+              0 var substitution * var variables * logicParsers * * { var substitution * len eq =valid -- } { 0 =valid } ? *
+            } each
+          } rep
+
           valid { substitution result .append1 } rep
         } rep
       } ? *
@@ -762,15 +770,18 @@ objset ==blocks
 
     { .thm expandMeta search } /suggest deffst
 
-    {
+    { ==includeTypes
       0 ==i
       { ==indent ==goal
-        [|
-          i _ 1 add =i txt .produce .u _ out ")" out len
-          indent -01 sub { " " } rep
-          goal .isopen { "\e[31m???\e[0m " } { goal .resolution .theorem .name " " } ? *
-          goal .thm expandMeta { renderName " " } each "\n"
-        |] out
+        includeTypes 0 goal .thm expandMeta * "|-" eq or {
+          [|
+            i txt .produce .u _ out ")" out len
+            indent -01 sub { " " } rep
+            goal .isopen { "\e[31m???\e[0m " } { goal .resolution .theorem .name " " } ? *
+            goal .thm expandMeta { renderName " " } each "\n"
+          |] out
+        } rep
+        i 1 add =i
         goal .isopen not { goal .resolution .hypotheses { indent 2 add recurse } each } rep
       } /recurse deffst
       mainGoal 4 recurse
@@ -844,7 +855,8 @@ objset ==blocks
             "\e[32mWe are done here.\e[0m\n" out
           } ? *
         }
-        { input "tree\n" eq } { tree }
+        { input "tree\n" eq } { 0 tree }
+        { input "fulltree\n" eq } { 1 tree }
         { input "export\n" eq } { export }
         { input "reopen (\\d+)\n" regex } { txt .consume .u reopen }
         { input "sug\n" eq } { selectedGoal goals * suggest }
@@ -863,15 +875,22 @@ objset ==blocks
     } ? *
   } /prove deffd
 
+  { map _ ==variables # returned
+    blocks { .f _ =*d dom 
+      { _ ==n d _ 0 -01 * ==nonterminal 1 -01 * ==var
+        nonterminal var variables =[]
+      } each
+    } each
+  } memoized /variables deffd
+
   # generate parser functions
   # { ==toks ==start [...] used_theorem end success[0/1] }
   { [| "Generating logic parser...\n" |] out
     map _ ==nonterminals # returned
-    map ==variables map ==variableTypedefs
+    map ==variableTypedefs
 
     blocks { .f _ =*d dom 
       { _ ==n d _ 0 -01 * ==nonterminal 1 -01 * ==var
-        nonterminal var variables =[]
         var variableTypedefs .has { var variableTypedefs * len n len gt } { 1 } ? *
           { n var variableTypedefs =[] } rep
       } each
@@ -883,7 +902,7 @@ objset ==blocks
 
       var variableTypedefs * ==name
       { ==toks ==start
-        start toks * var eq { [ name ] start 1 add 1 } { start toks alt } ? *
+        start toks len lt { start toks * var eq } andif { [ name ] start 1 add 1 } { start toks alt } ? *
       } nonterminal nonterminals =[]
     } each
 
@@ -899,7 +918,7 @@ objset ==blocks
                 1 ==success , [
                 expectedTokens { ==tok success {
                   tok constants .has {
-                    i toks * tok eq { i 1 add =i } { 0 =success } ? *
+                    i toks len lt { i toks * tok eq } andif { i 1 add =i } { 0 =success } ? *
                   } {
                     i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
                   } ? *
