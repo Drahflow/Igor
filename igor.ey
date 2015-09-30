@@ -564,6 +564,7 @@ objset ==blocks
     } /applyTheorem deffst
 
     { ==goal ==name
+      [| "using: " name "\n" |] out
       [
         { name assertions .has } {
           name assertions * ==a
@@ -621,21 +622,21 @@ objset ==blocks
       ] conds
     } /use deffst
 
-    { ==goal ==name
+    { ==tokens ==name
       0 ==usable
       [
         { name assertions .has } {
           name assertions * ==a
           a .type "p" eq a .type "a" eq or {
-            goal .thm expandMeta a possibleSubstitutions ==choices
+            tokens a possibleSubstitutions ==choices
             choices len 1 ge =usable
           } rep
         }
         { name userContext isEHyp } {
-          goal .thm expandMeta name userContext getEHyp eq all =usable
+          tokens name userContext getEHyp eq all =usable
         }
         { name userContext isFHyp } {
-          goal .thm expandMeta name userContext getFHyp eq all =usable
+          tokens name userContext getFHyp eq all =usable
         }
       ] conds
       usable
@@ -696,7 +697,6 @@ objset ==blocks
       [| tokens { " " } each |] ==txt
       [
         { txt directTheoremIndex .has } {
-          [| "using: " txt directTheoremIndex * "\n" |] out
           txt directTheoremIndex * goal use
         }
         { txt closedGoalIndex .has } {
@@ -708,13 +708,83 @@ objset ==blocks
           1 tokens 0 tokens * logicParsers * * { tokens len eq { ==parse
             # parse tree order is by token sequence, but hypothesis order is by set.mm
             # only apply topmost parse rule and handle rest via big recursion
-            parse len 1 sub parse * ==thm [| "using: " thm "\n" |] out
-            thm goal use
+            parse logicNonTerminal goal use
             goal .resolution .hypotheses |auto each
           } |failed ? * } |failed ? *
         }
+        { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif } { ==parse
+          [
+            { parse logicNonTerminal /wi eq { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif } {
+              /id goal use
+              goal .resolution .hypotheses |auto each
+            }
+            { parse logicNonTerminal /wi eq { 1 parse * logicNonTerminal /wceq eq } andif
+              { 0 1 parse * * logicRange tokens * 1 1 parse * * logicRange tokens * eq all } andif } {
+              /a1i goal use
+              goal .resolution .hypotheses |auto each
+            }
+            { parse logicNonTerminal /wi eq { 1 parse * logicNonTerminal /wal eq } andif
+              { 0 parse * logicRange tokens * 1 1 parse * * logicRange tokens * eq all } andif } {
+              /ax-17 goal use
+              goal .resolution .hypotheses |auto each
+            }
+            { parse logicNonTerminal /wceq eq { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif } {
+              /eqid goal use
+              goal .resolution .hypotheses |auto each
+            }
+          ] conds
+        }
       ] conds
     } /auto deffst
+
+    { ==goal
+      { "\e[31mdistr:eq not applicable, expected |- ( x = y -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif { ==parse
+        parse logicNonTerminal /wi eq { 0 parse * logicNonTerminal /wceq eq } andif {
+          < > ==thms "" ==leftNt "" ==rightNt
+          [
+            { 1 parse * logicNonTerminal /wb eq } {
+              0 1 parse * * logicNonTerminal =leftNt
+              1 1 parse * * logicNonTerminal =rightNt
+              leftNt rightNt eq {
+                0 0 parse * * logicRange tokens * ==from
+                1 0 parse * * logicRange tokens * ==to
+                <
+                  /imbi12d ==wi
+                  /bibi12d ==wb
+                  /eleq12d ==wcel
+                  /orbi12d ==wo
+                  /anbi12d ==wa
+                  /eqeq12d ==wceq
+                  /albid ==wal
+                  /exbid ==wex
+                > =thms
+              } |notApplicable ? *
+            }
+            { 1 parse * logicNonTerminal /wceq eq } {
+              0 1 parse * * logicNonTerminal =leftNt
+              1 1 parse * * logicNonTerminal =rightNt
+              leftNt rightNt eq {
+                0 0 parse * * logicRange tokens * ==from
+                1 0 parse * * logicRange tokens * ==to
+                <
+                  /fveq12d ==cfv
+                  /opeq12d ==cop
+                > =thms
+              } |notApplicable ? *
+            }
+          ] conds
+
+          thms leftNt .?' {
+            thms leftNt . goal use
+            0 tree
+            goal .resolution .hypotheses |auto each
+            goal .resolution .hypotheses { ==g g .isopen { g tacDistrEq } rep } each
+          } { [| "\e[31mno theorem known to process rewrite step, of type " leftNt "\e[0m\n" |] out } ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacDistrEq deffst
 
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
@@ -763,7 +833,7 @@ objset ==blocks
 
       [| "Possible theorems:\n" |] out
       i { .theorems 0 ==some { ==thm
-        # thm goal canUse { thm " " cat out } rep
+        # thm tokens canUse { thm " " cat out 1 =some } rep
         thm " " cat out 1 =some
       } each some { "\n" out } rep } each
     } /search deffst
@@ -829,6 +899,7 @@ objset ==blocks
       "proof> " sys .out .writeall
       63356 sys .in .read ==input
 
+      { "\e[32mWe are done here.\e[0m\n" out } =*solved
       [
         { input "" eq } { 0 =running }
         { input "done\n" eq } { 0 =running }
@@ -848,13 +919,8 @@ objset ==blocks
           0 =redisplay
         }
         { input "auto\n" eq
-          input "\n" eq or } {
-          goals len {
-            selectedGoal goals * auto
-          } {
-            "\e[32mWe are done here.\e[0m\n" out
-          } ? *
-        }
+          input "\n" eq or } { goals len { selectedGoal goals * auto } |solved ? * }
+        { input "distr:eq\n" eq } { goals len { selectedGoal goals * tacDistrEq } |solved ? * }
         { input "tree\n" eq } { 0 tree }
         { input "fulltree\n" eq } { 1 tree }
         { input "export\n" eq } { export }
@@ -862,6 +928,15 @@ objset ==blocks
         { input "sug\n" eq } { selectedGoal goals * suggest }
         { input "search (.*)\n" regex } { " " str .split _ =lastSearch search }
         { input "search\n" regex } { lastSearch search }
+        { input "parse\n" regex } {
+          0 selectedGoal goals * .thm * ==head
+
+          [
+            { head "|-" eq }           { [ 1 selectedGoal goals * .thm /wff logicParsers * * ] dump }
+            { head logicParsers .has } { [ 1 selectedGoal goals * .thm head logicParsers * * ] dump }
+            { 1 } { [| "\e[31mno parser available\e[0m\n" |] out }
+          ] conds
+        }
       ] conds
     } loop
   } /proveProposition deffd
@@ -902,7 +977,7 @@ objset ==blocks
 
       var variableTypedefs * ==name
       { ==toks ==start
-        start toks len lt { start toks * var eq } andif { [ name ] start 1 add 1 } { start toks alt } ? *
+        start toks len lt { start toks * var eq } andif { [ start _ 1 add name ] start 1 add 1 } { start toks alt } ? *
       } nonterminal nonterminals =[]
     } each
 
@@ -923,7 +998,7 @@ objset ==blocks
                     i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
                   } ? *
                 } rep } each
-                success { ,-- name ] i 1 } { ,--- 0 } ? *
+                success { ,-- start i name ] i 1 } { ,--- 0 } ? *
               } ? *
             } nt nonterminals =[]
           } rep
@@ -931,6 +1006,11 @@ objset ==blocks
       } rep
     } each
   } memoized /logicParsers deffd
+
+  { ==node node len 3 sub node * } /logicStart deffst
+  { ==node node len 2 sub node * } /logicEnd deffst
+  { ==node node len _ 3 sub node * -01 2 sub node * range } /logicRange deffst
+  { ==node node len 1 sub node * } /logicNonTerminal deffst
 
   { ==name
     [
