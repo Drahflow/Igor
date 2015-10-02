@@ -961,26 +961,27 @@ objset ==blocks
   # generate parser functions
   # { ==toks ==start [...] used_theorem end success[0/1] }
   { [| "Generating logic parser...\n" |] out
-    map _ ==nonterminals # returned
-    map ==variableTypedefs
+    map ==nonterminals
+    map ==variableNonTerminals # nonterminal -> variable -> theorem name
 
     blocks { .f _ =*d dom 
-      { _ ==n d _ 0 -01 * ==nonterminal 1 -01 * ==var
-        var variableTypedefs .has { var variableTypedefs * len n len gt } { 1 } ? *
-          { n var variableTypedefs =[] } rep
+      { _ ==thm d _ 0 -01 * ==nonterminal 1 -01 * ==var
+        nonterminal variableNonTerminals .has not { map nonterminal variableNonTerminals =[] } rep
+        nonterminal variableNonTerminals * ==variableTypedefs # variable -> theorem name
+
+        var variableTypedefs .has { var variableTypedefs * len thm len gt } { 1 } ? *
+          { thm var variableTypedefs =[] } rep
       } each
     } each
 
-    variables dom { _ ==var variables * ==nonterminal
-      { -- -- 0 } =*alt
-      nonterminal nonterminals .has { nonterminal nonterminals * =alt } rep
-
-      var variableTypedefs * ==name
+    variableNonTerminals dom { ==nonterminal
+      nonterminal variableNonTerminals * ==validVars
       { ==toks ==start
-        start toks len lt { start toks * var eq } andif { [ start _ 1 add name ] start 1 add 1 } { start toks alt } ? *
+        start toks len lt { start toks * validVars .has } andif { [ start _ 1 add start toks * validVars * ] start 1 add 1 } { 0 } ? *
       } nonterminal nonterminals =[]
     } each
 
+    map ==cache # for packrat transformation
     assertions dom { _ ==name assertions * ==a
       a .type "a" eq {
         0 a .thm * _ ==nt nonterminals .has {
@@ -989,22 +990,29 @@ objset ==blocks
             nt nonterminals * =*alt
 
             { ==toks _ ==start ==i
-              start toks alt { 1 } {
-                1 ==success , [
-                expectedTokens { ==tok success {
-                  tok constants .has {
-                    i toks len lt { i toks * tok eq } andif { i 1 add =i } { 0 =success } ? *
-                  } {
-                    i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
-                  } ? *
-                } rep } each
-                success { ,-- start i name ] i 1 } { ,--- 0 } ? *
+              nt cache .has not { map nt cache =[] } rep nt cache * ==ntCache
+              start txt .produce .hu ==startTxt
+              startTxt ntCache .has { startTxt ntCache * _ len dearray } {
+                start toks alt { 1 } {
+                  1 ==success , [
+                  expectedTokens { ==tok success {
+                    tok constants .has {
+                      i toks len lt { i toks * tok eq } andif { i 1 add =i } { 0 =success } ? *
+                    } {
+                      i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
+                    } ? *
+                  } rep } each
+                  success { ,-- start i name ] _ ==a i _ ==b 1 _ ==c [ a b c ] startTxt ntCache =[] } { ,--- 0 [ 0 ] startTxt ntCache =[] } ? *
+                } ? *
               } ? *
             } nt nonterminals =[]
           } rep
         } rep
       } rep
     } each
+
+    map _ ==parsers # returned
+    nonterminals dom { ==nt { map =cache nt nonterminals * * } nt parsers =[] } each # reset cache before parse
   } memoized /logicParsers deffd
 
   { ==node node len 3 sub node * } /logicStart deffst
