@@ -495,6 +495,7 @@ objset ==blocks
     proposition .allDisj { 2 dearray markDisj } each
     0 ==selectedGoal
     0 ==nextMetaVariable
+    map ==lastMetaVariables
     map ==metaSubstitution
     1 ==redisplay
     [ ] ==lastSearch
@@ -511,6 +512,7 @@ objset ==blocks
         var constants .has not {
           var substitution .has not {
             [| "$" var "." nextMetaVariable _ 1 add =nextMetaVariable txt .produce .u |] ==newVar
+            newVar var lastMetaVariables =[]
             [ newVar ] var substitution =[]
           } rep
         } rep
@@ -770,6 +772,7 @@ objset ==blocks
                 1 0 parse * * logicRange tokens * ==to
                 <
                   /fveq12d ==cfv
+                  /oveq12d ==co
                   /opeq12d ==cop
                 > =thms
               } |notApplicable ? *
@@ -785,6 +788,61 @@ objset ==blocks
         } |notApplicable ? *
       } |notApplicable ? *
     } /tacDistrEq deffst
+
+    { ==to ==from ==tokens
+      [
+        0 ==i { i tokens len lt } {
+          i from len add tokens len le { i _ from len add range tokens * from eq all } andif {
+            to _ len dearray i from len add =i
+          } {
+            i tokens * i 1 add =i
+          } ? *
+        } loop
+      ]
+    } /rewriteTokens deffst
+
+    { ==goal
+      { "\e[31mrewrite:eq not applicable, expected |- ( x = y -> ... )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif { ==parse
+        parse logicNonTerminal /wi eq { 0 parse * logicNonTerminal /wceq eq } andif {
+          0 0 parse * * logicRange tokens * ==from
+          1 0 parse * * logicRange tokens * ==to
+
+          /mpbird goal use
+          1 parse * logicRange tokens * from to rewriteTokens /ch lastMetaVariables * metaSubstitution =[]
+          goal .resolution .hypotheses |auto each
+
+          4 goal .resolution .hypotheses * ==g g .isopen { g tacDistrEq } rep
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacRewriteEquality deffst
+
+    { ==goal ==equality
+      { "\e[31mrewrite:full not applicable, expected |- ... as goal and ... = ... as argument\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif { ==parse
+        0 equality /wff logicParsers * * { equality len eq } andif { ==equalityParse
+          equalityParse logicNonTerminal /wceq eq {
+            0 equalityParse * logicRange equality * ==from
+            1 equalityParse * logicRange equality * ==to
+
+            /mpbir goal use
+            1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * metaSubstitution =[]
+            goal .resolution .hypotheses |auto each
+            3 goal .resolution .hypotheses * ==mpbirMaj
+
+            mpbirMaj .isopen {
+              /ax-mp mpbirMaj use
+              equality /ph lastMetaVariables * metaSubstitution =[]
+              mpbirMaj .resolution .hypotheses |auto each
+
+              3 mpbirMaj .resolution .hypotheses * ==g g .isopen { g tacDistrEq } rep
+            } rep
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacRewriteFull deffst
 
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
@@ -921,6 +979,9 @@ objset ==blocks
         { input "auto\n" eq
           input "\n" eq or } { goals len { selectedGoal goals * auto } |solved ? * }
         { input "distr:eq\n" eq } { goals len { selectedGoal goals * tacDistrEq } |solved ? * }
+        { input "rewrite:eq\n" eq } { goals len { selectedGoal goals * tacRewriteEquality } |solved ? * }
+        { input "rewrite:full (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacRewriteFull } |solved ? * }
         { input "tree\n" eq } { 0 tree }
         { input "fulltree\n" eq } { 1 tree }
         { input "export\n" eq } { export }
