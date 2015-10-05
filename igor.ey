@@ -989,12 +989,12 @@ objset ==blocks
         { input "sug\n" eq } { selectedGoal goals * suggest }
         { input "search (.*)\n" regex } { " " str .split _ =lastSearch search }
         { input "search\n" regex } { lastSearch search }
-        { input "parse\n" regex } {
+        { input "parse\n" eq } {
           0 selectedGoal goals * .thm * ==head
 
           [
-            { head "|-" eq }           { [ 1 selectedGoal goals * .thm /wff logicParsers * * ] dump }
-            { head logicParsers .has } { [ 1 selectedGoal goals * .thm head logicParsers * * ] dump }
+            { head "|-" eq }           { [ 1 selectedGoal goals * .thm expandMeta /wff logicParsers * * ] dump }
+            { head logicParsers .has } { [ 1 selectedGoal goals * .thm expandMeta head logicParsers * * ] dump }
             { 1 } { [| "\e[31mno parser available\e[0m\n" |] out }
           ] conds
         }
