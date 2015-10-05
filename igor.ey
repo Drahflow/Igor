@@ -720,6 +720,10 @@ objset ==blocks
               /id goal use
               goal .resolution .hypotheses |auto each
             }
+            { parse logicNonTerminal /wb eq { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif } {
+              /biid goal use
+              goal .resolution .hypotheses |auto each
+            }
             { parse logicNonTerminal /wi eq { 1 parse * logicNonTerminal /wceq eq } andif
               { 0 1 parse * * logicRange tokens * 1 1 parse * * logicRange tokens * eq all } andif } {
               /a1i goal use
@@ -758,7 +762,9 @@ objset ==blocks
                   /eleq12d ==wcel
                   /orbi12d ==wo
                   /anbi12d ==wa
+                  /notbid ==wn
                   /eqeq12d ==wceq
+                  /sseq12d ==wss
                   /albid ==wal
                   /exbid ==wex
                 > =thms
@@ -774,6 +780,7 @@ objset ==blocks
                   /fveq12d ==cfv
                   /oveq12d ==co
                   /opeq12d ==cop
+                  /xpeq12d ==cxp
                 > =thms
               } |notApplicable ? *
             }
