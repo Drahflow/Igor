@@ -754,19 +754,19 @@ objset ==blocks
               0 1 parse * * logicNonTerminal =leftNt
               1 1 parse * * logicNonTerminal =rightNt
               leftNt rightNt eq {
-                0 0 parse * * logicRange tokens * ==from
-                1 0 parse * * logicRange tokens * ==to
                 <
-                  /imbi12d ==wi
-                  /bibi12d ==wb
-                  /eleq12d ==wcel
-                  /orbi12d ==wo
-                  /anbi12d ==wa
-                  /notbid ==wn
-                  /eqeq12d ==wceq
-                  /sseq12d ==wss
-                  /albid ==wal
-                  /exbid ==wex
+                  [ /imbi1d /imbi2d /imbi12d ] ==wi
+                  [ /bibi1d /bibi2d /bibi12d ] ==wb
+                  [ /eleq1d /eleq2d /eleq12d ] ==wcel
+                  [ /orbi1d /orbi2d /orbi12d ] ==wo
+                  [ /anbi1d /anbi2d /anbi12d ] ==wa
+                  [ /notbid ] ==wn
+                  [ /eqeq1d /eqeq2d /eqeq12d ] ==wceq
+                  [ /sseq1d /sseq2d /sseq12d ] ==wss
+                  [ /albid ] ==wal
+                  [ /exbid ] ==wex
+                  [ /ralbid /ralbidv2 ] ==wral
+                  [ /rexbid /rexbidv2 ] ==wrex
                 > =thms
               } |notApplicable ? *
             }
@@ -774,23 +774,25 @@ objset ==blocks
               0 1 parse * * logicNonTerminal =leftNt
               1 1 parse * * logicNonTerminal =rightNt
               leftNt rightNt eq {
-                0 0 parse * * logicRange tokens * ==from
-                1 0 parse * * logicRange tokens * ==to
                 <
-                  /fveq12d ==cfv
-                  /oveq12d ==co
-                  /opeq12d ==cop
-                  /xpeq12d ==cxp
+                  [ /fveq1d /fveq2d /fveq12d ] ==cfv
+                  [ /oveq1d /oveq2d /oveq12d ] ==co
+                  [ /opeq1d /opeq2d /opeq12d ] ==cop
+                  [ /xpeq1d /xpeq2d /xpeq12d ] ==cxp
                 > =thms
               } |notApplicable ? *
             }
           ] conds
 
           thms leftNt .?' {
-            thms leftNt . goal use
-            0 tree
-            goal .resolution .hypotheses |auto each
-            goal .resolution .hypotheses { ==g g .isopen { g tacDistrEq } rep } each
+            thms leftNt . { ==thm
+              goal .isopen { thm goal .thm expandMeta canUse } andif {
+                thm goal use
+                0 tree
+                goal .resolution .hypotheses |auto each
+                goal .resolution .hypotheses { ==g g .isopen { g tacDistrEq } rep } each
+              } rep
+            } each
           } { [| "\e[31mno theorem known to process rewrite step, of type " leftNt "\e[0m\n" |] out } ? *
         } |notApplicable ? *
       } |notApplicable ? *
