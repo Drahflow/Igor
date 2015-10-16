@@ -694,12 +694,21 @@ objset ==blocks
       mainGoal recurse
     } /closedGoalIndex deffst
 
+    { ==toTry ==goal
+      goal .isopen not {
+        toTry { =*f
+          goal .resolution .hypotheses { ==g g .isopen { /actualRecursion dump g f } rep } each
+        } each
+      } rep
+    } /tacAttemptNext deffst
+
     { ==goal
       goal .thm expandMeta ==tokens
       [| tokens { " " } each |] ==txt
       [
         { txt directTheoremIndex .has } {
           txt directTheoremIndex * goal use
+          goal [ |auto ] tacAttemptNext
         }
         { txt closedGoalIndex .has } {
           [| "re-using earlier proof\n" |] out
@@ -711,32 +720,32 @@ objset ==blocks
             # parse tree order is by token sequence, but hypothesis order is by set.mm
             # only apply topmost parse rule and handle rest via big recursion
             parse logicNonTerminal goal use
-            goal .resolution .hypotheses |auto each
+            goal [ |auto ] tacAttemptNext
           } |failed ? * } |failed ? *
         }
         { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif } { ==parse
           [
             { parse logicNonTerminal /wi eq { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif } {
               /id goal use
-              goal .resolution .hypotheses |auto each
+              goal [ |auto ] tacAttemptNext
             }
             { parse logicNonTerminal /wb eq { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif } {
               /biid goal use
-              goal .resolution .hypotheses |auto each
+              goal [ |auto ] tacAttemptNext
             }
             { parse logicNonTerminal /wi eq { 1 parse * logicNonTerminal /wceq eq } andif
               { 0 1 parse * * logicRange tokens * 1 1 parse * * logicRange tokens * eq all } andif } {
               /a1i goal use
-              goal .resolution .hypotheses |auto each
+              goal [ |auto ] tacAttemptNext
             }
             { parse logicNonTerminal /wi eq { 1 parse * logicNonTerminal /wal eq } andif
               { 0 parse * logicRange tokens * 1 1 parse * * logicRange tokens * eq all } andif } {
               /ax-17 goal use
-              goal .resolution .hypotheses |auto each
+              goal [ |auto ] tacAttemptNext
             }
             { parse logicNonTerminal /wceq eq { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif } {
               /eqid goal use
-              goal .resolution .hypotheses |auto each
+              goal [ |auto ] tacAttemptNext
             }
           ] conds
         }
@@ -779,6 +788,8 @@ objset ==blocks
                   [ /oveq1d /oveq2d /oveq12d ] ==co
                   [ /opeq1d /opeq2d /opeq12d ] ==cop
                   [ /xpeq1d /xpeq2d /xpeq12d ] ==cxp
+                  [ /inteqd ] ==cint
+                  [ /abbidv /abbid ] ==cab
                 > =thms
               } |notApplicable ? *
             }
@@ -789,8 +800,7 @@ objset ==blocks
               goal .isopen { thm goal .thm expandMeta canUse } andif {
                 thm goal use
                 0 tree
-                goal .resolution .hypotheses |auto each
-                goal .resolution .hypotheses { ==g g .isopen { g tacDistrEq } rep } each
+                goal [ |auto |tacDistrEq ] tacAttemptNext
               } rep
             } each
           } { [| "\e[31mno theorem known to process rewrite step, of type " leftNt "\e[0m\n" |] out } ? *
@@ -820,9 +830,11 @@ objset ==blocks
 
           /mpbird goal use
           1 parse * logicRange tokens * from to rewriteTokens /ch lastMetaVariables * metaSubstitution =[]
-          goal .resolution .hypotheses |auto each
+          goal [ |auto ] tacAttemptNext
 
-          4 goal .resolution .hypotheses * ==g g .isopen { g tacDistrEq } rep
+          goal .isopen not {
+            4 goal .resolution .hypotheses * ==g g .isopen { g tacDistrEq } rep
+          } rep
         } |notApplicable ? *
       } |notApplicable ? *
     } /tacRewriteEquality deffst
@@ -838,15 +850,19 @@ objset ==blocks
 
             /mpbir goal use
             1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * metaSubstitution =[]
-            goal .resolution .hypotheses |auto each
-            3 goal .resolution .hypotheses * ==mpbirMaj
+            goal [ |auto ] tacAttemptNext
+            goal .isopen not {
+              3 goal .resolution .hypotheses * ==mpbirMaj
 
-            mpbirMaj .isopen {
-              /ax-mp mpbirMaj use
-              equality /ph lastMetaVariables * metaSubstitution =[]
-              mpbirMaj .resolution .hypotheses |auto each
+              mpbirMaj .isopen {
+                /ax-mp mpbirMaj use
+                equality /ph lastMetaVariables * metaSubstitution =[]
+                mpbirMaj [ |auto ] tacAttemptNext
 
-              3 mpbirMaj .resolution .hypotheses * ==g g .isopen { g tacDistrEq } rep
+                mpbirMaj .isopen not {
+                  3 mpbirMaj .resolution .hypotheses * ==g g .isopen { g tacDistrEq } rep
+                } rep
+              } rep
             } rep
           } |notApplicable ? *
         } |notApplicable ? *
