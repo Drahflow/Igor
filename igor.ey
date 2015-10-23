@@ -755,10 +755,10 @@ objset ==blocks
     } /auto deffst
 
     { ==goal
-      { "\e[31mdistr:eq not applicable, expected |- ( x = y -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
+      { "\e[31mdistr:ante not applicable, expected |- ( ... -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif { ==parse
-        parse logicNonTerminal /wi eq { 0 parse * logicNonTerminal /wceq eq } andif {
+        parse logicNonTerminal /wi eq {
           < > ==thms "" ==leftNt "" ==rightNt
           [
             { 1 parse * logicNonTerminal /wb eq } {
@@ -782,7 +782,7 @@ objset ==blocks
                 > =thms
               } |notApplicable ? *
             }
-            { 1 parse * logicNonTerminal /wceq eq } {
+            { 0 parse * logicNonTerminal /wceq eq { 1 parse * logicNonTerminal /wceq eq } andif } {
               0 1 parse * * logicNonTerminal =leftNt
               1 1 parse * * logicNonTerminal =rightNt
               leftNt rightNt eq {
@@ -808,13 +808,13 @@ objset ==blocks
               goal .isopen { thm goal .thm expandMeta canUse } andif {
                 thm goal use
                 0 tree
-                goal [ |auto |tacDistrEq ] tacAttemptNext
+                goal [ |auto |tacDistrAntecedent ] tacAttemptNext
               } rep
             } each
           } { [| "\e[31mno theorem known to process rewrite step, of type " leftNt "\e[0m\n" |] out } ? *
         } |notApplicable ? *
       } |notApplicable ? *
-    } /tacDistrEq deffst
+    } /tacDistrAntecedent deffst
 
     { ==to ==from ==tokens
       [
@@ -829,10 +829,10 @@ objset ==blocks
     } /rewriteTokens deffst
 
     { ==goal
-      { "\e[31mrewrite:eq not applicable, expected |- ( x = y -> ... )\e[0m\n" out } =*notApplicable
+      { "\e[31mrewrite:ante not applicable, expected |- ( ( ... { = , <-> } ... ) -> ... )\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif { ==parse
-        parse logicNonTerminal /wi eq { 0 parse * logicNonTerminal /wceq eq } andif {
+        parse logicNonTerminal /wi eq { 0 parse * logicNonTerminal [ /wceq /wb ] eq any } andif {
           0 0 parse * * logicRange tokens * ==from
           1 0 parse * * logicRange tokens * ==to
 
@@ -841,20 +841,20 @@ objset ==blocks
           goal [ |auto ] tacAttemptNext
 
           goal .isopen not {
-            4 goal .resolution .hypotheses * ==g g .isopen { g tacDistrEq } rep
+            4 goal .resolution .hypotheses * ==g g .isopen { g tacDistrAntecedent } rep
           } rep
         } |notApplicable ? *
       } |notApplicable ? *
-    } /tacRewriteEquality deffst
+    } /tacRewriteAntecedent deffst
 
-    { ==goal ==equality
-      { "\e[31mrewrite:full not applicable, expected |- ... as goal and ... = ... as argument\e[0m\n" out } =*notApplicable
+    { ==goal ==antecedent
+      { "\e[31mrewrite:full not applicable, expected |- ... as goal and ... { = , <-> } ... as argument\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif { ==parse
-        0 equality /wff logicParsers * * { equality len eq } andif { ==equalityParse
-          equalityParse logicNonTerminal /wceq eq {
-            0 equalityParse * logicRange equality * ==from
-            1 equalityParse * logicRange equality * ==to
+        0 antecedent /wff logicParsers * * { antecedent len eq } andif { ==antecedentParse
+          antecedentParse logicNonTerminal [ /wceq /wb ] eq any {
+            0 antecedentParse * logicRange antecedent * ==from
+            1 antecedentParse * logicRange antecedent * ==to
 
             /mpbir goal use
             1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * metaSubstitution =[]
@@ -864,11 +864,11 @@ objset ==blocks
 
               mpbirMaj .isopen {
                 /ax-mp mpbirMaj use
-                equality /ph lastMetaVariables * metaSubstitution =[]
+                antecedent /ph lastMetaVariables * metaSubstitution =[]
                 mpbirMaj [ |auto ] tacAttemptNext
 
                 mpbirMaj .isopen not {
-                  3 mpbirMaj .resolution .hypotheses * ==g g .isopen { g tacDistrEq } rep
+                  3 mpbirMaj .resolution .hypotheses * ==g g .isopen { g tacDistrAntecedent } rep
                 } rep
               } rep
             } rep
@@ -1022,8 +1022,8 @@ objset ==blocks
         }
         { input "auto\n" eq
           input "\n" eq or } { goals len { selectedGoal goals * auto } |solved ? * }
-        { input "distr:eq\n" eq } { goals len { selectedGoal goals * tacDistrEq } |solved ? * }
-        { input "rewrite:eq\n" eq } { goals len { selectedGoal goals * tacRewriteEquality } |solved ? * }
+        { input "distr:ante\n" eq } { goals len { selectedGoal goals * tacDistrAntecedent } |solved ? * }
+        { input "rewrite:ante\n" eq } { goals len { selectedGoal goals * tacRewriteAntecedent } |solved ? * }
         { input "rewrite:full (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacRewriteFull } |solved ? * }
         { input "expand (.*)\n" regex } { selectedGoal goals * tacExpand }
