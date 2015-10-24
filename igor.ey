@@ -758,7 +758,7 @@ objset ==blocks
               leftNt rightNt eq {
                 <
                   [ /fveq1d /fveq2d /fveq12d ] ==cfv
-                  [ /oveq1d /oveq2d /oveq12d ] ==co
+                  [ /oveq /oveq1d /oveq2d /oveq12d /oveq123d ] ==co
                   [ /opeq1d /opeq2d /opeq12d ] ==cop
                   [ /xpeq1d /xpeq2d /xpeq12d ] ==cxp
                   [ /inteqd ] ==cint
@@ -768,6 +768,9 @@ objset ==blocks
                   [ /seqeq1d /seqeq2d /seqeq3d /seqeq123d ] ==cseq
                   [ /mpteq12dv ] ==cmpt
                   [ /mpt2eq123dv ] ==cmpt2
+                  [ /coeq1d /coeq2d /coeq12d ] ==ccom
+                  [ /reseq1d /reseq2d /reseq12d ] ==cres
+                  [ /dmeq ] ==cdm
                 > =thms
               } |notApplicable ? *
             }
