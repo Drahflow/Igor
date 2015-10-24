@@ -396,68 +396,38 @@ objset ==blocks
     } loop
   } /readNumber deffd
 
-  { ==assertion ==tokens list ==result
-    assertion .thm { -- 0 } '*0.0 ==starts
-    assertion .thm { -- 0 } '*0.0 ==ends
-    assertion .thm len ==tokenCount
+  { ==assertion ==tokens map ==substitution
+    1 ==valid
+    0 ==i
+    assertion .thm { ==tok
+      [
+        { tok constants .has
+          { i tokens len lt } andif
+          { i tokens * tok eq } andif
+        } { i 1 add =i }
 
-    { ==i
-      i assertion .thm * ==var
-      var constants .has {
-        i 0 eq { 0 } { i 1 sub ends * } ? * ==pos
-        pos tokens * var eq {
-          pos i starts =[]
-          pos 1 add i ends =[]
-          i 1 add handleToken
-        } rep
-      } {
-        i 0 eq { 0 } { i 1 sub ends * } ? * ==start
-        start i starts =[]
-        start tokens len 1 add range {
-          i ends =[]
-          i 1 add handleToken
-        } each
-      } ? *
-    } /moveToken deffst
+        { tok constants .has not
+          { i tokens len lt } andif
+          { i tokens tok variables * logicParsers * * } andif
+        } { ==end ==parse
+          parse logicRange tokens * ==new
+          tok substitution .has {
+            tok substitution * ==old
+            old new len eq { old new eq all } andif valid and =valid
+          } {
+            new tok substitution =[]
+          } ? *
+          end =i
+        }
 
-    { ==i
-      i tokenCount eq not {
-        i moveToken
-      } {
-        tokenCount 1 sub ends * tokens len eq {
-          map ==substitution
-          1 ==valid
-          0 tokenCount range { ==j
-            j assertion .thm * ==var
-            var constants .has not {
-              var substitution .has {
-                j starts * j ends * range tokens * ==newValue
-                var substitution * ==oldValue
-                newValue len oldValue len eq {
-                  newValue oldValue eq all valid and =valid
-                } {
-                  0 =valid
-                } ? *
-              } {
-                j starts * j ends * range tokens * var substitution =[]
-              } ? *
-            } rep
-          } each
+        { 1 } { 0 =valid }
+      ] conds
+    } each
 
-          valid {
-            substitution dom { ==var
-              0 var substitution * var variables * logicParsers * * { var substitution * len eq valid and =valid -- } { 0 =valid } ? *
-            } each
-          } rep
+    i tokens len eq valid and =valid
 
-          valid { substitution result .append1 } rep
-        } rep
-      } ? *
-    } /handleToken deffst
-
-    0 handleToken
-
-    result
+    list _ ==result # returned
+    valid { substitution result .append1 } rep
   } /possibleSubstitutions deffd
 
   { ==substitution ==tokens
