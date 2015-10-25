@@ -724,11 +724,16 @@ objset ==blocks
       ] conds
     } /auto deffst
 
+    { ==tokens
+      tokens len 1 eq { 0 0 tokens * * 0 "$" * eq } andif
+    } /tokensAreMetaVar deffst
+
     { ==goal
       { "\e[31mdistr:ante not applicable, expected |- ( ... -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { tokens len eq } andif { ==parse
         parse logicNonTerminal /wi eq {
+
           < > ==thms "" ==leftNt "" ==rightNt
           [
             { 1 parse * logicNonTerminal /wb eq } {
@@ -789,6 +794,33 @@ objset ==blocks
         } |notApplicable ? *
       } |notApplicable ? *
     } /tacDistrAntecedent deffst
+
+    { ==goal
+      { "\e[31mdistr:ante (meta-version) not applicable, expected |- ( ... -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { tokens len eq } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          [ ] ==leftMeta [ ] ==rightMeta
+          [
+            { 1 parse * logicNonTerminal [ /wb /wceq ] eq any
+              { 0 1 parse * * logicRange tokens * _ =leftMeta tokensAreMetaVar } andif } {
+              1 0 parse * * logicRange tokens * ==from
+              0 0 parse * * logicRange tokens * ==to
+              1 1 parse * * logicRange tokens * from to rewriteTokens 0 leftMeta * metaSubstitution =[]
+            }
+
+            { 1 parse * logicNonTerminal [ /wb /wceq ] eq any
+              { 1 1 parse * * logicRange tokens * _ =rightMeta tokensAreMetaVar } andif } {
+              0 0 parse * * logicRange tokens * ==from
+              1 0 parse * * logicRange tokens * ==to
+              0 1 parse * * logicRange tokens * from to rewriteTokens 0 rightMeta * metaSubstitution =[]
+            }
+          ] conds
+
+          goal tacDistrAntecedent
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacDistrAntecedentMeta deffst
 
     { ==to ==from ==tokens
       [
@@ -996,7 +1028,7 @@ objset ==blocks
         }
         { input "auto\n" eq
           input "\n" eq or } { goals len { selectedGoal goals * auto } |solved ? * }
-        { input "distr:ante\n" eq } { goals len { selectedGoal goals * tacDistrAntecedent } |solved ? * }
+        { input "distr:ante\n" eq } { goals len { selectedGoal goals * tacDistrAntecedentMeta } |solved ? * }
         { input "rewrite:ante\n" eq } { goals len { selectedGoal goals * tacRewriteAntecedent } |solved ? * }
         { input "rewrite:full (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacRewriteFull } |solved ? * }
@@ -1041,7 +1073,7 @@ objset ==blocks
 
   # generate parser functions
   # { ==toks ==start [...] used_theorem end success[0/1] }
-  { [| "Generating logic parser...\n" |] out
+  { =*variableCases
     map ==nonterminals
     map ==variableNonTerminals # nonterminal -> variable -> theorem name
 
@@ -1055,12 +1087,7 @@ objset ==blocks
       } each
     } each
 
-    variableNonTerminals dom { ==nonterminal
-      nonterminal variableNonTerminals * ==validVars
-      { ==toks ==start
-        start toks len lt { start toks * validVars .has } andif { [ start _ 1 add start toks * validVars * ] start 1 add 1 } { 0 } ? *
-      } nonterminal nonterminals =[]
-    } each
+    variableNonTerminals nonterminals variableCases
 
     map ==cache # for packrat transformation
     assertions dom { _ ==name assertions * ==a
@@ -1094,7 +1121,32 @@ objset ==blocks
 
     map _ ==parsers # returned
     nonterminals dom { ==nt { map =cache nt nonterminals * * } nt parsers =[] } each # reset cache before parse
-  } memoized /logicParsers deffd
+  } /generateLogicParsers deffd
+
+  { ==nonterminals ==variableNonTerminals
+    variableNonTerminals dom { ==nonterminal
+      nonterminal variableNonTerminals * ==validVars
+      { ==toks ==start
+        start toks len lt { start toks * validVars .has } andif { [ start _ 1 add start toks * validVars * ] start 1 add 1 } { 0 } ? *
+      } nonterminal nonterminals =[]
+    } each
+  } /noMetaVariables deffst
+
+  { ==nonterminals ==variableNonTerminals
+    variableNonTerminals dom { ==nonterminal
+      nonterminal variableNonTerminals * ==validVars
+      { ==toks ==start
+        start toks len lt {
+          start toks * ==var
+          var len { 0 var * 0 "$" * eq } andif { var ".(.*)\\.[0-9]+" regex } andif { =var } rep
+          var validVars .has { [ start _ 1 add var validVars * ] start 1 add 1 } { 0 } ? *
+        } rep
+      } nonterminal nonterminals =[]
+    } each
+  } /alsoMetaVariables deffst
+
+  { [| "Generating logic parser...\n"      |] out |noMetaVariables   generateLogicParsers } memoized /logicParsers deffst
+  { [| "Generating meta-logic parser...\n" |] out |alsoMetaVariables generateLogicParsers } memoized /metaLogicParsers deffst
 
   { ==node node len 3 sub node * } /logicStart deffst
   { ==node node len 2 sub node * } /logicEnd deffst
