@@ -771,6 +771,7 @@ objset ==blocks
                   [ /coeq1d /coeq2d /coeq12d ] ==ccom
                   [ /reseq1d /reseq2d /reseq12d ] ==cres
                   [ /dmeq ] ==cdm
+                  [ /unieqd ] ==cuni
                 > =thms
               } |notApplicable ? *
             }
