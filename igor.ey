@@ -1010,7 +1010,7 @@ objset ==blocks
       { "\e[32mWe are done here.\e[0m\n" out } =*solved
       [
         { input "" eq } { 0 =running }
-        { input "done\n" eq } { 0 =running }
+        { input "quit\n" eq } { 0 =running }
         { input "^show (.*)\n" regex } { show 0 =redisplay }
         { input "^(\\d+)\n" regex } {
           txt .consume .u _ goals len ge { -- goals len 1 sub } rep =selectedGoal
