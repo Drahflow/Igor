@@ -298,7 +298,7 @@ objset ==blocks
 } /collectEHyps deffst
 
 <
-  { [ } "[|" deffd { ] |cat fold } τstrCat "|]" deffd
+  { [ } "[|" deffd { ] |cat fold } "|]" deffd
 
   emptyBlock ==renderContext
   emptyBlock ==userContext
@@ -1267,7 +1267,7 @@ objset ==blocks
                 } rep } each
                 success { ,-- start i name ] i 1 } { ,--- 0 } ? *
               } ? *
-            } τnonTerminal nt nonterminals =[]
+            } nt nonterminals =[]
           } rep
         } rep
       } rep
@@ -1281,7 +1281,7 @@ objset ==blocks
         start txt .produce .hu ==cacheKey
         cacheKey ntCache .has not { [ start toks orig ] cacheKey ntCache =[] } rep
         cacheKey ntCache * _ len dearray
-      } τnonTerminalCache nt nonterminals =[]
+      } nt nonterminals =[]
     } each
 
     map ==globalCache # for repeated invocations
@@ -1301,7 +1301,7 @@ objset ==blocks
       nonterminal variableNonTerminals * ==validVars
       { ==toks ==start
         start toks len lt { start toks * validVars .has } andif { [ start _ 1 add start toks * validVars * ] start 1 add 1 } { 0 } ? *
-      } τnoMetaVariables nonterminal nonterminals =[]
+      } nonterminal nonterminals =[]
     } each
   } /noMetaVariables deffst
 
@@ -1314,7 +1314,7 @@ objset ==blocks
           var len { 0 var * 0 "$" * eq } andif { var ".(.*)\\.[0-9]+" regex } andif { =var } rep
           var validVars .has { [ start _ 1 add var validVars * ] start 1 add 1 } { 0 } ? *
         } rep
-      } τmetaVariables nonterminal nonterminals =[]
+      } nonterminal nonterminals =[]
     } each
   } /alsoMetaVariables deffst
 
@@ -1340,7 +1340,6 @@ objset ==blocks
   {
     1 ==running
     { running } {
-      perfstats
       "> " sys .out .writeall
       inputLine ==input
 
