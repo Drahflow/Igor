@@ -1230,12 +1230,6 @@ objset ==blocks
     } each
   } memoized /variables deffd
 
-  [ 0 256 range { ==i
-    [ 0 256 range { ==j
-      i 256 mul j add txt .produce .u 
-    } each ]
-  } each ] |cat fold ==:hexNumbers
-
   # generate parser functions
   # { ==toks ==start [...] used_theorem end success[0/1] }
   { =*variableCases
@@ -1284,7 +1278,7 @@ objset ==blocks
       nt nonterminals * =*orig
       { ==toks ==start
         nt cache .has not { map nt cache =[] } rep nt cache * ==ntCache
-        start hexNumbers * ==cacheKey
+        start txt .produce .hu ==cacheKey
         cacheKey ntCache .has not { [ start toks orig ] cacheKey ntCache =[] } rep
         cacheKey ntCache * _ len dearray
       } τnonTerminalCache nt nonterminals =[]
