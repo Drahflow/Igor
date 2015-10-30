@@ -405,10 +405,10 @@ objset ==blocks
     } loop
   } /readNumber deffd
 
-  { ==assertion ==tokens map ==substitution
+  { ==assertionTokens ==tokens map ==substitution
     1 ==valid
     0 ==i
-    assertion .thm { ==tok
+    assertionTokens { ==tok
       [
         { tok constants .has
           { i tokens len lt } andif
@@ -437,7 +437,9 @@ objset ==blocks
 
     list _ ==result # returned
     valid { substitution result .append1 } rep
-  } /possibleSubstitutions deffd
+  } /possibleSubstitutionsForToks deffd
+
+  { .thm possibleSubstitutionsForToks } /possibleSubstitutions deffd
 
   { ==substitution ==tokens
     [ tokens { _ substitution .has { substitution * _ len dearray } rep } each ]
@@ -479,14 +481,15 @@ objset ==blocks
     1 ==redisplay
     [ ] ==lastSearch
 
-    { metaSubstitution applySubstitution } /expandMeta deffst
+    { _ ==old ==toks
+      {
+        toks metaSubstitution applySubstitution =toks
+        old toks len eq { old toks eq all } andif not
+      } { toks =old } loop
+      toks
+    } /expandMeta deffst
 
-    { ==closedGoal ==substitution ==theorem
-      [| "applying with:\n" |] out
-      substitution dom { ==name
-        [| name " = " name substitution * { renderName " " } each "\n" |] out
-      } each
-
+    { ==theorem ==substitution
       theorem mandatoryVariables dom { ==var
         var constants .has not {
           var substitution .has not {
@@ -496,6 +499,15 @@ objset ==blocks
           } rep
         } rep
       } each
+    } /introduceMetaVars deffst
+
+    { ==closedGoal ==substitution ==theorem
+      [| "applying with:\n" |] out
+      substitution dom { ==name
+        [| name " = " name substitution * { renderName " " } each "\n" |] out
+      } each
+
+      substitution theorem introduceMetaVars
 
       0 ==disjunctionsViolated
       theorem .disj { 2 dearray ==x ==y
@@ -538,7 +550,9 @@ objset ==blocks
           ] conds
         } each
 
-        # TODO: index open goals and reuse
+        hypotheses len not {
+          rebuildClosedGoalIndex
+        } rep
 
         hypotheses substitution theorem step closedGoal .close
       } rep
@@ -555,12 +569,14 @@ objset ==blocks
               goalToks a possibleSubstitutions ==choices
 
               0 ==indirectUsage
-              allowIndirectUsage {
-                choices len 0 eq
-                  { 0 goalToks * "|-" eq } andif
-                  { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==parse
-                  parse logicNonTerminal /wi eq {
-                    [ "|-" ] 1 parse * logicRange goalToks * cat a possibleSubstitutions ==implChoices
+              allowIndirectUsage
+              { choices len 0 eq } andif
+              { 0 goalToks * "|-" eq } andif
+              { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+                0 a .thm * "|-" eq
+                { 1 a .thm /wff logicParsers * * } andif a .thm fullyParsed { ==assertionParse
+                  goalParse logicNonTerminal /wi eq {
+                    [ "|-" ] 1 goalParse * logicRange goalToks * cat a possibleSubstitutions ==implChoices
                     implChoices len 1 eq {
                       /a1i goal use
                       goal .isopen not {
@@ -568,6 +584,45 @@ objset ==blocks
                         1 =indirectUsage
                       } rep
                     } rep
+                  } rep
+
+                  indirectUsage not { goalParse logicNonTerminal /wi eq } andif {
+                    assertionParse ==i [ ] ==path
+                    {
+                      [
+                        { i logicNonTerminal /wb eq } {
+                          1 goalParse * logicRange goalToks * 1 i * logicRange a .thm * possibleSubstitutionsForToks ==rightChoices
+                          rightChoices len 1 eq {
+                            0 rightChoices * _ ==substitution a introduceMetaVars
+                            path dump # TODO: this is presumably important
+                            1 =indirectUsage
+                            /sylib goal use
+                            0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * metaSubstitution =[]
+                            goal .isopen not {
+                              name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
+                                name 4 goal .resolution .hypotheses * use
+                              } rep
+                            } rep
+                          } {
+                            1 goalParse * logicRange goalToks * 0 i * logicRange a .thm * possibleSubstitutionsForToks ==leftChoices
+                            leftChoices len 1 eq {
+                              0 leftChoices * _ ==substitution a introduceMetaVars
+                              path dump # TODO: this is presumably important
+                              1 =indirectUsage
+                              /sylibr goal use
+                              1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * metaSubstitution =[]
+                              goal .isopen not {
+                                name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
+                                  name 4 goal .resolution .hypotheses * use
+                                } rep
+                              } rep
+                            } rep
+                          } ? *
+                          0
+                        }
+                        { 1 } { 0 }
+                      ] conds
+                    } { } loop
                   } rep
                 } rep
               } rep
@@ -691,7 +746,8 @@ objset ==blocks
       } each
     } memoized /directTheoremIndex deffst
 
-    { map _ ==closedGoalIndex # returned
+    map ==closedGoalIndex
+    { map =closedGoalIndex
       { ==goal
         goal .isopen { 1 } {
           [ goal .resolution .hypotheses |recurse each ] any { 1 } {
@@ -702,7 +758,7 @@ objset ==blocks
         } ? *
       } /recurse deffst
       mainGoal recurse --
-    } /closedGoalIndex deffst
+    } /rebuildClosedGoalIndex deffst
 
     { ==toTry ==goal
       goal .isopen not {
@@ -756,6 +812,12 @@ objset ==blocks
             { parse logicNonTerminal /wceq eq { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif } {
               /eqid goal use
               goal [ |auto ] tacAttemptNext
+            }
+            { parse logicNonTerminal /wi eq {
+                1 parse * logicRange tokens * ==target
+                [ goal antecedents { ==ante ante target len eq { ante target eq all } andif } each ] any
+              } andif } {
+              goal tacSelect
             }
           ] conds
         }
@@ -1048,6 +1110,24 @@ objset ==blocks
       } { "\e[31mdesired conclusion did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
     } /tacConclude deffst
 
+    { ==goal ==tokens
+      0 tokens /wff logicParsers * * tokens fullyParsed { ==parse
+        goal .thm expandMeta ==goalToks
+        0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+          goalParse logicNonTerminal /wi eq {
+            0 goalParse * logicNonTerminal /wa eq {
+              /sylancom goal use
+              tokens /ch lastMetaVariables * metaSubstitution =[]
+            } {
+              /syl goal use
+              tokens /ps lastMetaVariables * metaSubstitution =[]
+            } ? *
+            goal [ |auto ] tacAttemptNext
+          } { "\e[31current goal is not |- ( ... -> ... )\e[0m\n" out } ? *
+        } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
+      } { "\e[31mdesired conclusion did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
+    } /tacAndConclude deffst
+
     { ==goal
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
@@ -1315,6 +1395,8 @@ objset ==blocks
           goals len { tokens selectedGoal goals * tacWith } |solved ? * }
         { input "^ *conclude (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacConclude } |solved ? * }
+        { input "^ *and conclude (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacAndConclude } |solved ? * }
         { input "^ *normalize:ante\n" regex } {
           goals len { selectedGoal goals * tacNormalizeAntecedent } |solved ? * }
         { input "^ *expand (.*)\n" regex } { ==name
