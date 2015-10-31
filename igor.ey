@@ -586,31 +586,47 @@ objset ==blocks
                     } rep
                   } rep
 
-                  indirectUsage not { goalParse logicNonTerminal /wi eq } andif {
+                  indirectUsage not {
+                    0 ==hasAntes
+                    goalParse logicNonTerminal /wi eq {
+                      1 goalParse * 1 =hasAntes
+                    } {
+                      goalParse
+                    } ? * logicRange goalToks * ==relevantGoalToks
                     assertionParse ==i [ ] ==path
                     {
                       [
                         { i logicNonTerminal /wb eq } {
-                          1 goalParse * logicRange goalToks * 1 i * logicRange a .thm * possibleSubstitutionsForToks ==rightChoices
+                          relevantGoalToks 1 i * logicRange a .thm * possibleSubstitutionsForToks ==rightChoices
                           rightChoices len 1 eq {
                             0 rightChoices * _ ==substitution a introduceMetaVars
                             path dump # TODO: this is presumably important
                             1 =indirectUsage
-                            /sylib goal use
-                            0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * metaSubstitution =[]
+                            hasAntes {
+                              /sylib goal use
+                              0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                            } {
+                              /mpbi goal use
+                              0 i * logicRange a .thm * substitution applySubstitution /ph lastMetaVariables * let
+                            } ? *
                             goal .isopen not {
                               name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
                                 name 4 goal .resolution .hypotheses * use
                               } rep
                             } rep
                           } {
-                            1 goalParse * logicRange goalToks * 0 i * logicRange a .thm * possibleSubstitutionsForToks ==leftChoices
+                            relevantGoalToks 0 i * logicRange a .thm * possibleSubstitutionsForToks ==leftChoices
                             leftChoices len 1 eq {
                               0 leftChoices * _ ==substitution a introduceMetaVars
                               path dump # TODO: this is presumably important
                               1 =indirectUsage
-                              /sylibr goal use
-                              1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * metaSubstitution =[]
+                              hasAntes {
+                                /sylibr goal use
+                                1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                              } {
+                                /mpbir goal use
+                                1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                              } ? *
                               goal .isopen not {
                                 name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
                                   name 4 goal .resolution .hypotheses * use
@@ -813,13 +829,26 @@ objset ==blocks
               /eqid goal use
               goal [ |auto ] tacAttemptNext
             }
-            { parse logicNonTerminal /wi eq {
-                1 parse * logicRange tokens * ==target
-                [ goal antecedents { ==ante ante target len eq { ante target eq all } andif } each ] any
-              } andif } {
-              goal tacSelect
-            }
           ] conds
+
+          goal .isopen { parse logicNonTerminal /wi eq } andif {
+            1 parse * logicRange tokens * ==target
+
+            goal antecedents { ==ante
+              ante len target len eq { ante target eq all } andif {
+                goal tacSelect
+              } rep
+            } each
+
+            proofContext collectEHyps _ ==hyps dom { ==name
+              name hyps * len 1 sub target len eq { 1 name hyps * len range name hyps * * target eq all } andif {
+                /a1i goal use
+                goal .isopen not {
+                  name 2 goal .resolution .hypotheses * use
+                } rep
+              } rep
+            } each
+          } rep
         }
       ] conds
     } /auto deffst
@@ -890,7 +919,6 @@ objset ==blocks
             thms leftNt . { ==thm
               goal .isopen { thm goal .thm expandMeta canUse } andif {
                 thm goal use
-                0 tree
                 goal [ |auto |tacDistrAntecedent ] tacAttemptNext
               } rep
             } each
@@ -912,14 +940,14 @@ objset ==blocks
               { 0 1 parse * * logicRange tokens * _ =leftMeta tokensAreMetaVar } andif } {
               1 0 parse * * logicRange tokens * ==from
               0 0 parse * * logicRange tokens * ==to
-              1 1 parse * * logicRange tokens * from to rewriteTokens 0 leftMeta * metaSubstitution =[]
+              1 1 parse * * logicRange tokens * from to rewriteTokens 0 leftMeta * let
             }
 
             { 1 parse * logicNonTerminal [ /wb /wceq ] eq any
               { 1 1 parse * * logicRange tokens * _ =rightMeta tokensAreMetaVar } andif } {
               0 0 parse * * logicRange tokens * ==from
               1 0 parse * * logicRange tokens * ==to
-              0 1 parse * * logicRange tokens * from to rewriteTokens 0 rightMeta * metaSubstitution =[]
+              0 1 parse * * logicRange tokens * from to rewriteTokens 0 rightMeta * let
             }
           ] conds
 
@@ -949,7 +977,7 @@ objset ==blocks
           1 0 parse * * logicRange tokens * ==to
 
           /mpbird goal use
-          1 parse * logicRange tokens * from to rewriteTokens /ch lastMetaVariables * metaSubstitution =[]
+          1 parse * logicRange tokens * from to rewriteTokens /ch lastMetaVariables * let
           goal [ |auto ] tacAttemptNext
 
           goal .isopen not {
@@ -969,14 +997,14 @@ objset ==blocks
             1 antecedentParse * logicRange antecedent * ==to
 
             /mpbir goal use
-            1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * metaSubstitution =[]
+            1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * let
             goal [ |auto ] tacAttemptNext
             goal .isopen not {
               3 goal .resolution .hypotheses * ==mpbirMaj
 
               mpbirMaj .isopen {
                 /ax-mp mpbirMaj use
-                antecedent /ph lastMetaVariables * metaSubstitution =[]
+                antecedent /ph lastMetaVariables * let
                 mpbirMaj [ |auto ] tacAttemptNext
 
                 mpbirMaj .isopen not {
@@ -1068,7 +1096,7 @@ objset ==blocks
     { ==goal ==tokens
       0 tokens /wff logicParsers * * tokens fullyParsed { --
         /mpcom goal use
-        tokens /ph lastMetaVariables * metaSubstitution =[]
+        tokens /ph lastMetaVariables * let
         goal [ |auto ] tacAttemptNext
         goal .isopen not {
           3 goal .resolution .hypotheses * tacAndSelect
@@ -1079,7 +1107,7 @@ objset ==blocks
     { ==goal ==tokens
       0 tokens /wff logicParsers * * tokens fullyParsed { --
         /mpd goal use
-        tokens /ps lastMetaVariables * metaSubstitution =[]
+        tokens /ps lastMetaVariables * let
         goal [ |auto ] tacAttemptNext
         goal .isopen not {
           3 goal .resolution .hypotheses * tacAndSelect
@@ -1090,7 +1118,7 @@ objset ==blocks
     { ==goal ==tokens
       0 tokens /wff logicParsers * * tokens fullyParsed { --
         /syl goal use
-        tokens /ps lastMetaVariables * metaSubstitution =[]
+        tokens /ps lastMetaVariables * let
         goal [ |auto ] tacAttemptNext
         goal .isopen not {
           3 goal .resolution .hypotheses * tacAndSelect
@@ -1104,7 +1132,7 @@ objset ==blocks
         0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
           goalParse logicNonTerminal /wi eq
             /mpancom /ax-mp ? goal use
-          tokens /ph lastMetaVariables * metaSubstitution =[]
+          tokens /ph lastMetaVariables * let
           goal [ |auto ] tacAttemptNext
         } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
       } { "\e[31mdesired conclusion did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
@@ -1117,10 +1145,10 @@ objset ==blocks
           goalParse logicNonTerminal /wi eq {
             0 goalParse * logicNonTerminal /wa eq {
               /sylancom goal use
-              tokens /ch lastMetaVariables * metaSubstitution =[]
+              tokens /ch lastMetaVariables * let
             } {
               /syl goal use
-              tokens /ps lastMetaVariables * metaSubstitution =[]
+              tokens /ps lastMetaVariables * let
             } ? *
             goal [ |auto ] tacAttemptNext
           } { "\e[31current goal is not |- ( ... -> ... )\e[0m\n" out } ? *
@@ -1217,6 +1245,42 @@ objset ==blocks
       } |notApplicable ? *
     } /tacNormalizeAntecedent deffst
 
+    { ==goals
+      {
+        [ goals { ==goal
+          goal .isopen {
+            goal .thm expandMeta ==tokens
+            0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+              parse logicNonTerminal /wi eq
+                  { 0 parse * logicNonTerminal [ /wb /wceq ] eq any } andif
+                  { 1 parse * logicNonTerminal [ /wb /wceq ] eq any } andif {
+                0 1 parse * * logicRange tokens * ==leftMeta
+                1 1 parse * * logicRange tokens * ==rightMeta
+                [
+                  { leftMeta tokensAreMetaVar rightMeta tokensAreMetaVar not and } {
+                    1 0 parse * * logicRange tokens * ==from
+                    0 0 parse * * logicRange tokens * ==to
+                    1 1 parse * * logicRange tokens * from to rewriteTokens 0 leftMeta * let
+                  }
+
+                  { leftMeta tokensAreMetaVar not rightMeta tokensAreMetaVar and } {
+                    0 0 parse * * logicRange tokens * ==from
+                    1 0 parse * * logicRange tokens * ==to
+                    0 1 parse * * logicRange tokens * from to rewriteTokens 0 rightMeta * let
+                  }
+                ] conds
+
+                goal .thm expandMeta ==tokensSubstituted
+                1 tokensSubstituted /wff logicParsers * * tokensSubstituted fullyParsed { # ==parse
+                  goal tacDistrAntecedent
+                } rep
+              } rep
+            } rep
+          } rep
+        } each ] len
+      } { } loop
+    } /tacSubstitutions deffst
+
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
     { < map ==transitions objset ==theorems > } /tokenNode deffst
@@ -1306,6 +1370,17 @@ objset ==blocks
       mainGoal recurse
     } /reopen deffst
 
+    { objset _ ==children .put
+      { ==goal
+        goal .isopen not {
+          goal .resolution .hypotheses { ==hyp
+            hyp children .has { goal .open } { hyp recurse } ? *
+          } each
+        } rep
+      } /recurse deffst
+      mainGoal recurse
+    } /reopenParentOf deffst
+
     1 ==running
     0 ==autoall
     0 ==antedisp
@@ -1334,15 +1409,20 @@ objset ==blocks
           selectedGoal goals * ==goal
           goal .thm expandMeta ==tokens
           0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+            [| "\n" |] out
+            proofContext collectEHyps _ ==hyps dom { ==name
+              [| "+ " name hyps * _ len 1 -01 range -01* { renderName " " } each "\n" |] out
+            } each
             goal antecedents ==antes
-            antes len 0 gt {
-              [| "\n" |] out
-              antes { ==toks
-                [| "* " toks { renderName " " } each "\n" |] out
-              } each
-              [| "\e[1m-------------------------------------------------\e[0m\n" |] out
-              [| "\e[1m->\e[0m " 1 parse * logicRange tokens * { renderName " " } each "\n" |] out
-            } rep
+            [| "\n" |] out
+            antes { ==toks
+              [| "* " toks { renderName " " } each "\n" |] out
+            } each
+            [| "\e[1m-------------------------------------------------\e[0m\n" |] out
+            [| "  "
+               parse logicNonTerminal /wi eq { 1 parse * } { parse } ? * logicRange tokens *
+                 { renderName " " } each
+           "\n" |] out
           } rep
         } rep
       } /display deffst
@@ -1387,6 +1467,7 @@ objset ==blocks
         { input "^ *and rewrite\n" regex } { goals len { selectedGoal goals * tacContinueWithRewrite } |solved ? * }
         { input "^ *rewrite:full (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacRewriteFull } |solved ? * }
+        { input "^ *substitutions\n" regex } { goals tacSubstitutions }
         { input "^ *under (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacUnder } |solved ? * }
         { input "^ *with only (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
@@ -1405,6 +1486,7 @@ objset ==blocks
         { input "^ *fulltree\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
         { input "^ *reopen (\\d+)\n" regex } { txt .consume .u reopen }
+        { input "^ *reopen\n" regex } { selectedGoal goals * reopenParentOf }
         { input "^ *sug\n" regex } { selectedGoal goals * suggest }
         { input "^ *search (.*)\n" regex } { " " str .split _ =lastSearch search }
         { input "^ *search\n" regex } { lastSearch search }
