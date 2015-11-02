@@ -464,12 +464,26 @@ objset ==blocks
 
   { ==proposition
 
-    map ==disj
+    map ==disj map ==nonDisj
     { ==x ==y
       x y gt { x y =x =y } rep
       x disj .has not { map x disj =[] } rep
       1 y x disj * =[]
     } /markDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x nonDisj .has not { map x nonDisj =[] } rep
+      1 y x nonDisj * =[]
+    } /markNonDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x nonDisj .has {
+        y x nonDisj * .has
+      } { 0 } ? *
+    } /mustNotDisj deffst
+
 
     proposition .ctx _ =proofContext
     proposition .thm goal ==mainGoal
@@ -514,11 +528,18 @@ objset ==blocks
         x substitution * { ==xTok
           xTok constants .has not {
             y substitution * { ==yTok
-              yTok constants .has not { xTok yTok eq {
-                1 =disjunctionsViolated
-                [| "\e[31mproposed application would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
-                0 =redisplay
-              } rep } rep
+              yTok constants .has not {
+                xTok yTok eq {
+                  1 =disjunctionsViolated
+                  [| "\e[31mproposed application would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+                  0 =redisplay
+                } rep
+                xTok yTok mustNotDisj {
+                  1 =disjunctionsViolated
+                  [| "\e[31mproposed application would violate\e[0m " x renderName " <=> " y renderName "\n" |] out
+                  0 =redisplay
+                } rep
+              } rep
             } each
           } rep
         } each
@@ -731,6 +752,13 @@ objset ==blocks
           y x disj * .has {
             1 =disjunctionsViolated
             [| "\e[31mproposed let would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+            0 =redisplay
+          } rep
+        } rep
+        x nonDisj .has {
+          y x nonDisj * .has {
+            1 =disjunctionsViolated
+            [| "\e[31mproposed let would violate\e[0m " x renderName " <=> " y renderName "\n" |] out
             0 =redisplay
           } rep
         } rep
@@ -1394,6 +1422,11 @@ objset ==blocks
 
       {
         " " ==sep
+        [| nonDisj dom sort { ==x
+          x nonDisj * dom sort { ==y
+            sep ", " =sep x renderName " <=> " y renderName
+          } each
+        } each "\n" |] out
         [| disj dom sort { ==x
           x disj * dom sort { ==y
             sep ", " =sep x renderName " <!> " y renderName
@@ -1452,6 +1485,7 @@ objset ==blocks
           } each
           0 =redisplay
         }
+        { input "^ *nondisj (.*) <=> (.*)\n" regex } { markNonDisj }
         { input "^ *auto\n" regex
           input "^ *\n" regex or } { goals len { selectedGoal goals * auto } |solved ? * }
         { input "^ */(.*)\n" regex } { ==search 0 ==success
