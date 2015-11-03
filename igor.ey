@@ -894,6 +894,16 @@ objset ==blocks
       } rep
     } /tacAttemptNext deffst
 
+    { ==tokens ==parse
+      parse logicRange tokens * ==thing
+      [
+        [ "NN0" "NN" "RR" "CC" ] { ==numbers
+          { thing len 1 eq { [| [ "|-" 0 thing * "e." numbers ] { " " } each |] directTheoremIndex .has } andif } { numbers }
+        } each
+        { 1 } { "" }
+      ] conds
+    } /classify deffst
+
     { ==goal
       goal .thm expandMeta ==tokens
       [| tokens { " " } each |] ==txt
@@ -940,6 +950,22 @@ objset ==blocks
               goal [ |auto ] tacAttemptNext
             }
           ] conds
+
+          goal .isopen { parse logicNonTerminal /wcel eq } andif {
+            0 parse * tokens classify ==type
+            1 parse * logicRange tokens * ==set
+
+            type "" neq { set len 1 eq } andif {
+              0 set * ==setName
+              goal .isopen { setName "_V" eq } andif {
+                /elexi goal use
+                goal .isopen not {
+                  [ type ] /B lastMetaVariables * let
+                  goal [ |auto ] tacAttemptNext
+                } rep
+              } rep
+            } rep
+          } rep
 
           goal .isopen { parse logicNonTerminal /wi eq } andif {
             1 parse * logicRange tokens * ==target
