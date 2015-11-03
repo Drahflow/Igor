@@ -955,13 +955,19 @@ objset ==blocks
             0 parse * tokens classify ==type
             1 parse * logicRange tokens * ==set
 
-            type "" neq { set len 1 eq } andif {
-              0 set * ==setName
-              goal .isopen { setName "_V" eq } andif {
-                /elexi goal use
-                goal .isopen not {
-                  [ type ] /B lastMetaVariables * let
-                  goal [ |auto ] tacAttemptNext
+            set len 1 eq { 0 set * ==setName
+              goal .isopen { 0 parse * logicNonTerminal "cv" eq } andif {
+                /vex goal use
+                goal [ |auto ] tacAttemptNext
+              } rep
+
+              type "" neq {
+                goal .isopen { setName "_V" eq } andif {
+                  /elexi goal use
+                  goal .isopen not {
+                    [ type ] /B lastMetaVariables * let
+                    goal [ |auto ] tacAttemptNext
+                  } rep
                 } rep
               } rep
             } rep
@@ -969,6 +975,12 @@ objset ==blocks
 
           goal .isopen { parse logicNonTerminal /wi eq } andif {
             1 parse * logicRange tokens * ==target
+            [| "|- " target { " " } each |] _ dump ==targetTxt
+
+            targetTxt directTheoremIndex .has {
+              /a1i goal use
+              goal [ |auto ] tacAttemptNext
+            } rep
 
             goal antecedents { ==ante
               ante len target len eq { ante target eq all } andif {
