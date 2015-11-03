@@ -594,17 +594,20 @@ objset ==blocks
             1 0 parse * * logicRange toks * ==rightVar
             0 1 parse * * logicRange toks * ==leftTerm
             1 1 parse * * logicRange toks * ==rightTerm
-            leftVar len 1 eq { rightVar len 1 eq } andif {
+            leftVar len 1 eq
+                { rightVar len 1 eq } andif
+                { 0 leftVar * substitution .has } andif
+                { 0 rightVar * substitution .has } andif {
               leftTerm len 1 eq
                   { 0 leftTerm * substitution .has } andif
                   { 0 rightTerm * substitution .has not } andif {
-                0 leftTerm * substitution * leftVar rightVar rewriteTokens
+                0 leftTerm * substitution * 0 leftVar * substitution * 0 rightVar * substitution * rewriteTokens
                   0 rightTerm * substitution =[]
               } rep
               rightTerm len 1 eq
                   { 0 rightTerm * substitution .has } andif
                   { 0 leftTerm * substitution .has not } andif {
-                0 rightTerm * substitution * rightVar leftVar rewriteTokens
+                0 rightTerm * substitution * 0 rightVar * substitution * 0 leftVar * substitution * rewriteTokens
                   0 leftTerm * substitution =[]
               } rep
             } rep
