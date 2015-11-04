@@ -188,7 +188,7 @@ objset ==blocks
   # "Vars: " dump
   # vars dom dump
   [ pstm .ctx { _ .?'d }' { _ .parent }' loop -- ] reverse ==ctxs
-  ctxs { .d { # _ dump
+  ctxs { .d {
     ==dstm
     0 dstm len range { _ ==i dstm * vars .has {
       i 1 add dstm len range { _ ==j dstm * vars .has {
@@ -211,7 +211,7 @@ objset ==blocks
 { _ ==pstm _ .ctx ==ctx computeProof
     list ==stack # the verification stack
     list ==savedTheorems # Z-saved theorems
-  _ dump { ==lbl
+  { ==lbl
     [
       { lbl ctx isEHyp } { lbl ctx getEHyp stack .append1 }
       { lbl ctx isFHyp } { lbl ctx getFHyp stack .append1 }
@@ -572,7 +572,7 @@ objset ==blocks
         } each
 
         hypotheses len not {
-          rebuildClosedGoalIndex
+          amendClosedGoalIndex
         } rep
 
         hypotheses substitution theorem step closedGoal .close
@@ -873,18 +873,20 @@ objset ==blocks
     } memoized /directTheoremIndex deffst
 
     map ==closedGoalIndex
-    { map =closedGoalIndex
+    {
       { ==goal
         goal .isopen { 1 } {
-          [ goal .resolution .hypotheses |recurse each ] any { 1 } {
-            [| goal .thm expandMeta { " " } each |] ==txt
-            goal txt closedGoalIndex =[]
-            0
+          [| goal .thm expandMeta { " " } each |] ==txt
+          txt closedGoalIndex .has { 0 } {
+            [ goal .resolution .hypotheses |recurse each ] any { 1 } {
+              goal txt closedGoalIndex =[]
+              0
+            } ? *
           } ? *
         } ? *
       } /recurse deffst
       mainGoal recurse --
-    } /rebuildClosedGoalIndex deffst
+    } /amendClosedGoalIndex deffst
 
     { ==toTry ==goal
       goal .isopen not {
@@ -900,6 +902,7 @@ objset ==blocks
         [ "NN0" "NN" "RR" "CC" ] { ==numbers
           { thing len 1 eq { [| [ "|-" 0 thing * "e." numbers ] { " " } each |] directTheoremIndex .has } andif } { numbers }
         } each
+        { parse logicNonTerminal /cdc eq { 0 parse * tokens classify "NN0" eq } andif { 1 parse * tokens classify "NN0" eq } andif } { "NN0" }
         { 1 } { "" }
       ] conds
     } /classify deffst
@@ -908,13 +911,13 @@ objset ==blocks
       goal .thm expandMeta ==tokens
       [| tokens { " " } each |] ==txt
       [
-        { txt directTheoremIndex .has } {
-          txt directTheoremIndex * goal use
-          goal [ |auto ] tacAttemptNext
-        }
         { txt closedGoalIndex .has } {
           [| "re-using earlier proof\n" |] out
           txt closedGoalIndex * .resolution goal .close
+        }
+        { txt directTheoremIndex .has } {
+          txt directTheoremIndex * goal use
+          goal [ |auto ] tacAttemptNext
         }
         { 0 tokens * logicParsers .has } {
           { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
@@ -952,7 +955,6 @@ objset ==blocks
           ] conds
 
           goal .isopen { parse logicNonTerminal /wcel eq } andif {
-            0 parse * tokens classify ==type
             1 parse * logicRange tokens * ==set
 
             set len 1 eq { 0 set * ==setName
@@ -960,6 +962,13 @@ objset ==blocks
                 /vex goal use
                 goal [ |auto ] tacAttemptNext
               } rep
+
+              goal .isopen { setName "NN0" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
+                /deccl goal use
+                goal [ |auto ] tacAttemptNext
+              } rep
+
+              0 parse * tokens classify ==type
 
               type "" neq {
                 goal .isopen { setName "_V" eq } andif {
@@ -969,13 +978,18 @@ objset ==blocks
                     goal [ |auto ] tacAttemptNext
                   } rep
                 } rep
+
+                goal .isopen { setName "CC" eq } andif { type "NN0" eq } andif {
+                  /nn0cni goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
               } rep
             } rep
           } rep
 
           goal .isopen { parse logicNonTerminal /wi eq } andif {
             1 parse * logicRange tokens * ==target
-            [| "|- " target { " " } each |] _ dump ==targetTxt
+            [| "|- " target { " " } each |] ==targetTxt
 
             targetTxt directTheoremIndex .has {
               /a1i goal use
@@ -1443,6 +1457,313 @@ objset ==blocks
       } { } loop
     } /tacSubstitutions deffst
 
+    { ==goal
+      { "\e[31msolve:arith not applicable, expected |- ( <decimal> { + , x. , ^ } <decimal> ) = <decimal>\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      [| tokens { " " } each "\n" |] out
+      [ /dec0h /addid1i /addid2i /mul01i /mul02i /mulid1i /mulid2i /numexp0 /numexp1 ] { ==thm
+        goal .isopen { thm tokens canUse } andif {
+          thm goal use
+          goal [ |auto ] tacAttemptNext
+        } rep
+      } each
+
+      goal .isopen {
+        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+          parse logicNonTerminal "wceq" eq { 0 parse * logicNonTerminal /co eq } andif {
+            0 0 parse * * ==left
+            1 0 parse * * ==operation
+            2 0 parse * * ==right
+            1 parse * ==result
+
+            { ==parse
+              parse logicNonTerminal ==nt
+              [
+                { nt /cc0 eq } { 0 1 }
+                { nt /c1 eq } { 1 1 }
+                { nt /c2 eq } { 2 1 }
+                { nt /c3 eq } { 3 1 }
+                { nt /c4 eq } { 4 1 }
+                { nt /c5 eq } { 5 1 }
+                { nt /c6 eq } { 6 1 }
+                { nt /c7 eq } { 7 1 }
+                { nt /c8 eq } { 8 1 }
+                { nt /c9 eq } { 9 1 }
+                { nt /cdc eq } {
+                  0 parse * parseNumber { ==high
+                    1 parse * parseNumber { ==low
+                      high 10 mul low add 1
+                    } { 0 } ? *
+                  } { 0 } ? *
+                }
+                { 1 } { 0 }
+              ] conds
+            } /parseNumber deffst
+
+            { txt .produce .u ==s
+              [
+                s len 1 sub { ";" } rep
+                s { [ -01 ] str .fromArray } each
+              ]
+            } /printNumber deffst
+
+            left parseNumber { ==leftNum
+              right parseNumber { ==rightNum
+                result parseNumber { ==resultNum
+                  [
+                    { operation logicNonTerminal /caddc eq } {
+                      [
+                        { leftNum rightNum add resultNum neq } { "\e[31mincorrect addition result\e[0m\n" out }
+                        { left logicNonTerminal /cdc eq right logicNonTerminal /cdc eq or } {
+                          leftNum 10 mod rightNum 10 mod add 9 gt {
+                            /decaddc goal use
+                          } {
+                            /decadd goal use
+                          } ? *
+
+                          goal .isopen not {
+                            left logicNonTerminal /cdc eq {
+                              0 left * logicRange tokens * /A lastMetaVariables * let
+                              1 left * logicRange tokens * /B lastMetaVariables * let
+                            } {
+                              [ "0" ] /A lastMetaVariables * let
+                              left logicRange tokens * /B lastMetaVariables * let
+                            } ? *
+                            right logicNonTerminal /cdc eq {
+                              0 right * logicRange tokens * /C lastMetaVariables * let
+                              1 right * logicRange tokens * /D lastMetaVariables * let
+                            } {
+                              [ "0" ] /C lastMetaVariables * let
+                              right logicRange tokens * /D lastMetaVariables * let
+                            } ? *
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { leftNum rightNum lt } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            [
+                              "("
+                              right logicRange tokens * _ len dearray
+                              "+"
+                              left logicRange tokens * _ len dearray
+                              ")"
+                            ] /B lastMetaVariables * let
+                            /addcomi 3 goal .resolution .hypotheses * use
+
+                            3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 parse * logicNonTerminal /cdc eq
+                            { 0 1 parse * * logicNonTerminal /c1 eq } andif
+                            { 1 1 parse * * logicNonTerminal /cc0 eq } andif } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            [ "10" ] /B lastMetaVariables * let
+                            /dec10 4 goal .resolution .hypotheses * use
+
+                            4 goal .resolution .hypotheses * [ |auto ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 } { "\e[31msolve:arith does not deal with ( [0-9] + [0-9] )\e[0m\n" out }
+                      ] conds
+                    }
+                    { operation logicNonTerminal /cmul eq } {
+                      [
+                        { leftNum rightNum mul resultNum neq } { "\e[31mincorrect multiplication result\e[0m\n" out }
+                        { left logicNonTerminal /cdc eq } {
+                          /decmul1c goal use
+                          goal .isopen not {
+                            leftNum 10 div printNumber /A lastMetaVariables * let
+                            leftNum 10 mod printNumber /B lastMetaVariables * let
+                            leftNum 10 mod rightNum mul 10 div printNumber /E lastMetaVariables * let
+                          } rep
+                          goal [ |auto |tacSolveArith ] tacAttemptNext
+                        }
+                        { right logicNonTerminal /cdc eq } {
+                          /decmul2c goal use
+                          goal .isopen not {
+                            rightNum 10 div printNumber /A lastMetaVariables * let
+                            rightNum 10 mod printNumber /B lastMetaVariables * let
+                            rightNum 10 mod leftNum mul 10 div printNumber /E lastMetaVariables * let
+                          } rep
+                          goal [ |auto |tacSolveArith ] tacAttemptNext
+                        }
+                        { leftNum rightNum lt } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            [
+                              "("
+                              right logicRange tokens * _ len dearray
+                              "x."
+                              left logicRange tokens * _ len dearray
+                              ")"
+                            ] /B lastMetaVariables * let
+                            /mulcomi 3 goal .resolution .hypotheses * use
+
+                            3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 parse * logicNonTerminal /cdc eq
+                            { 0 1 parse * * logicNonTerminal /c1 eq } andif
+                            { 1 1 parse * * logicNonTerminal /cc0 eq } andif } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            [ "10" ] /B lastMetaVariables * let
+                            /dec10 4 goal .resolution .hypotheses * use
+
+                            4 goal .resolution .hypotheses * [ |auto ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 parse * logicNonTerminal /cdc eq
+                            { 0 1 parse * * logicNonTerminal /cc0 eq } andif } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            1 1 parse * * logicRange tokens * /B lastMetaVariables * let
+                            /dec0h 4 goal .resolution .hypotheses * use
+
+                            4 goal .resolution .hypotheses * [ |auto ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 } { "\e[31msolve:arith does not deal with ( [0-9] x. [0-9] )\e[0m\n" out }
+                      ] conds
+                    }
+                    { operation logicNonTerminal /cexp eq } {
+                      { ==y ==x 1 y { x mul } rep } /exp deffst
+                      [
+                        { leftNum rightNum exp resultNum neq } { "\e[31mincorrect exponentiation result\e[0m\n" out }
+                        { 1 } {
+                          rightNum 2 mod 0 eq {
+                            rightNum 2 div _ ==leftPart ==rightPart
+                          }' {
+                            rightNum 1 sub ==leftPart 1 ==rightPart
+                          }' ? *
+                          /eqtr3i goal use
+                          goal .isopen not {
+                            [ "("
+                              left logicRange tokens * _ len dearray "^"
+                                "(" leftPart printNumber _ len dearray
+                                    "+"
+                                    rightPart printNumber _ len dearray ")"
+                            ")" ] /A lastMetaVariables * let
+                            /oveq2i 3 goal .resolution .hypotheses * use
+                            3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+
+                            4 goal .resolution .hypotheses * ==step
+                            /eqtri step use
+                            step .isopen not {
+                              [ "("
+                                "(" left logicRange tokens * _ len dearray "^" leftPart printNumber _ len dearray ")"
+                              "x."
+                                "(" left logicRange tokens * _ len dearray "^" rightPart printNumber _ len dearray ")"
+                              ")" ] /B lastMetaVariables * let
+
+                              3 step .resolution .hypotheses * ==step2
+                              /ax-mp step2 use
+                              step2 .isopen not {
+                                [ "("
+                                  left logicRange tokens * _ len dearray "e." "CC"
+                                "/\\"
+                                  leftPart printNumber _ len dearray "e." "NN0"
+                                "/\\"
+                                  rightPart printNumber _ len dearray "e." "NN0"
+                                ")" ] /ph lastMetaVariables * let
+
+                                /3pm3.2i 2 step2 .resolution .hypotheses * use
+                                2 step2 .resolution .hypotheses * [ |auto ] tacAttemptNext
+
+                                3 step2 .resolution .hypotheses * ==step3
+                                /expadd step3 use
+                                step3 [ |auto ] tacAttemptNext
+
+                                step2 [ |auto ] tacAttemptNext
+                              } rep
+
+                              4 step .resolution .hypotheses * ==step4
+                              /eqtri step4 use
+                              step4 .isopen not {
+                                [ "("
+                                  leftNum leftPart exp printNumber _ len dearray
+                                "x."
+                                  leftNum rightPart exp printNumber _ len dearray
+                                ")" ] /B lastMetaVariables * let
+
+                                /oveq12i 3 step4 .resolution .hypotheses * use
+                                3 step4 .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+
+                                step4 [ |auto |tacSolveArith ] tacAttemptNext
+                              } rep
+
+                              step [ |auto ] tacAttemptNext
+                            } rep
+                            goal [ |auto ] tacAttemptNext
+                          } rep
+                        }
+                      ] conds
+                    }
+                    { 1 } |notApplicable
+                  ] conds
+                } |notApplicable ? *
+              } |notApplicable ? *
+            } {
+              [
+                { left logicNonTerminal /co eq
+                    { operation logicNonTerminal /caddc eq } andif
+                    { 1 left * logicNonTerminal /caddc eq } andif } {
+                  0 left * parseNumber { ==leftNum
+                    2 left * parseNumber { ==rightNum
+                      /eqtri goal use
+                      goal .isopen not {
+                        [
+                          "("
+                          leftNum rightNum add printNumber _ len dearray
+                          "+"
+                          right logicRange tokens * _ len dearray
+                          ")"
+                        ] /B lastMetaVariables * let
+                        /oveq1i 3 goal .resolution .hypotheses * use
+
+                        3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+                        goal [ |auto |tacSolveArith ] tacAttemptNext
+                      } rep
+                    } |notApplicable ? *
+                  } |notApplicable ? *
+                }
+                { left logicNonTerminal /co eq
+                    { operation logicNonTerminal /caddc eq } andif
+                    { 1 left * logicNonTerminal /cmul eq } andif } {
+                  0 left * parseNumber { ==leftNum
+                    2 left * parseNumber { ==rightNum
+                      /eqtri goal use
+                      goal .isopen not {
+                        [
+                          "("
+                          leftNum rightNum mul printNumber _ len dearray
+                          "+"
+                          right logicRange tokens * _ len dearray
+                          ")"
+                        ] /B lastMetaVariables * let
+                        /oveq1i 3 goal .resolution .hypotheses * use
+
+                        3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+                        goal [ |auto |tacSolveArith ] tacAttemptNext
+                      } rep
+                    } |notApplicable ? *
+                  } |notApplicable ? *
+                }
+                { 1 } |notApplicable
+              ] conds
+            } ? *
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } rep
+    } /tacSolveArith deffst
+
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
     { < map ==transitions objset ==theorems > } /tokenNode deffst
@@ -1530,6 +1851,7 @@ objset ==blocks
         goal .isopen not { goal .resolution .hypotheses |recurse each } rep
       } /recurse deffst
       mainGoal recurse
+      map =closedGoalIndex
     } /reopen deffst
 
     { objset _ ==children .put
@@ -1541,6 +1863,7 @@ objset ==blocks
         } rep
       } /recurse deffst
       mainGoal recurse
+      map =closedGoalIndex
     } /reopenParentOf deffst
 
     1 ==running
@@ -1650,6 +1973,8 @@ objset ==blocks
           goals len { selectedGoal goals * tacNormalizeAntecedent } |solved ? * }
         { input "^ *expand (.*)\n" regex } { ==name
           goals len { name selectedGoal goals * tacExpand } |solved ? * }
+        { input "^ *solve:arith\n" regex } {
+          goals len { selectedGoal goals * tacSolveArith } |solved ? * }
         { input "^ *tree\n" regex } { 0 tree }
         { input "^ *fulltree\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
