@@ -653,7 +653,27 @@ objset ==blocks
                     } {
                       goalParse
                     } ? * logicRange goalToks * ==relevantGoalToks
+
                     assertionParse ==i [ ] ==path
+                    { ==path ==goal ==substitution
+                      path reverse { ==step
+                        hasAntes {
+                          /syl goal use
+                          goal .isopen not {
+                            step logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                            4 goal .resolution .hypotheses * =goal
+                          } rep
+                        } {
+                          /ax-mp goal use
+                          goal .isopen not {
+                            step logicRange a .thm * substitution applySubstitution /ph lastMetaVariables * let
+                            name 3 goal .resolution .hypotheses * =goal
+                          } rep
+                        } ? *
+                      } each
+                      goal
+                    } /resolvePath deffst
+
                     {
                       [
                         { i logicNonTerminal /wb eq } {
@@ -668,13 +688,24 @@ objset ==blocks
                             path dump # TODO: this is presumably important
                             1 =indirectUsage
                             hasAntes {
-                              /sylib goal use
-                              goal .isopen not {
-                                0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
-                                name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                  name 4 goal .resolution .hypotheses * use
+                              path len {
+                                /mpbid goal use
+                                goal .isopen not {
+                                  0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  substitution 4 goal .resolution .hypotheses * path resolvePath ==subgoal
+                                  name subgoal .thm expandMeta canUse {
+                                    name subgoal use
+                                  } rep
                                 } rep
-                              } rep
+                              } {
+                                /sylib goal use
+                                goal .isopen not {
+                                  0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
+                                    name 4 goal .resolution .hypotheses * use
+                                  } rep
+                                } rep
+                              } ? *
                             } {
                               /mpbi goal use
                               goal .isopen not {
@@ -692,13 +723,24 @@ objset ==blocks
                               path dump # TODO: this is presumably important
                               1 =indirectUsage
                               hasAntes {
-                                /sylibr goal use
-                                goal .isopen not {
-                                  1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
-                                  name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                    name 4 goal .resolution .hypotheses * use
+                                path len {
+                                  /mpbird goal use
+                                  goal .isopen not {
+                                    0 i * logicRange a .thm * substitution applySubstitution /ch lastMetaVariables * let
+                                    substitution 4 goal .resolution .hypotheses * path resolvePath ==subgoal
+                                    name subgoal .thm expandMeta canUse {
+                                      name subgoal use
+                                    } rep
                                   } rep
-                                } rep
+                                } {
+                                  /sylibr goal use
+                                  goal .isopen not {
+                                    1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                    name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
+                                      name 4 goal .resolution .hypotheses * use
+                                    } rep
+                                  } rep
+                                } ? *
                               } {
                                 /mpbir goal use
                                 goal .isopen not {
@@ -721,25 +763,38 @@ objset ==blocks
                             path dump # TODO: this is presumably important
                             1 =indirectUsage
                             hasAntes {
-                              /syl goal use
-                              goal .isopen not {
-                                0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
-                              } rep
+                              path len {
+                                /mpd goal use
+                                goal .isopen not {
+                                  0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
+                                    name 4 goal .resolution .hypotheses * use
+                                  } rep
+                                } rep
+                              } {
+                                /syl goal use
+                                goal .isopen not {
+                                  0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
+                                    name 4 goal .resolution .hypotheses * use
+                                  } rep
+                                } rep
+                              } ? *
                             } {
                               /ax-mp goal use
                               goal .isopen not {
                                 0 i * logicRange a .thm * substitution applySubstitution /ph lastMetaVariables * let
+                                name 3 goal .resolution .hypotheses * .thm expandMeta canUse {
+                                  name 3 goal .resolution .hypotheses * use
+                                } rep
                               } rep
                             } ? *
-                            goal .isopen not {
-                              name 3 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                name 3 goal .resolution .hypotheses * use
-                              } rep
-                            } rep
+                            0
                           } {
-                            # TODO: push to path and hope for the best
+                            path [ 0 i * ] cat =path
+                            1 i * =i
+                            1
                           } ? *
-                          0
                         }
                         { 1 } { 0 }
                       ] conds
@@ -961,7 +1016,7 @@ objset ==blocks
               1 parse * logicRange tokens * ==set
 
               set len 1 eq { 0 set * ==setName
-                goal .isopen { 0 parse * logicNonTerminal "cv" eq } andif {
+                goal .isopen { 0 parse * logicNonTerminal "cv" eq } andif { setName "_V" eq } andif {
                   goal preparation ==goal
                   /vex goal use
                   goal [ |auto ] tacAttemptNext
