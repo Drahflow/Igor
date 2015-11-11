@@ -419,7 +419,7 @@ objset ==blocks
 
         { tok constants .has not
           { i tokens len lt } andif
-          { i tokens tok variables * logicParsers * * } andif
+          { i tokens tok variables * metaLogicParsers * * } andif
         } { ==end ==parse
           parse logicRange tokens * ==new
           tok substitution .has {
