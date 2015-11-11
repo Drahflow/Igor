@@ -685,7 +685,6 @@ objset ==blocks
                             0 rightChoices * ==substitution
                             substitution a resolveEhypSubstitutions
                             substitution a introduceMetaVars
-                            path dump # TODO: this is presumably important
                             1 =indirectUsage
                             hasAntes {
                               path len {
@@ -720,7 +719,6 @@ objset ==blocks
                               0 leftChoices * ==substitution
                               substitution a resolveEhypSubstitutions
                               substitution a introduceMetaVars
-                              path dump # TODO: this is presumably important
                               1 =indirectUsage
                               hasAntes {
                                 path len {
@@ -760,7 +758,6 @@ objset ==blocks
                             0 rightChoices * ==substitution
                             substitution a resolveEhypSubstitutions
                             substitution a introduceMetaVars
-                            path dump # TODO: this is presumably important
                             1 =indirectUsage
                             hasAntes {
                               path len {
@@ -1695,6 +1692,7 @@ objset ==blocks
                     { operation logicNonTerminal /cmul eq } {
                       [
                         { leftNum rightNum mul resultNum neq } { "\e[31mincorrect multiplication result\e[0m\n" out }
+                        # TODO: WAITS FOR normalize:arith (because some subgoals need complex arith reductions)
                         # { leftNum txt .produce .u len 3 ge { rightNum txt .produce .u len 3 ge } andif } {
                         #   { -0110 == printNumber -01 lastMetaVariables * let }' "=>" deffst
 
@@ -1918,6 +1916,53 @@ objset ==blocks
       } rep
     } /tacSolveArith deffst
 
+    { ==goal
+      { "\e[31msolve:function not applicable, expected |- [ ph -> ] ( F ` A ) = B or |- [ ph -> ] ( A F B ) = C\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      [| tokens { " " } each "\n" |] out
+      # [ /dec0h /addid1i /addid2i /mul01i /mul02i /mulid1i /mulid2i /numexp0 /numexp1 ] { ==thm
+      #   goal .isopen { thm tokens canUse } andif {
+      #     thm goal use
+      #     goal [ |auto ] tacAttemptNext
+      #   } rep
+      # } each
+
+      goal .isopen {
+        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+          0 ==hasAntes parse ==relevant
+          parse logicNonTerminal /wi eq { 1 =hasAntes 1 parse * =relevant } rep
+
+          relevant logicNonTerminal /wceq eq {
+            [
+              { 0 relevant * logicNonTerminal /cfv eq } {
+                0 0 relevant * * ==function
+                1 0 relevant * * ==argument
+                hasAntes {
+                  /fvmptd goal use
+                  goal .isopen not {
+                    0 function * logicRange tokens * /x lastMetaVariables * let
+                    1 function * logicRange tokens * /D lastMetaVariables * let
+                    2 function * logicRange tokens * /B lastMetaVariables * let
+                    [ "_V" ] /V lastMetaVariables * let
+
+                    9 goal .resolution .hypotheses * ==equality
+                    /adantl equality use
+                    equality .isopen not {
+                      3 equality .resolution .hypotheses * tacDistrAntecedent
+                      equality [ |auto ] tacAttemptNext
+                    } rep
+
+                    goal [ |auto ] tacAttemptNext
+                  } rep
+                } { "\e[31msolve:function currently only works with antecedents\e[0m" out } ? *
+              }
+              { 1 } |notApplicable
+            ] conds
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } rep
+    } /tacSolveFunction deffst
+
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
     { < map ==transitions objset ==theorems > } /tokenNode deffst
@@ -2131,6 +2176,8 @@ objset ==blocks
           goals len { name selectedGoal goals * tacExpand } |solved ? * }
         { input "^ *solve:arith\n" regex } {
           goals len { selectedGoal goals * tacSolveArith } |solved ? * }
+        { input "^ *solve:function\n" regex } {
+          goals len { selectedGoal goals * tacSolveFunction } |solved ? * }
         { input "^ *tree\n" regex } { 0 tree }
         { input "^ *fulltree\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
