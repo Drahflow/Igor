@@ -2043,6 +2043,105 @@ objset ==blocks
       "$.\n" out
     } /export deffst
 
+    {
+      map ==nameCount
+      map ==nameMap
+      map ==explicitNameMap
+      map ==theoremCount
+      map ==theoremMap
+      1 ==i
+
+      proposition .hyps { ==name
+        i name nameMap =[]
+        i 1 add =i
+      } each
+
+      { ==goal
+        goal .isopen not {
+          goal .resolution .hypotheses |recurseNames each
+          goal .resolution .theorem .name ==name
+          name nameCount .has { name nameCount * 1 add } { 1 } ? * name nameCount =[]
+        } rep
+      } /recurseNames deffst
+      mainGoal recurseNames
+
+      nameCount dom { ==a ==b
+        a nameCount * b nameCount * lt
+      } order nameCount dom * { ==name
+        name nameMap .has not {
+          i name explicitNameMap =[]
+          i name nameMap =[] i 1 add =i
+        } rep
+      } each
+
+      { ==goal
+        goal .isopen not {
+          goal .resolution .hypotheses |recurseTheoremCount each
+          [| goal .thm expandMeta { " " } each |] ==txt
+
+          goal .resolution .hypotheses len 0 gt {
+            txt theoremCount .has { txt theoremCount * 1 add } { 1 } ? * txt theoremCount =[]
+          } rep
+        } rep
+      } /recurseTheoremCount deffst
+      mainGoal recurseTheoremCount
+
+      "\n      " out
+
+      6 ==column
+      { ==tok
+        column tok len add 78 gt {
+          "\n      " out
+          6 =column
+          tok "^ *$" regex { "" =tok } rep
+        } rep
+        tok out
+        column tok len add =column
+      } /wrapOut deffst
+
+      [ "( " explicitNameMap dom { " " } each ") " ] |wrapOut each
+
+      { 1 sub ==i
+        [ [
+          i 20 mod "ABCDEFGHIJKLMNOPQRST" * i 20 div =i
+          { i } {
+            i 1 sub =i
+            i 5 mod "UVWXY" * i 5 div =i
+          } loop
+        ] reverse { [ -01 ] str .fromArray } each ]
+      } /encodeNumber deffst
+
+      {
+        "Z" wrapOut
+      } /encodeTag deffst
+
+      {
+        "?" wrapOut
+      } /encodeOpen deffst
+
+      { ==goal
+        goal .isopen { encodeOpen } {
+          [| goal .thm expandMeta { " " } each |] ==txt
+
+          txt theoremMap .has {
+            txt theoremMap * encodeNumber |wrapOut each
+          } {
+            goal .resolution .hypotheses |recurse each
+            goal .resolution .theorem .name nameMap * encodeNumber |wrapOut each
+
+            txt theoremCount .has { txt theoremCount * 1 gt } andif {
+              encodeTag
+              i txt theoremMap =[]
+              i 1 add =i
+            } rep
+          } ? *
+        } ? *
+      } /recurse deffst
+      mainGoal recurse
+      " $." wrapOut
+      "\n" out
+    } /exportCompressed deffst
+
     { ==toReopen
       0 ==i
       { ==goal
@@ -2179,8 +2278,9 @@ objset ==blocks
         { input "^ *solve:function\n" regex } {
           goals len { selectedGoal goals * tacSolveFunction } |solved ? * }
         { input "^ *tree\n" regex } { 0 tree }
-        { input "^ *fulltree\n" regex } { 1 tree }
+        { input "^ *tree:full\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
+        { input "^ *export:compressed\n" regex } { exportCompressed }
         { input "^ *reopen (\\d+)\n" regex } { txt .consume .u reopen }
         { input "^ *reopen\n" regex } { selectedGoal goals * reopenParentOf }
         { input "^ *sug\n" regex } { selectedGoal goals * suggest }
