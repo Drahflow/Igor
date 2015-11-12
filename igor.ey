@@ -475,6 +475,13 @@ objset ==blocks
 
     { ==x ==y
       x y gt { x y =x =y } rep
+      x disj .has {
+        y x disj * .has
+      } { 0 } ? *
+    } /mustDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
       x nonDisj .has not { map x nonDisj =[] } rep
       1 y x nonDisj * =[]
     } /markNonDisj deffst
@@ -489,7 +496,6 @@ objset ==blocks
 
     proposition .ctx _ =proofContext
     proposition .thm goal ==mainGoal
-    proposition .allDisj { 2 dearray markDisj } each
     0 ==selectedGoal
     0 ==nextMetaVariable
     map ==lastMetaVariables
@@ -1084,8 +1090,10 @@ objset ==blocks
       ] conds
     } /auto deffst
 
+    { ==token 0 token * 0 "$" * eq } /tokenIsMetaVar deffst
+
     { ==tokens
-      tokens len 1 eq { 0 0 tokens * * 0 "$" * eq } andif
+      tokens len 1 eq { 0 tokens * tokenIsMetaVar } andif
     } /tokensAreMetaVar deffst
 
     { ==goal
@@ -2086,13 +2094,10 @@ objset ==blocks
       } /recurseTheoremCount deffst
       mainGoal recurseTheoremCount
 
-      "\n      " out
-
-      6 ==column
+      9999 ==column
       { ==tok
         column tok len add 78 gt {
-          "\n      " out
-          6 =column
+          "\n      " out 6 =column
           tok "^ *$" regex { "" =tok } rep
         } rep
         tok out
@@ -2141,6 +2146,46 @@ objset ==blocks
       " $." wrapOut
       "\n" out
     } /exportCompressed deffst
+
+    {
+      map ==allVars
+      disj dom { tokenIsMetaVar not } grep { ==x
+        1 x allVars =[]
+        x disj * dom { tokenIsMetaVar not } grep { ==y
+          1 y allVars =[]
+        } each
+      } each
+
+      9999 ==column
+      { ==tok
+        column tok len add 78 gt {
+          "\n    " out 4 =column
+          tok "^ *$" regex { "" =tok } rep
+        } rep
+        tok out
+        column tok len add =column
+      } /wrapOut deffst
+
+      { ==X ==P ==R
+        P len 0 eq { X len 0 eq } andif {
+          R len 1 gt {
+            [| "$d " R { " " } each "$." |] wrapOut "  " wrapOut
+          } rep
+        } {
+          0 P X cat * ==u # any can be chosen
+
+          P { u mustDisj not } grep { ==v
+            R [ v ] cat P { v mustDisj } grep X { v mustDisj } grep findMaximalCliques
+            P { v eq not } grep =P
+            X [ v ] cat =X
+          } each
+        } ? *
+      } /findMaximalCliques deffst
+
+      [ ] allVars dom [ ] findMaximalCliques
+
+      "\n" out
+    } /exportDisjuncts deffst
 
     { ==toReopen
       0 ==i
@@ -2281,6 +2326,7 @@ objset ==blocks
         { input "^ *tree:full\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
         { input "^ *export:compressed\n" regex } { exportCompressed }
+        { input "^ *export:disj\n" regex } { exportDisjuncts }
         { input "^ *reopen (\\d+)\n" regex } { txt .consume .u reopen }
         { input "^ *reopen\n" regex } { selectedGoal goals * reopenParentOf }
         { input "^ *sug\n" regex } { selectedGoal goals * suggest }
