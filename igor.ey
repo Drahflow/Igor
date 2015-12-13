@@ -78,7 +78,7 @@ objset ==blocks
   { "$(" sequenceEndingInDollar ")" upto ")" white }==comment
   { whitechar comment ,| include ,| ,+ }==white
   { "$[" white ( |setupInput get ) mathchar ,* (
-    get snip "including: " -1101 cat dump parseFile "finished " -01 cat dump *
+    get snip "including: " -1101 cat dump parseFile "finished " -01 cat dump _ =setupInput *
   ) white "$]" white }==include
 
   { ( get ) mathchar ,+ ( get snip makeUnique ) white }==mathsymbol
