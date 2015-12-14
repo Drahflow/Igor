@@ -1971,6 +1971,42 @@ objset ==blocks
       } rep
     } /tacSolveFunction deffst
 
+    { ==goal
+      goal .thm expandMeta ==goalToks
+      0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+        goalParse logicNonTerminal /wi eq {
+          0 goalParse * logicNonTerminal /wcel eq {
+            1 0 goalParse * * logicNonTerminal /cun eq {
+              /syl goal use
+              goal .isopen not {
+                0 0 goalParse * * logicRange goalToks * { _ len dearray }_ =*elemToks
+                [ "("
+                  elemToks "e." 0 1 0 goalParse * * * logicRange goalToks * _ len dearray
+                  "\\/"
+                  elemToks "e." 1 1 0 goalParse * * * logicRange goalToks * _ len dearray
+                ")" ] /ps lastMetaVariables * let
+                3 goal .resolution .hypotheses * ==elementwise
+                /biimpi elementwise use
+
+                elementwise .isopen not {
+                  2 elementwise .resolution .hypotheses * ==equivalence
+                  /elun equivalence use
+                  equivalence [ |auto ] tacAttemptNext
+                } rep
+                elementwise [ |auto ] tacAttemptNext
+
+                4 goal .resolution .hypotheses * ==cases
+                /jaoi cases use
+                cases [ |tacCasesUnion |auto ] tacAttemptNext
+              } rep
+
+              goal [ |auto ] tacAttemptNext
+            } { "\e[31mcurrent goal is not |- ( ... e. ( ... u. ... ) -> ... ) \e[0m\n" out } ? *
+          } { "\e[31mcurrent goal is not |- ( ... e. ... -> ... )\e[0m\n" out } ? *
+        } { "\e[31mcurrent goal is not |- ( ... -> ... )\e[0m\n" out } ? *
+      } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
+    } /tacCasesUnion deffst
+
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
     { < map ==transitions objset ==theorems > } /tokenNode deffst
@@ -2322,6 +2358,8 @@ objset ==blocks
           goals len { selectedGoal goals * tacSolveArith } |solved ? * }
         { input "^ *solve:function\n" regex } {
           goals len { selectedGoal goals * tacSolveFunction } |solved ? * }
+        { input "^ *cases:union\n" regex } {
+          goals len { selectedGoal goals * tacCasesUnion } |solved ? * }
         { input "^ *tree\n" regex } { 0 tree }
         { input "^ *tree:full\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
