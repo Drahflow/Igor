@@ -33,7 +33,7 @@ objset ==blocks
   { sys .linux .gettimeofday -- 1000000 mul add } /t deffd
   < { == }' > ==time =*setTime
   < { == }' > ==count =*setCount
-  { ==l 0 l setTime 0 l setCount 
+  { ==l 0 l setTime 0 l setCount
     { =*f { t ==start f t start sub time l . add l setTime count l . 1 add l setCount } }
     quoted not { * } rep
   }
@@ -104,7 +104,7 @@ objset ==blocks
           { c %41 ge c %54 le and } { 20 mul c %40 sub add _ dump ==n
           [
             { n 1 sub hypCount lt } { n 1 sub hypotheses * }
-            { n 1 sub hypCount sub labelCount lt } { n 1 sub hypCount sub labels * } 
+            { n 1 sub hypCount sub labelCount lt } { n 1 sub hypCount sub labels * }
             { 1 } { n 1 sub hypCount sub labelCount sub txt .produce .u "@ " -01 cat }
           ] conds
           0 }
@@ -222,7 +222,7 @@ objset ==blocks
         { 2 lbl str .postfix txt .consume .u savedTheorems * stack .append1 }
       { lbl assertions .has } {
         "Applying: " lbl cat dump
-        
+
         lbl assertions * _ ==ass .hyps ==hyps
         map ==substitution
 
@@ -266,7 +266,7 @@ objset ==blocks
       }
       { 1 } { "Invalid proof step: " lbl cat die }
     ] conds
-    
+
     "Proof stack" dump
     stack { { " " -01 cat cat } fold dump } each
     "^^^^^^^^^^^" dump
@@ -502,6 +502,7 @@ objset ==blocks
     map ==metaSubstitution
     1 ==redisplay
     [ ] ==lastSearch
+    [ ] ==loadedCommands
 
     { _ ==old ==toks
       {
@@ -1015,6 +1016,63 @@ objset ==blocks
               goal [ |auto ] tacAttemptNext
             } rep
 
+            goal .isopen { parse logicNonTerminal /wbr eq } andif
+                         { 0 1 parse * logicRange tokens * * "<_" eq } andif {
+              0 parse * logicRange tokens * 2 parse * logicRange tokens * eq all {
+                goal preparation ==goal
+                /leidi goal use
+                goal [ |auto ] tacAttemptNext
+              } rep
+
+              goal .isopen {
+                0 parse * parseNumber { ==left
+                  2 parse * parseNumber { ==right
+                    left right lt {
+                      goal preparation ==goal
+                      /ltleii goal use
+                      goal [ |auto ] tacAttemptNext
+                    } rep
+                  } rep
+                } rep
+              } rep
+            } rep
+
+            goal .isopen { parse logicNonTerminal /wbr eq } andif
+                         { 0 1 parse * logicRange tokens * * "<" eq } andif {
+              goal preparation ==goal
+
+              0 parse * parseNumber { ==left
+                2 parse * parseNumber { ==right
+                  0 parse * logicNonTerminal /cdc neq {
+                    /mpbir goal use
+                    goal .isopen not {
+                      [ ";" "0" 0 parse * logicRange tokens * _ len dearray "<"
+                        2 parse * logicRange tokens * _ len dearray ] /ps lastMetaVariables * let
+                      goal [ |auto ] tacAttemptNext
+                      3 goal .resolution .hypotheses * =goal
+
+                      goal .isopen {
+                        /breq1i goal use
+                        goal [ |auto ] tacAttemptNext
+                        4 goal .resolution .hypotheses * =goal
+                        goal .isopen {
+                          /dec0h goal use
+                          goal [ |auto ] tacAttemptNext
+                        } rep
+                      } rep
+                    } rep
+                  } {
+                    left 10 div right 10 div lt {
+                      /decltc goal use
+                    } {
+                      /declt goal use
+                    } ? *
+                    goal [ |auto ] tacAttemptNext
+                  } ? *
+                } rep
+              } rep
+            } rep
+
             goal .isopen { parse logicNonTerminal /wcel eq } andif {
               1 parse * logicRange tokens * ==set
 
@@ -1046,6 +1104,12 @@ objset ==blocks
                   goal .isopen { setName "CC" eq } andif { type "NN0" eq } andif {
                     goal preparation ==goal
                     /nn0cni goal use
+                    goal [ |auto ] tacAttemptNext
+                  } rep
+
+                  goal .isopen { setName "RR" eq } andif { type "NN0" eq } andif {
+                    goal preparation ==goal
+                    /nn0rei goal use
                     goal [ |auto ] tacAttemptNext
                   } rep
                 } rep
@@ -1303,9 +1367,9 @@ objset ==blocks
             } rep
             i 1 add =i
           } loop
-          
+
           success antes len 1 sub eq ==lastTerm
-          
+
           success 0 ge {
             { success 1 ge } {
               /adantl goal use
@@ -1314,11 +1378,14 @@ objset ==blocks
                 1 neg =success
               } {
                 3 goal .resolution .hypotheses * =goal
+                goal .isopen not { 1 neg =success } rep
                 success 1 sub =success
               } ? *
             } loop
-            lastTerm /id /simpl ? goal use
-            goal [ |auto ] tacAttemptNext
+            goal .isopen {
+              lastTerm /id /simpl ? goal use
+              goal [ |auto ] tacAttemptNext
+            } rep
           } { "\e[31mtacSelect not applicable, consequent not found in antecedents\e[0m\n" out } ? *
         } |notApplicable ? *
       } |notApplicable ? *
@@ -1419,6 +1486,60 @@ objset ==blocks
         } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
       } { "\e[31mdesired conclusion did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
     } /tacAndConclude deffst
+
+    { ==goal ==tokens
+      { "\e[31mtacDrop not applicable, expected |- ... -> ... \e[0m\n" out } =*notApplicable
+
+      goal antecedents ==antes
+      antes len {
+        tokens ==target
+        0 ==i 1 neg ==success
+        { i antes len lt } {
+          i antes * ==ante
+          ante len target len eq { ante target eq all } andif {
+            i =success antes len =i
+          } rep
+          i 1 add =i
+        } loop
+
+        success antes len 1 sub eq ==lastTerm
+
+        success 0 ge {
+          success {
+            /impcom goal use
+            goal [ |auto ] tacAttemptNext
+
+            goal .isopen not {
+              3 goal .resolution .hypotheses * =goal
+            } rep
+          } rep
+
+          lastTerm {
+            /a1i goal use
+            goal [ |auto ] tacAttemptNext
+            goal .isopen not {
+              2 goal .resolution .hypotheses * =goal
+            } rep
+            success 1 sub =success
+          } {
+            /adantl goal use
+            goal [ |auto ] tacAttemptNext
+            goal .isopen not {
+              3 goal .resolution .hypotheses * =goal
+            } rep
+          } ? *
+
+          success {
+            /expcom goal use
+            goal [ |auto ] tacAttemptNext
+
+            goal .isopen not {
+              3 goal .resolution .hypotheses * =goal
+            } rep
+          } rep
+        } { "\e[31mtacDrop not applicable, consequent not found in antecedents\e[0m\n" out } ? *
+      } |notApplicable ? *
+    } /tacDrop deffst
 
     { ==goal
       goal .thm expandMeta ==tokens
@@ -1576,6 +1697,37 @@ objset ==blocks
       } { } loop
     } /tacSubstitutions deffst
 
+    { ==parse
+      parse logicNonTerminal ==nt
+      [
+        { nt /cc0 eq } { 0 1 }
+        { nt /c1 eq } { 1 1 }
+        { nt /c2 eq } { 2 1 }
+        { nt /c3 eq } { 3 1 }
+        { nt /c4 eq } { 4 1 }
+        { nt /c5 eq } { 5 1 }
+        { nt /c6 eq } { 6 1 }
+        { nt /c7 eq } { 7 1 }
+        { nt /c8 eq } { 8 1 }
+        { nt /c9 eq } { 9 1 }
+        { nt /cdc eq } {
+          0 parse * parseNumber { ==high
+            1 parse * parseNumber { ==low
+              high 10 mul low add 1
+            } { 0 } ? *
+          } { 0 } ? *
+        }
+        { 1 } { 0 }
+      ] conds
+    } /parseNumber deffst
+
+    { txt .produce .u ==s
+      [
+        s len 1 sub { ";" } rep
+        s { [ -01 ] str .fromArray } each
+      ]
+    } /printNumber deffst
+
     { ==goal
       { "\e[31msolve:arith not applicable, expected |- ( <decimal> { + , x. , ^ } <decimal> ) = <decimal>\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
@@ -1594,37 +1746,6 @@ objset ==blocks
             1 0 parse * * ==operation
             2 0 parse * * ==right
             1 parse * ==result
-
-            { ==parse
-              parse logicNonTerminal ==nt
-              [
-                { nt /cc0 eq } { 0 1 }
-                { nt /c1 eq } { 1 1 }
-                { nt /c2 eq } { 2 1 }
-                { nt /c3 eq } { 3 1 }
-                { nt /c4 eq } { 4 1 }
-                { nt /c5 eq } { 5 1 }
-                { nt /c6 eq } { 6 1 }
-                { nt /c7 eq } { 7 1 }
-                { nt /c8 eq } { 8 1 }
-                { nt /c9 eq } { 9 1 }
-                { nt /cdc eq } {
-                  0 parse * parseNumber { ==high
-                    1 parse * parseNumber { ==low
-                      high 10 mul low add 1
-                    } { 0 } ? *
-                  } { 0 } ? *
-                }
-                { 1 } { 0 }
-              ] conds
-            } /parseNumber deffst
-
-            { txt .produce .u ==s
-              [
-                s len 1 sub { ";" } rep
-                s { [ -01 ] str .fromArray } each
-              ]
-            } /printNumber deffst
 
             left parseNumber { ==leftNum
               right parseNumber { ==rightNum
@@ -2007,6 +2128,31 @@ objset ==blocks
       } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
     } /tacCasesUnion deffst
 
+    { ==goal
+      goal .thm expandMeta ==goalToks
+      0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+        goalParse logicNonTerminal /wi eq {
+          0 goalParse * logicNonTerminal /wcel eq {
+            1 0 goalParse * * logicNonTerminal /csn eq {
+              /syl goal use
+              goal .isopen not {
+                0 0 goalParse * * logicRange goalToks * { _ len dearray }_ =*elemToks
+                [
+                  elemToks "=" 0 1 0 goalParse * * * logicRange goalToks * _ len dearray
+                ] /ps lastMetaVariables * let
+
+                3 goal .resolution .hypotheses * ==equivalence
+                /elsni equivalence use
+                equivalence [ |auto ] tacAttemptNext
+              } rep
+
+              goal [ |auto ] tacAttemptNext
+            } { "\e[31mcurrent goal is not |- ( ... e. { ... } -> ... ) \e[0m\n" out } ? *
+          } { "\e[31mcurrent goal is not |- ( ... e. ... -> ... )\e[0m\n" out } ? *
+        } { "\e[31mcurrent goal is not |- ( ... -> ... )\e[0m\n" out } ? *
+      } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
+    } /tacCasesExplicit deffst
+
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
     { < map ==transitions objset ==theorems > } /tokenNode deffst
@@ -2249,6 +2395,8 @@ objset ==blocks
     0 ==autoall
     0 ==antedisp
 
+    { include }' /load deffst
+
     { running } {
       proofContext _ =userContext =renderContext
       mainGoal openGoals ==goals
@@ -2350,6 +2498,8 @@ objset ==blocks
           goals len { tokens selectedGoal goals * tacConclude } |solved ? * }
         { input "^ *and conclude (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacAndConclude } |solved ? * }
+        { input "^ *drop (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacDrop } |solved ? * }
         { input "^ *normalize\n" regex } {
           goals len { selectedGoal goals * tacNormalize } |solved ? * }
         { input "^ *expand (.*)\n" regex } { ==name
@@ -2360,29 +2510,37 @@ objset ==blocks
           goals len { selectedGoal goals * tacSolveFunction } |solved ? * }
         { input "^ *cases:union\n" regex } {
           goals len { selectedGoal goals * tacCasesUnion } |solved ? * }
+        { input "^ *cases:explicit\n" regex } {
+          goals len { selectedGoal goals * tacCasesExplicit } |solved ? * }
         { input "^ *tree\n" regex } { 0 tree }
         { input "^ *tree:full\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
         { input "^ *export:compressed\n" regex } { exportCompressed }
         { input "^ *export:disj\n" regex } { exportDisjuncts }
         { input "^ *reopen (\\d+)\n" regex } { txt .consume .u reopen }
-        { input "^ *reopen\n" regex } { selectedGoal goals * reopenParentOf }
-        { input "^ *sug\n" regex } { selectedGoal goals * suggest }
+        { input "^ *reopen\n" regex } {
+          goals len { selectedGoal goals * reopenParentOf } |solved ? * }
+        { input "^ *sug\n" regex } {
+          goals len { selectedGoal goals * suggest } |solved ? * }
         { input "^ *search (.*)\n" regex } { " " str .split _ =lastSearch search }
         { input "^ *search\n" regex } { lastSearch search }
         { input "^ *parse\n" regex } {
-          0 selectedGoal goals * .thm * ==head
+          goals len {
+            0 selectedGoal goals * .thm * ==head
 
-          [
-            { head "|-" eq }           { [ 1 selectedGoal goals * .thm expandMeta /wff logicParsers * * ] dump }
-            { head logicParsers .has } { [ 1 selectedGoal goals * .thm expandMeta head logicParsers * * ] dump }
-            { 1 } { [| "\e[31mno parser available\e[0m\n" |] out }
-          ] conds
+            [
+              { head "|-" eq }           { [ 1 selectedGoal goals * .thm expandMeta /wff logicParsers * * ] dump }
+              { head logicParsers .has } { [ 1 selectedGoal goals * .thm expandMeta head logicParsers * * ] dump }
+              { 1 } { [| "\e[31mno parser available\e[0m\n" |] out }
+            ] conds
+          } |solved ? *
         }
         { input "^ *autoall\n" regex } { 1 =autoall }
         { input "^ *noautoall\n" regex } { 0 =autoall }
         { input "^ *antedisp\n" regex } { 1 =antedisp }
         { input "^ *noantedisp\n" regex } { 0 =antedisp }
+        { input "^ *load (.*)\n" regex } { load }
+        loadedCommands "*" | each
       ] conds
     } loop
   } /proveProposition deffd
@@ -2397,7 +2555,7 @@ objset ==blocks
   } /prove deffd
 
   { map _ ==variables # returned
-    blocks { .f _ =*d dom 
+    blocks { .f _ =*d dom
       { _ ==n d _ 0 -01 * ==nonterminal 1 -01 * ==var
         nonterminal var variables =[]
       } each
@@ -2410,7 +2568,7 @@ objset ==blocks
     map ==nonterminals
     map ==variableNonTerminals # nonterminal -> variable -> theorem name
 
-    blocks { .f _ =*d dom 
+    blocks { .f _ =*d dom
       { _ ==thm d _ 0 -01 * ==nonterminal 1 -01 * ==var
         nonterminal variableNonTerminals .has not { map nonterminal variableNonTerminals =[] } rep
         nonterminal variableNonTerminals * ==variableTypedefs # variable -> theorem name
