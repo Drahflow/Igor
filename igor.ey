@@ -1396,7 +1396,14 @@ objset ==blocks
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
         parse logicNonTerminal /wi eq {
-          1 parse * logicNonTerminal /wa eq {
+          1 parse * logicRange tokens * ==target 0 ==existsAsAnte
+
+          goal antecedents ==antes
+          antes { ==ante
+            ante len target len eq { ante target eq all } andif { 1 =existsAsAnte } rep
+          } each
+
+          existsAsAnte not { 1 parse * logicNonTerminal /wa eq } andif {
             /jca goal use
             goal [ |auto |tacAndSelect ] tacAttemptNext
           } {
@@ -1541,6 +1548,53 @@ objset ==blocks
       } |notApplicable ? *
     } /tacDrop deffst
 
+    { ==goal ==tokens # an array of arrays of tokens
+      map ==toRemove
+      tokens { ==toks 1 [| toks { " " } each |] toRemove =[] } each
+      0 ==rebuild
+      0 ==removed
+
+      goal antecedents ==antes
+
+      antes len {
+        0 antes len range { _ ==i antes * ==ante
+          removed tokens len lt {
+            [| ante { " " } each |] toRemove .has {
+              i antes len 1 sub eq {
+                /a1i goal use
+                goal [ |auto ] tacAttemptNext
+                goal .isopen not {
+                  2 goal .resolution .hypotheses * =goal
+                } rep
+              } {
+                /adantl goal use
+                goal [ |auto ] tacAttemptNext
+                goal .isopen not {
+                  3 goal .resolution .hypotheses * =goal
+                } rep
+              } ? *
+              removed 1 add =removed
+            } {
+              /impcom goal use
+              goal [ |auto ] tacAttemptNext
+              goal .isopen not {
+                3 goal .resolution .hypotheses * =goal
+                rebuild 1 add =rebuild
+              } rep
+            } ? *
+          } rep
+        } each
+
+        rebuild {
+          /expcom goal use
+          goal [ |auto ] tacAttemptNext
+          goal .isopen not {
+            3 goal .resolution .hypotheses * =goal
+          } rep
+        } rep
+      } { "\e[31mtacDropAll not applicable, expected |- ... -> ... \e[0m\n" out } ? *
+    } /tacDropAll deffst
+
     { ==goal
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
@@ -1614,6 +1668,12 @@ objset ==blocks
         goal tacNormalize
       } rep
     } /tacNormalizeAntecedent deffst
+
+    { |tacNormalizeConsequent ==tmp
+      { -- } =tacNormalizeConsequent
+      tacNormalizeAntecedent
+      tmp =tacNormalizeConsequent
+    } /tacNormalizeAntecedentOnly deffst
 
     { ==goal
       { "\e[31mtacNormalizeConsequent not applicable, expected |- ...\e[0m\n" out } =*notApplicable
@@ -1720,6 +1780,18 @@ objset ==blocks
         { 1 } { 0 }
       ] conds
     } /parseNumber deffst
+
+    # this function does not guarantee a correct parse but assumes it
+    { ==toks
+      0
+      toks { ==t
+        [
+          { t ";" eq } { }
+          { t len 1 eq { 0 t * 48 ge 0 t * 57 le and } andif } { 10 mul 0 t * 48 sub add }
+          { 1 } { "\e[31minvalid number in parseNumberToks\e[0m" out -- 1 neg }
+        ] conds
+      } each
+    } /parseNumberToks deffst
 
     { txt .produce .u ==s
       [
@@ -1849,7 +1921,7 @@ objset ==blocks
                             C B mul _ 10 div =>K 10 mod =>L
                             I K add =>N
                             H J add =>O
-                            O L add _ 10 div =>M
+                            O L add 10 div =>M
                             A C mul =>P
                             N M add =>Q
 
@@ -2044,6 +2116,76 @@ objset ==blocks
         } |notApplicable ? *
       } rep
     } /tacSolveArith deffst
+
+    { ==goal
+      { "\e[31msolve:range not applicable, expected |- ... -> <decimal> { < , <_ } ... (or the other way around)\e[0m\n" out } =*notApplicable
+
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+        parse logicNonTerminal /wi eq {
+          [
+            { 1 parse * logicNonTerminal /wbr eq } {
+              /none ==comparison
+              [
+                { 1 1 parse * * logicNonTerminal /cle eq } { /cle =comparison }
+                # { 1 1 parse * * logicNonTerminal /clt eq } { /clt =comparison }
+              ] conds
+
+              /none comparison neq {
+                [
+                  { 0 1 parse * * parseNumber } { ==target
+                    goal antecedents { ==ante
+                      0 ante /wff metaLogicParsers * * ante fullyParsed { ==anteParse
+                        anteParse logicNonTerminal /wbr eq
+                            { 1 anteParse * logicNonTerminal comparison eq } andif
+                            { 2 anteParse * logicRange ante * ==at
+                              2 1 parse * * logicRange tokens * ==pt
+                              pt len at len eq { pt at eq all } andif } andif
+                            { 0 anteParse * parseNumber } andif { ==anteNumber
+                          anteNumber target gt {
+                            /letrd goal use
+                            goal .isopen not {
+                              0 anteParse * logicRange ante * /B lastMetaVariables * let
+                              goal [ |auto ] tacAttemptNext
+                            } rep
+                          } rep
+                        } rep
+                      } rep
+                    } each
+                  }
+                  { 2 1 parse * * parseNumber } { ==target
+                    goal antecedents { ==ante
+                      0 ante /wff metaLogicParsers * * ante fullyParsed { ==anteParse
+                        anteParse logicNonTerminal /wbr eq
+                            { 1 anteParse * logicNonTerminal comparison eq } andif
+                            { 0 anteParse * logicRange ante * ==at
+                              0 1 parse * * logicRange tokens * ==pt
+                              pt len at len eq { pt at eq all } andif } andif
+                            { 2 anteParse * parseNumber } andif { ==anteNumber
+                          anteNumber target lt {
+                            /letrd goal use
+                            goal .isopen not {
+                              2 anteParse * logicRange ante * /B lastMetaVariables * let
+                              goal [ |auto ] tacAttemptNext
+                            } rep
+                          } rep
+                        } rep
+                      } rep
+                    } each
+                  }
+                  { 1 } |notApplicable
+                ] conds
+              } |notApplicable ? *
+            }
+            { 1 parse * logicNonTerminal /wa eq } {
+              /jca goal use
+              goal [ |auto |tacSolveRange ] tacAttemptNext
+            }
+            { 1 } |notApplicable
+          ] conds
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacSolveRange deffst
 
     { ==goal
       { "\e[31msolve:function not applicable, expected |- [ ph -> ] ( F ` A ) = B or |- [ ph -> ] ( A F B ) = C\e[0m\n" out } =*notApplicable
@@ -2502,10 +2644,14 @@ objset ==blocks
           goals len { tokens selectedGoal goals * tacDrop } |solved ? * }
         { input "^ *normalize\n" regex } {
           goals len { selectedGoal goals * tacNormalize } |solved ? * }
+        { input "^ *normalize:ante\n" regex } {
+          goals len { selectedGoal goals * tacNormalizeAntecedentOnly } |solved ? * }
         { input "^ *expand (.*)\n" regex } { ==name
           goals len { name selectedGoal goals * tacExpand } |solved ? * }
         { input "^ *solve:arith\n" regex } {
           goals len { selectedGoal goals * tacSolveArith } |solved ? * }
+        { input "^ *solve:range\n" regex } {
+          goals len { selectedGoal goals * tacSolveRange } |solved ? * }
         { input "^ *solve:function\n" regex } {
           goals len { selectedGoal goals * tacSolveFunction } |solved ? * }
         { input "^ *cases:union\n" regex } {
