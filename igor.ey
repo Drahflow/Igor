@@ -2406,12 +2406,17 @@ objset ==blocks
         } rep
       } each
 
+      map ==encodedOnce
       { ==goal
         goal .isopen not {
-          goal .resolution .hypotheses |recurseTheoremCount each
           [| goal .thm expandMeta { " " } each |] ==txt
 
+          txt encodedOnce .has not {
+            goal .resolution .hypotheses |recurseTheoremCount each
+          } rep
+
           goal .resolution .hypotheses len 0 gt {
+            1 txt encodedOnce =[]
             txt theoremCount .has { txt theoremCount * 1 add } { 1 } ? * txt theoremCount =[]
           } rep
         } rep
