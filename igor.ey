@@ -2460,6 +2460,7 @@ objset ==blocks
 
             txt theoremCount .has { txt theoremCount * 1 gt } andif {
               encodeTag
+              1 txt theoremCount =[]
               i txt theoremMap =[]
               i 1 add =i
             } rep
