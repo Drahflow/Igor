@@ -17,7 +17,11 @@
 
 { ==y ==x 1 y { x mul } rep } /exp deffst
 
-{ { 0 } ? * not not } /andif deffd
+{ 0 }" ==:ANDIF_ZERO
+<
+  sys .|executeIdentifier "~" deffd
+  { quoted { ~ANDIF_ZERO "?" ~ "*" ~ ~not ~not } { { 0 } ? * not not } ? * }
+> -- /andif defq
 
 map ==constants
 map ==assertions
@@ -320,7 +324,7 @@ objset ==blocks
         ] conds
       }
       { name renderContext isVar } { [| "\e[32m" name "\e[0m" |] }
-      { name "^\\$" regex } { [| "\e[33m" name "\e[0m" |] }
+      { 0 name * 0 "$" * eq } { [| "\e[33m" name "\e[0m" |] }
       { 1 } { name }
     ] conds
   } /renderName deffd
@@ -424,7 +428,7 @@ objset ==blocks
           parse logicRange tokens * ==new
           tok substitution .has {
             tok substitution * ==old
-            old new len eq { old new eq all } andif valid and =valid
+            old len new len eq { old new eq all } andif valid and =valid
           } {
             new tok substitution =[]
           } ? *
@@ -439,7 +443,7 @@ objset ==blocks
 
     list _ ==result # returned
     valid { substitution result .append1 } rep
-  } /possibleSubstitutionsForToks deffd
+  } τpossibleSubstitutions /possibleSubstitutionsForToks deffd
 
   { .thm possibleSubstitutionsForToks } /possibleSubstitutions deffd
 
@@ -507,10 +511,10 @@ objset ==blocks
     { _ ==old ==toks
       {
         toks metaSubstitution applySubstitution =toks
-        old toks len eq { old toks eq all } andif not
+        old len toks len eq { old toks eq all } andif not
       } { toks =old } loop
       toks
-    } /expandMeta deffst
+    } τexpandMeta /expandMeta deffst
 
     { ==theorem ==substitution
       theorem mandatoryVariables dom { ==var
@@ -528,7 +532,7 @@ objset ==blocks
       [| "applying with:\n" |] out
       substitution dom { ==name
         [| name " = " name substitution * { renderName " " } each "\n" |] out
-      } each
+      } τinfo1 each
 
       substitution theorem introduceMetaVars
 
@@ -586,7 +590,7 @@ objset ==blocks
 
         hypotheses substitution theorem step closedGoal .close
       } rep
-    } /applyTheorem deffst
+    } τapply /applyTheorem deffst
 
     { ==assertion ==substitution
       assertion .name dump
@@ -857,7 +861,7 @@ objset ==blocks
           name show
         }
       ] conds
-    } /useGeneric deffst
+    } τuseGeneric /useGeneric deffst
 
     { 0 useGeneric } /use deffst
     { 1 useGeneric } /tacUse deffst
@@ -947,7 +951,7 @@ objset ==blocks
         } ? *
       } /recurse deffst
       mainGoal recurse --
-    } /amendClosedGoalIndex deffst
+    } τclosedGoalIndex /amendClosedGoalIndex deffst
 
     { ==toTry ==goal
       goal .isopen not {
@@ -966,7 +970,7 @@ objset ==blocks
         { parse logicNonTerminal /cdc eq { 0 parse * tokens classify "NN0" eq } andif { 1 parse * tokens classify "NN0" eq } andif } { "NN0" }
         { 1 } { "" }
       ] conds
-    } /classify deffst
+    } τclassify /classify deffst
 
     { ==goal
       goal .thm expandMeta ==tokens
@@ -975,11 +979,11 @@ objset ==blocks
         { txt closedGoalIndex .has } {
           [| "re-using earlier proof\n" |] out
           txt closedGoalIndex * .resolution goal .close
-        }
+        } τauto1
         { txt directTheoremIndex .has } {
           txt directTheoremIndex * goal use
           goal [ |auto ] tacAttemptNext
-        }
+        } τauto2
         { 0 tokens * logicParsers .has } {
           { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
           1 tokens 0 tokens * logicParsers * * { tokens len eq { ==parse
@@ -988,8 +992,8 @@ objset ==blocks
             parse logicNonTerminal goal use
             goal [ |auto ] tacAttemptNext
           } |failed ? * } |failed ? *
-        }
-        { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed } { ==parse
+        } τauto3
+        { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed } τauto4 { ==parse
           { ==parse =*preparation
             goal .isopen { parse logicNonTerminal /wi eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif {
               goal preparation ==goal
@@ -1150,9 +1154,9 @@ objset ==blocks
               } 1 parse * trivialities
             } rep
           } rep
-        }
+        } τauto5
       ] conds
-    } /auto deffst
+    } τauto /auto deffst
 
     { ==token 0 token * 0 "$" * eq } /tokenIsMetaVar deffst
 
@@ -2596,6 +2600,7 @@ objset ==blocks
       redisplay |display rep
       1 =redisplay
 
+      # perfstats
       "proof> " sys .out .writeall
       inputLine ==input
 
@@ -2744,12 +2749,12 @@ objset ==blocks
                 1 ==success , [
                 expectedTokens { ==tok success {
                   tok constants .has {
-                    i toks len lt { i toks * tok eq } andif { i 1 add =i } { 0 =success } ? *
-                  } {
-                    i toks tok variables * nonterminals * * { =i } { 0 =success } ? *
-                  } ? *
-                } rep } each
-                success { ,-- start i name ] i 1 } { ,--- 0 } ? *
+                    i toks len lt { i toks * tok eq } andif { i 1 add =i }" { 0 =success }" ? *
+                  }" {
+                    i toks tok variables * nonterminals * * { =i }" { 0 =success }" ? *
+                  }" ? *
+                }" rep }" each
+                success { ,-- start i name ] i 1 }" { ,--- 0 }" ? *
               } ? *
             } nt nonterminals =[]
           } rep
@@ -2762,8 +2767,8 @@ objset ==blocks
       nt nonterminals * =*orig
       { ==toks ==start
         nt cache .has not { map nt cache =[] } rep nt cache * ==ntCache
-        start txt .produce .hu ==cacheKey
-        cacheKey ntCache .has not { [ start toks orig ] cacheKey ntCache =[] } rep
+        [ start { ==n n 256 mod n 256 div _ } { } loop -- ] str .fromArray ==cacheKey
+        cacheKey ntCache .has not { [ start toks orig ] cacheKey ntCache =[] } τveryUncachedParser rep
         cacheKey ntCache * _ len dearray
       } nt nonterminals =[]
     } each
@@ -2775,9 +2780,9 @@ objset ==blocks
       [| nt toks { " " } each start txt .produce .hu |] ==cacheKey
       cacheKey globalCache .has not {
         [ map =cache start toks nt nonterminals * * ] cacheKey globalCache =[] # reset local cache before parse
-      } rep
+      } τuncachedParser rep
       cacheKey globalCache * _ len dearray
-    } nt parsers =[] } each
+    } τparsers nt parsers =[] } each
   } /generateLogicParsers deffd
 
   { ==nonterminals ==variableNonTerminals
@@ -2798,7 +2803,7 @@ objset ==blocks
           var len { 0 var * 0 "$" * eq } andif { var ".(.*)\\.[0-9]+" regex } andif { =var } rep
           var validVars .has { [ start _ 1 add var validVars * ] start 1 add 1 } { 0 } ? *
         } rep
-      } nonterminal nonterminals =[]
+      } τalsoMetaVars nonterminal nonterminals =[]
     } each
   } /alsoMetaVariables deffst
 
