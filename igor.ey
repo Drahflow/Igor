@@ -42,7 +42,7 @@ objset ==blocks
     quoted not { * } rep
   }
   { time keys { _ dump _ time -01 . txt .produce .u " μs" cat dump count -01 . txt .produce .u " calls" cat dump } each }
-> -- /perfstats deffd "τ" defq
+> -- /perfstats deffd -- { -- } "τ" defq
 
 <
   { -- } "$$" defq # { ==name _ "$" name cat " " cat -01 cat dump } "$$" deffd
@@ -310,23 +310,27 @@ objset ==blocks
   emptyBlock ==userContext
   emptyBlock ==proofContext
 
+  map ==renderNameCache
   { ==name
-    [
-      { name constants .has } {
-        [| "\e[37m" name "\e[0m" |]
-      }
-      { name assertions .has } {
-        name assertions * ==a
-        [
-          { a .type "p" eq } { [| "\e[36m" name "\e[0m" |] }
-          { a .type "a" eq } { [| "\e[31m" name "\e[0m" |] }
-          { 1 } { name }
-        ] conds
-      }
-      { name renderContext isVar } { [| "\e[32m" name "\e[0m" |] }
-      { 0 name * 0 "$" * eq } { [| "\e[33m" name "\e[0m" |] }
-      { 1 } { name }
-    ] conds
+    name renderNameCache .has not {
+      [
+        { name constants .has } {
+          [| "\e[37m" name "\e[0m" |]
+        }
+        { name assertions .has } {
+          name assertions * ==a
+          [
+            { a .type "p" eq } { [| "\e[36m" name "\e[0m" |] }
+            { a .type "a" eq } { [| "\e[31m" name "\e[0m" |] }
+            { 1 } { name }
+          ] conds
+        }
+        { name renderContext isVar } { [| "\e[32m" name "\e[0m" |] }
+        { 0 name * 0 "$" * eq } { [| "\e[33m" name "\e[0m" |] }
+        { 1 } { name }
+      ] conds
+    name renderNameCache =[] } rep
+    name renderNameCache *
   } τrenderName /renderName deffd
 
   "" ==inputBuffer
@@ -513,7 +517,7 @@ objset ==blocks
     0 ==nextMetaVariable
     map ==lastMetaVariables
     map ==metaSubstitution
-    1 ==redisplay
+    1 ==redisplay 0 ==silent
     [ ] ==lastSearch
     [ ] ==loadedCommands
 
@@ -535,10 +539,12 @@ objset ==blocks
     } τintroduceMetaVars /introduceMetaVars deffst
 
     { ==closedGoal ==substitution ==theorem
-      [| "applying with:\n" |] out
-      substitution dom { ==name
-        [| name " = " name substitution * { renderName " " } each "\n" |] out
-      } τinfo1 each
+      silent not {
+        [| "applying with:\n" |] out
+        substitution dom { ==name
+          [| name " = " name substitution * { renderName " " } each "\n" |] out
+        } τinfo1 each
+      } rep
 
       substitution theorem introduceMetaVars
 
@@ -891,7 +897,6 @@ objset ==blocks
 
     { ==metaVar ==tokens
       0 ==disjunctionsViolated
-      metaVar dump
       metaVar "^\\$([^.]+)$" regex { ==stem
         stem lastMetaVariables .has { stem lastMetaVariables * =metaVar } rep
       } rep
@@ -980,7 +985,7 @@ objset ==blocks
       [| tokens { " " }" each |] ==txt
       [
         { txt closedGoalIndex .has } {
-          [| "re-using earlier proof\n" |] out
+          silent not { [| "re-using earlier proof\n" |] out } rep
           txt closedGoalIndex * .resolution goal .close
         } τauto1
         { txt directTheoremIndex .has } {
@@ -2609,7 +2614,7 @@ objset ==blocks
       redisplay |display rep
       1 =redisplay
 
-      perfstats
+      # perfstats
       "proof> " sys .out .writeall
       inputLine ==input
 
@@ -2705,6 +2710,8 @@ objset ==blocks
         { input "^ *noautoall\n" regex } { 0 =autoall }
         { input "^ *antedisp\n" regex } { 1 =antedisp }
         { input "^ *noantedisp\n" regex } { 0 =antedisp }
+        { input "^ *silent\n" regex } { 1 =silent }
+        { input "^ *nosilent\n" regex } { 0 =silent }
         { input "^ *load (.*)\n" regex } { load }
         loadedCommands "*" | each
       ] conds
