@@ -304,7 +304,7 @@ objset ==blocks
 } /collectEHyps deffst
 
 <
-  { [ } "[|" deffd { ] |cat fold } "|]" deffd
+  { [ } "[|" deffd { ] |cat fold } τcatFold "|]" deffd
 
   emptyBlock ==renderContext
   emptyBlock ==userContext
@@ -415,8 +415,8 @@ objset ==blocks
     1 ==valid
     0 ==i
 
-    start assertionTokens rootNonterminal logicParsers * * not { 0 =valid } { -- ==assertionParse
-      start tokens rootNonterminal logicParsers * * not { 0 =valid } { -- ==tokensParse
+    start assertionTokens rootNonterminal logicParsers * * not { 0 =valid } { ==assertionParse
+      start tokens rootNonterminal logicParsers * * not { 0 =valid } { ==tokensParse
         { ==assertionParse ==tokensParse
           assertionParse logicNonTerminal ==nt
           [
@@ -602,7 +602,7 @@ objset ==blocks
       } each
       assertion .hyps { assertion .ctx isEHyp } grep { ==name
         name assertion .ctx getEHyp ==toks
-        0 toks * "|-" eq { 1 toks /wff logicParsers * * } andif toks fullyParsed { ==parse
+        0 toks * "|-" eq { 1 toks /wff logicParsers * * } andif { ==parse
           parse logicNonTerminal /wi eq
               { 0 parse * logicNonTerminal /wceq eq } andif
               { 1 parse * logicNonTerminal /wb eq } andif {
@@ -646,9 +646,9 @@ objset ==blocks
               allowIndirectUsage
               { choices len 0 eq } andif
               { 0 goalToks * "|-" eq } andif
-              { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+              { 1 goalToks /wff logicParsers * * } andif { ==goalParse
                 0 a .thm * "|-" eq
-                { 1 a .thm /wff logicParsers * * } andif a .thm fullyParsed { ==assertionParse
+                { 1 a .thm /wff logicParsers * * } andif { ==assertionParse
                   goalParse logicNonTerminal /wi eq {
                     [ "|-" ] 1 goalParse * logicRange goalToks * cat a possibleSubstitutions ==implChoices
                     implChoices len 1 eq {
@@ -989,7 +989,7 @@ objset ==blocks
         } τauto2
         { 0 tokens * logicParsers .has } {
           { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
-          1 tokens 0 tokens * logicParsers * * { -- ==parse
+          1 tokens 0 tokens * logicParsers * * { ==parse
             # parse tree order is by token sequence, but hypothesis order is by set.mm
             # only apply topmost parse rule and handle rest via big recursion
                     # a 0 choices * goal applyTheorem
@@ -997,7 +997,7 @@ objset ==blocks
             goal [ |auto ] tacAttemptNext
           } |failed ? *
         } τauto3
-        { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed } τauto4 { ==parse
+        { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif } τauto4 { ==parse
           { ==parse =*preparation
             goal .isopen { parse logicNonTerminal /wi eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif {
               goal preparation ==goal
@@ -1171,7 +1171,7 @@ objset ==blocks
     { ==goal
       { "\e[31mdistr:ante not applicable, expected |- ( ... -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         parse logicNonTerminal /wi eq {
 
           < > ==thms "" ==leftNt "" ==rightNt
@@ -1245,7 +1245,7 @@ objset ==blocks
     { ==goal
       { "\e[31mdistr:ante (meta-version) not applicable, expected |- ( ... -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
         parse logicNonTerminal /wi eq {
           [ ] ==leftMeta [ ] ==rightMeta
           [
@@ -1284,7 +1284,7 @@ objset ==blocks
     { ==goal
       { "\e[31mrewrite:ante not applicable, expected |- ( ( ... { = , <-> } ... ) -> ... )\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         parse logicNonTerminal /wi eq { 0 parse * logicNonTerminal [ /wceq /wb ] eq any } andif {
           0 0 parse * * logicRange tokens * ==from
           1 0 parse * * logicRange tokens * ==to
@@ -1302,8 +1302,8 @@ objset ==blocks
     { ==goal ==antecedent
       { "\e[31mrewrite:full not applicable, expected |- ... as goal and ... { = , <-> } ... as argument\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
-        0 antecedent /wff logicParsers * * antecedent fullyParsed { ==antecedentParse
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        0 antecedent /wff logicParsers * * { ==antecedentParse
           antecedentParse logicNonTerminal [ /wceq /wb ] eq any {
             0 antecedentParse * logicRange antecedent * ==from
             1 antecedentParse * logicRange antecedent * ==to
@@ -1347,7 +1347,7 @@ objset ==blocks
     { ==goal
       goal .thm expandMeta ==tokens
       [
-        0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+        0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
           parse logicNonTerminal /wi eq {
             0 parse * ==anteConjuct
             { anteConjuct logicNonTerminal /wa eq } {
@@ -1364,7 +1364,7 @@ objset ==blocks
       { "\e[31mtacSelect not applicable, expected |- ( ... /\\ ... ) -> ... \e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
 
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         goal antecedents ==antes
         antes len {
           1 parse * logicRange tokens * ==target
@@ -1403,7 +1403,7 @@ objset ==blocks
     { ==goal
       { "\e[31mtacAndSelect not applicable, expected |- ( ... /\\ ... ) -> ( ... /\\ ... )\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         parse logicNonTerminal /wi eq {
           1 parse * logicRange tokens * ==target 0 ==existsAsAnte
 
@@ -1423,7 +1423,7 @@ objset ==blocks
     } /tacAndSelect deffst
 
     { ==goal ==tokens
-      0 tokens /wff logicParsers * * tokens fullyParsed { --
+      0 tokens /wff logicParsers * * { --
         /mpcom goal use
         goal .isopen not {
           tokens /ph lastMetaVariables * let
@@ -1436,8 +1436,8 @@ objset ==blocks
     { ==goal ==tokens
       { "\e[31mwith not applicable, expected |- ...\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==goalTokens
-      0 goalTokens * "|-" eq { 1 goalTokens /wff logicParsers * * } andif goalTokens fullyParsed { ==goalParse
-        0 tokens /wff logicParsers * * tokens fullyParsed { --
+      0 goalTokens * "|-" eq { 1 goalTokens /wff logicParsers * * } andif { ==goalParse
+        0 tokens /wff logicParsers * * { --
           goalParse logicNonTerminal /wi eq {
             /mpd goal use
             goal .isopen not {
@@ -1457,7 +1457,7 @@ objset ==blocks
     } /tacWith deffst
 
     { ==goal ==tokens
-      0 tokens /wff logicParsers * * tokens fullyParsed { --
+      0 tokens /wff logicParsers * * { --
         /syl goal use
         goal .isopen not {
           tokens /ps lastMetaVariables * let
@@ -1468,9 +1468,9 @@ objset ==blocks
     } /tacWithOnly deffst
 
     { ==goal ==tokens
-      0 tokens /wff logicParsers * * tokens fullyParsed { ==parse
+      0 tokens /wff logicParsers * * { ==parse
         goal .thm expandMeta ==goalToks
-        0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+        0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif { ==goalParse
           goalParse logicNonTerminal /wi eq
             /mpancom /ax-mp ? goal use
           goal .isopen not {
@@ -1482,9 +1482,9 @@ objset ==blocks
     } /tacConclude deffst
 
     { ==goal ==tokens
-      0 tokens /wff logicParsers * * tokens fullyParsed { ==parse
+      0 tokens /wff logicParsers * * { ==parse
         goal .thm expandMeta ==goalToks
-        0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+        0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif { ==goalParse
           goalParse logicNonTerminal /wi eq {
             0 goalParse * logicNonTerminal /wa eq {
               /sylancom goal use
@@ -1606,7 +1606,7 @@ objset ==blocks
 
     { ==goal
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         parse logicNonTerminal /wi eq {
           goal ==toRewrite
           0 parse * logicNonTerminal /wa eq {
@@ -1630,7 +1630,7 @@ objset ==blocks
       goal antecedents ==antes
       0 ==doRewrite
       antes { ==ante
-        0 ante /wff logicParsers * * ante fullyParsed { ==parse
+        0 ante /wff logicParsers * * { ==parse
           parse logicNonTerminal [ /wa /w3a ] eq any { 1 =doRewrite } rep
         } rep
       } each
@@ -1638,7 +1638,7 @@ objset ==blocks
       doRewrite {
         {
           goal .thm expandMeta ==tokens
-          0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+          0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
             parse logicNonTerminal /wi eq {
               [
                 { 0 parse * logicNonTerminal /wa eq } {
@@ -1687,7 +1687,7 @@ objset ==blocks
     { ==goal
       { "\e[31mtacNormalizeConsequent not applicable, expected |- ...\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         [
           { parse logicNonTerminal /wi eq } {
             [
@@ -1716,7 +1716,7 @@ objset ==blocks
     { ==goal
       { "\e[31mnormalize not applicable, expected |- ...\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         parse logicNonTerminal /wi eq {
           1 parse * logicNonTerminal /wi eq {
             /expcom goal use
@@ -1734,7 +1734,7 @@ objset ==blocks
         [ goals { ==goal
           goal .isopen {
             goal .thm expandMeta ==tokens
-            0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+            0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
               parse logicNonTerminal /wi eq
                   { 0 parse * logicNonTerminal [ /wb /wceq ] eq any } andif
                   { 1 parse * logicNonTerminal [ /wb /wceq ] eq any } andif {
@@ -1755,7 +1755,7 @@ objset ==blocks
                 ] conds
 
                 goal .thm expandMeta ==tokensSubstituted
-                1 tokensSubstituted /wff logicParsers * * tokensSubstituted fullyParsed { --
+                1 tokensSubstituted /wff logicParsers * * { --
                   goal tacDistrAntecedent
                   goal .isopen not { 1 } rep # repeat
                 } rep
@@ -1821,7 +1821,7 @@ objset ==blocks
       } each
 
       goal .isopen {
-        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
           parse logicNonTerminal "wceq" eq { 0 parse * logicNonTerminal /co eq } andif {
             0 0 parse * * ==left
             1 0 parse * * ==operation
@@ -2134,7 +2134,7 @@ objset ==blocks
       { "\e[31msolve:range not applicable, expected |- ... -> <decimal> { < , <_ } ... (or the other way around)\e[0m\n" out } =*notApplicable
 
       goal .thm expandMeta ==tokens
-      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
         parse logicNonTerminal /wi eq {
           [
             { 1 parse * logicNonTerminal /wbr eq } {
@@ -2148,7 +2148,7 @@ objset ==blocks
                 [
                   { 0 1 parse * * parseNumber } { ==target
                     goal antecedents { ==ante
-                      0 ante /wff metaLogicParsers * * ante fullyParsed { ==anteParse
+                      0 ante /wff metaLogicParsers * * { ==anteParse
                         anteParse logicNonTerminal /wbr eq
                             { 1 anteParse * logicNonTerminal comparison eq } andif
                             { 2 anteParse * logicRange ante * ==at
@@ -2168,7 +2168,7 @@ objset ==blocks
                   }
                   { 2 1 parse * * parseNumber } { ==target
                     goal antecedents { ==ante
-                      0 ante /wff metaLogicParsers * * ante fullyParsed { ==anteParse
+                      0 ante /wff metaLogicParsers * * { ==anteParse
                         anteParse logicNonTerminal /wbr eq
                             { 1 anteParse * logicNonTerminal comparison eq } andif
                             { 0 anteParse * logicRange ante * ==at
@@ -2212,7 +2212,7 @@ objset ==blocks
       # } each
 
       goal .isopen {
-        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
           0 ==hasAntes parse ==relevant
           parse logicNonTerminal /wi eq { 1 =hasAntes 1 parse * =relevant } rep
 
@@ -2249,7 +2249,7 @@ objset ==blocks
 
     { ==goal
       goal .thm expandMeta ==goalToks
-      0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+      0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif { ==goalParse
         goalParse logicNonTerminal /wi eq {
           0 goalParse * logicNonTerminal /wcel eq {
             1 0 goalParse * * logicNonTerminal /cun eq {
@@ -2285,7 +2285,7 @@ objset ==blocks
 
     { ==goal
       goal .thm expandMeta ==goalToks
-      0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif goalToks fullyParsed { ==goalParse
+      0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif { ==goalParse
         goalParse logicNonTerminal /wi eq {
           0 goalParse * logicNonTerminal /wcel eq {
             1 0 goalParse * * logicNonTerminal /csn eq {
@@ -2588,7 +2588,7 @@ objset ==blocks
         antedisp { goals len } andif {
           selectedGoal goals * ==goal
           goal .thm expandMeta ==tokens
-          0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif tokens fullyParsed { ==parse
+          0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
             [| "\n" |] out
             proofContext collectEHyps _ ==hyps dom { ==name
               [| "+ " name hyps * _ len 1 -01 range -01* { renderName " " } each "\n" |] out
@@ -2812,7 +2812,7 @@ objset ==blocks
           [ toks len toks len "" ] "" consume automaton .result ==result
           result len 1 gt { result dump "ambiguous grammar" die } rep
           result len 1 eq ==success
-          success { 0 result * _ logicEnd } rep success
+          success { 0 result * } rep success
         ] cacheKey globalCache =[]
       } τuncachedParser rep
       cacheKey globalCache * _ len dearray
@@ -2840,7 +2840,6 @@ objset ==blocks
   { ==node node len _ 3 sub node * -01 2 sub node * range } /logicRange deffst
   { ==node node len 1 sub node * } /logicNonTerminal deffst
   { ==node node len 3 sub } /logicChildCount deffst
-  { ==tokens { tokens len eq { 1 } { -- 0 } ? * } { 0 } ? * } /fullyParsed deffst
 
   { ==name
     [
