@@ -327,7 +327,7 @@ objset ==blocks
       { 0 name * 0 "$" * eq } { [| "\e[33m" name "\e[0m" |] }
       { 1 } { name }
     ] conds
-  } /renderName deffd
+  } τrenderName /renderName deffd
 
   "" ==inputBuffer
   {
@@ -444,8 +444,7 @@ objset ==blocks
       } ? *
     } ? *
 
-    list _ ==result # returned
-    valid { substitution result .append1 } rep
+    [ valid { substitution } rep ]
   } τpossibleSubstitutions /possibleSubstitutionsForToks deffd
 
   { .thm ==assertionTokens ==tokens
@@ -453,13 +452,13 @@ objset ==blocks
       0 tokens * "|-" eq /wff 0 tokens * ? ==rootNonterminal
       tokens assertionTokens rootNonterminal 1 possibleSubstitutionsForToks
     } {
-      list # no substitutions
+      [ ] # no substitutions
     } ? *
   } /possibleSubstitutions deffd
 
   { ==substitution ==tokens
     [ tokens { _ substitution .has { substitution * _ len dearray } rep } each ]
-  } /applySubstitution deffst
+  } τapplySubstitution /applySubstitution deffst
 
   { <
     ==thm < > ==resolution 1 ==isopen
@@ -476,7 +475,7 @@ objset ==blocks
       _ .isopen { goals .put } { .resolution .hypotheses |collect each } ? *
     } /collect deffst
     collect goals dom
-  } /openGoals deffst
+  } τopenGoals /openGoals deffst
 
   { ==proposition
 
@@ -533,7 +532,7 @@ objset ==blocks
           } rep
         } rep
       } each
-    } /introduceMetaVars deffst
+    } τintroduceMetaVars /introduceMetaVars deffst
 
     { ==closedGoal ==substitution ==theorem
       [| "applying with:\n" |] out
@@ -576,20 +575,17 @@ objset ==blocks
           } each
         } each
 
-        list ==hypotheses
-        theorem .hyps { ==name
-          [
-            { name theorem .ctx isEHyp } {
-              name theorem .ctx getEHyp substitution applySubstitution goal hypotheses .append1
-            }
-            { name theorem .ctx isFHyp } {
-              name theorem .ctx getFHyp substitution applySubstitution goal hypotheses .append1
-            }
-            { 1 } {
-              [| "hypothesis " name " cannot be resolved" "\n" |] out
-            }
-          ] conds
-        } each
+        [
+          theorem .hyps { ==name
+            [
+              { name theorem .ctx isEHyp } { name theorem .ctx getEHyp substitution applySubstitution goal }
+              { name theorem .ctx isFHyp } { name theorem .ctx getFHyp substitution applySubstitution goal }
+              { 1 } {
+                [| "hypothesis " name " cannot be resolved" "\n" |] out
+              }
+            ] conds
+          } each
+        ] ==hypotheses
 
         hypotheses len not {
           amendClosedGoalIndex
@@ -597,7 +593,7 @@ objset ==blocks
 
         hypotheses substitution theorem step closedGoal .close
       } rep
-    } τapply /applyTheorem deffst
+    } τapplyTheorem /applyTheorem deffst
 
     { ==assertion ==substitution
       assertion .name dump
@@ -634,7 +630,7 @@ objset ==blocks
           } rep
         } rep
       } each
-    } /resolveEhypSubstitutions deffst
+    } τresolveEhypSubstitutions /resolveEhypSubstitutions deffst
 
     { ==allowIndirectUsage ==goal ==name
       [| "using: " name "\n" |] out
@@ -820,13 +816,13 @@ objset ==blocks
 
               indirectUsage not {
                 [
+                  { choices len 1 eq } {
+                    a 0 choices * goal applyTheorem
+                  }
                   { choices len 0 eq } {
                     [| "\e[31mno possible substitutions\e[0m\n" |] out
                     0 =redisplay
                     name show
-                  }
-                  { choices len 1 eq } {
-                    a 0 choices * goal applyTheorem
                   }
                   { choices len 1 ge } {
                     [| "\e[31mmultiple substitutions possible\e[0m\n" |] out
@@ -847,7 +843,7 @@ objset ==blocks
         }
         { name userContext isEHyp } {
           goal .thm expandMeta name userContext getEHyp eq all {
-            list map < "f" ==type userContext ==ctx name userContext getEHyp ==thm { "no proof" die } =*proof name ==name >
+            [ ] map < "f" ==type userContext ==ctx name userContext getEHyp ==thm { "no proof" die } =*proof name ==name >
               step goal .close
           } {
             [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
@@ -856,7 +852,7 @@ objset ==blocks
         }
         { name userContext isFHyp } {
           goal .thm expandMeta name userContext getFHyp eq all {
-            list map < "f" ==type userContext ==ctx name userContext getFHyp ==thm { "no proof" die } =*proof name ==name >
+            [ ] map < "f" ==type userContext ==ctx name userContext getFHyp ==thm { "no proof" die } =*proof name ==name >
               step goal .close
           } {
             [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
@@ -891,7 +887,7 @@ objset ==blocks
         }
       ] conds
       usable
-    } /canUse deffst
+    } τcanUse /canUse deffst
 
     { ==metaVar ==tokens
       0 ==disjunctionsViolated
@@ -927,7 +923,7 @@ objset ==blocks
           } each
         } each
       } rep
-    } /let deffst
+    } τlet /let deffst
 
     { map _ ==directTheoremIndex # returned
       [| "Indexing theorems by text...\n" |] out
@@ -966,7 +962,7 @@ objset ==blocks
           goal .resolution .hypotheses { ==g g .isopen { g f } rep } each
         } each
       } rep
-    } /tacAttemptNext deffst
+    } τtacAttemptNext /tacAttemptNext deffst
 
     { ==tokens ==parse
       parse logicRange tokens * ==thing
@@ -981,7 +977,7 @@ objset ==blocks
 
     { ==goal
       goal .thm expandMeta ==tokens
-      [| tokens { " " } each |] ==txt
+      [| tokens { " " }" each |] ==txt
       [
         { txt closedGoalIndex .has } {
           [| "re-using earlier proof\n" |] out
@@ -993,12 +989,13 @@ objset ==blocks
         } τauto2
         { 0 tokens * logicParsers .has } {
           { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
-          1 tokens 0 tokens * logicParsers * * { tokens len eq { ==parse
+          1 tokens 0 tokens * logicParsers * * { -- ==parse
             # parse tree order is by token sequence, but hypothesis order is by set.mm
             # only apply topmost parse rule and handle rest via big recursion
+                    # a 0 choices * goal applyTheorem
             parse logicNonTerminal goal use
             goal [ |auto ] tacAttemptNext
-          } |failed ? * } |failed ? *
+          } |failed ? *
         } τauto3
         { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed } τauto4 { ==parse
           { ==parse =*preparation
@@ -1243,7 +1240,7 @@ objset ==blocks
           } { [| "\e[31mno theorem known to process rewrite step, of type " leftNt "\e[0m\n" |] out } ? *
         } |notApplicable ? *
       } |notApplicable ? *
-    } /tacDistrAntecedent deffst
+    } τtacDistrAntecedent /tacDistrAntecedent deffst
 
     { ==goal
       { "\e[31mdistr:ante (meta-version) not applicable, expected |- ( ... -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
@@ -1282,7 +1279,7 @@ objset ==blocks
           } ? *
         } loop
       ]
-    } /rewriteTokens deffst
+    } τrewriteTokens /rewriteTokens deffst
 
     { ==goal
       { "\e[31mrewrite:ante not applicable, expected |- ( ( ... { = , <-> } ... ) -> ... )\e[0m\n" out } =*notApplicable
@@ -1349,18 +1346,19 @@ objset ==blocks
 
     { ==goal
       goal .thm expandMeta ==tokens
-      list _ ==antecedents # returned
-      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
-        parse logicNonTerminal /wi eq {
-          0 parse * ==anteConjuct
-          { anteConjuct logicNonTerminal /wa eq } {
-            0 anteConjuct * logicRange tokens * antecedents .append1
-            1 anteConjuct * =anteConjuct
-          } loop
-          anteConjuct logicRange tokens * antecedents .append1
+      [
+        0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif tokens fullyParsed { ==parse
+          parse logicNonTerminal /wi eq {
+            0 parse * ==anteConjuct
+            { anteConjuct logicNonTerminal /wa eq } {
+              0 anteConjuct * logicRange tokens * # left in result array
+              1 anteConjuct * =anteConjuct
+            } loop
+            anteConjuct logicRange tokens * # left in result array
+          } rep
         } rep
-      } rep
-    } /antecedents deffst
+      ]
+    } τantecedents /antecedents deffst
 
     { ==goal
       { "\e[31mtacSelect not applicable, expected |- ( ... /\\ ... ) -> ... \e[0m\n" out } =*notApplicable
@@ -1790,7 +1788,7 @@ objset ==blocks
         }
         { 1 } { 0 }
       ] conds
-    } /parseNumber deffst
+    } τparseNumber /parseNumber deffst
 
     # this function does not guarantee a correct parse but assumes it
     { ==toks
@@ -1802,7 +1800,7 @@ objset ==blocks
           { 1 } { "\e[31minvalid number in parseNumberToks\e[0m" out -- 1 neg }
         ] conds
       } each
-    } /parseNumberToks deffst
+    } τparseNumberToks /parseNumberToks deffst
 
     { txt .produce .u ==s
       [
@@ -1902,7 +1900,7 @@ objset ==blocks
                       ] conds
                     }
                     { operation logicNonTerminal /cmin eq } {
-                      /subaddi goal tacUse
+                      /subaddi goal tacUse # TODO: replace with mpbir sequence or similar
                       goal [ |auto |tacSolveArith ] tacAttemptNext
                     }
                     { operation logicNonTerminal /cmul eq } {
@@ -2607,11 +2605,11 @@ objset ==blocks
            "\n" |] out
           } rep
         } rep
-      } /display deffst
+      } τdisplay /display deffst
       redisplay |display rep
       1 =redisplay
 
-      # perfstats
+      perfstats
       "proof> " sys .out .writeall
       inputLine ==input
 
