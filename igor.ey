@@ -411,41 +411,51 @@ objset ==blocks
     } loop
   } /readNumber deffd
 
-  { ==assertionTokens ==tokens map ==substitution
+  { ==start ==rootNonterminal ==assertionTokens ==tokens map ==substitution
     1 ==valid
     0 ==i
-    assertionTokens { ==tok
-      [
-        { tok constants .has
-          { i tokens len lt } andif
-          { i tokens * tok eq } andif
-        } { i 1 add =i }
 
-        { tok constants .has not
-          { i tokens len lt } andif
-          { i tokens tok variables * metaLogicParsers * * } andif
-        } { ==end ==parse
-          parse logicRange tokens * ==new
-          tok substitution .has {
-            tok substitution * ==old
-            old len new len eq { old new eq all } andif valid and =valid
-          } {
-            new tok substitution =[]
-          } ? *
-          end =i
-        }
+    start assertionTokens rootNonterminal logicParsers * * not { 0 =valid } { -- ==assertionParse
+      start tokens rootNonterminal logicParsers * * not { 0 =valid } { -- ==tokensParse
+        { ==assertionParse ==tokensParse
+          assertionParse logicNonTerminal ==nt
+          [
+            { nt "" eq } { # terminal
+              tokensParse logicRange tokens * ==new
+              assertionParse logicStart assertionTokens * ==var
 
-        { 1 } { 0 =valid }
-      ] conds
-    } each
+              var substitution .has {
+                var substitution * ==old
+                old len new len eq { old new eq all } andif valid and =valid
+              } {
+                new var substitution =[]
+              } ? *
+            }
+            { nt tokensParse logicNonTerminal eq } {
+              0 assertionParse logicChildCount range { ==i
+                i tokensParse * i assertionParse * recurse
+              } each
+            }
+            { 1 } { 0 =valid }
+          ] conds
+        } /recurse deffst
 
-    i tokens len eq valid and =valid
+        tokensParse assertionParse recurse
+      } ? *
+    } ? *
 
     list _ ==result # returned
     valid { substitution result .append1 } rep
   } τpossibleSubstitutions /possibleSubstitutionsForToks deffd
 
-  { .thm possibleSubstitutionsForToks } /possibleSubstitutions deffd
+  { .thm ==assertionTokens ==tokens
+    0 assertionTokens * 0 tokens * eq {
+      0 tokens * "|-" eq /wff 0 tokens * ? ==rootNonterminal
+      tokens assertionTokens rootNonterminal 1 possibleSubstitutionsForToks
+    } {
+      list # no substitutions
+    } ? *
+  } /possibleSubstitutions deffd
 
   { ==substitution ==tokens
     [ tokens { _ substitution .has { substitution * _ len dearray } rep } each ]
@@ -688,8 +698,8 @@ objset ==blocks
                     {
                       [
                         { i logicNonTerminal /wb eq } {
-                          relevantGoalToks 1 i * logicRange a .thm * possibleSubstitutionsForToks ==rightChoices
-                          relevantGoalToks 0 i * logicRange a .thm * possibleSubstitutionsForToks ==leftChoices
+                          relevantGoalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForToks ==rightChoices
+                          relevantGoalToks 0 i * logicRange a .thm * /wff 0 possibleSubstitutionsForToks ==leftChoices
 
                           # prefer substitutions with more variables known (i.e. better match)
                           rightChoices len 1 eq { leftChoices len 1 eq { 0 leftChoices * dom len 0 rightChoices * dom len gt } andif not } andif {
@@ -764,7 +774,7 @@ objset ==blocks
                           0
                         }
                         { i logicNonTerminal /wi eq } {
-                          relevantGoalToks 1 i * logicRange a .thm * possibleSubstitutionsForToks ==rightChoices
+                          relevantGoalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForToks ==rightChoices
                           rightChoices len 1 eq {
                             0 rightChoices * ==substitution
                             substitution a resolveEhypSubstitutions
@@ -2719,9 +2729,7 @@ objset ==blocks
     } each
   } memoized /variables deffd
 
-  # generate parser functions
-  # { ==toks ==start [...] used_theorem end success[0/1] }
-  { =*variableCases
+  {
     map ==nonterminals
     map ==variableNonTerminals # nonterminal -> variable -> theorem name
 
@@ -2735,76 +2743,94 @@ objset ==blocks
       } each
     } each
 
-    variableNonTerminals nonterminals variableCases
-
-    assertions dom { _ ==name assertions * ==a
+    map ==relevantRules # nonterminal -> [ assertion ... ]
+    assertions dom { assertions * ==a
       a .type "a" eq {
-        0 a .thm * _ ==nt nonterminals .has {
+        0 a .thm * _ ==nt variableNonTerminals .has {
           a .ctx collectEHyps dom len 0 eq {
             1 a .thm len range a .thm * ==expectedTokens
-            nt nonterminals * =*alt
-
-            { ==toks _ ==start ==i
-              start toks alt { 1 } {
-                1 ==success , [
-                expectedTokens { ==tok success {
-                  tok constants .has {
-                    i toks len lt { i toks * tok eq } andif { i 1 add =i }" { 0 =success }" ? *
-                  }" {
-                    i toks tok variables * nonterminals * * { =i }" { 0 =success }" ? *
-                  }" ? *
-                }" rep }" each
-                success { ,-- start i name ] i 1 }" { ,--- 0 }" ? *
-              } ? *
-            } nt nonterminals =[]
+            nt relevantRules .has not { [ ] nt relevantRules =[] } rep
+            nt relevantRules * [ a ] cat nt relevantRules =[]
           } rep
         } rep
       } rep
     } each
 
-    map ==cache # for packrat transformation
-    nonterminals dom { ==nt
-      nt nonterminals * =*orig
-      { ==toks ==start
-        nt cache .has not { map nt cache =[] } rep nt cache * ==ntCache
-        [ start { ==n n 256 mod n 256 div _ } { } loop -- ] str .fromArray ==cacheKey
-        cacheKey ntCache .has not { [ start toks orig ] cacheKey ntCache =[] } τveryUncachedParser rep
-        cacheKey ntCache * _ len dearray
-      } nt nonterminals =[]
+    parser .glr ":" via
+    map ==parserNonterminals
+    variableNonTerminals dom { ==nt nt :nonterminal nt parserNonterminals =[] } each
+    variableNonTerminals dom { ==nt
+      nt parserNonterminals * 
+      [ " " nt cat ] # terminal for variable tokens
+      { :0 } # keep value
+      :rule
+
+      nt relevantRules .has {
+        nt relevantRules * { _ ==assertion .thm ==thm
+          [ ] ==childParsesToKeep
+            nt parserNonterminals *
+            [
+              1 thm len range { _ ==i thm * ==tok
+                tok constants .has { tok }
+                                   {
+                                     tok variables * parserNonterminals *
+                                     childParsesToKeep [ thm len i sub 1 sub ] cat =childParsesToKeep
+                                   } ? *
+              } each
+            ] _ len ==childCount
+            { ==s [
+              childParsesToKeep { s -01 :child } each
+              s childCount 1 sub :child logicStart
+              s :0 logicEnd
+              assertion .name
+            ] }
+          :rule
+        } each
+      } rep
     } each
 
+    map ==automata # nonterminal -> automaton
+    variableNonTerminals dom { _ ==nt parserNonterminals * ==NT
+      NT :automaton nt automata =[]
+    } each
+    automata
+  } memoized /prepareLogicParsers deffd
+
+  # generate parser functions
+  # { ==toks ==start [...] <parse> end success[0/1] }
+  { =*variableTranslation
+    prepareLogicParsers ==automata
     map ==globalCache # for repeated invocations
     map _ ==parsers # returned
-    nonterminals dom { ==nt {
+    automata dom { ==nt {
       ==toks ==start
       [| nt toks { " " } each start txt .produce .hu |] ==cacheKey
       cacheKey globalCache .has not {
-        [ map =cache start toks nt nonterminals * * ] cacheKey globalCache =[] # reset local cache before parse
+        [
+          nt automata * ==automaton
+          automaton .run =*consume
+          start toks len range { ==i [ i _ 1 add "" ] i toks * variableTranslation consume -- } each
+          [ toks len toks len "" ] "" consume automaton .result ==result
+          result len 1 gt { result dump "ambiguous grammar" die } rep
+          result len 1 eq ==success
+          success { 0 result * _ logicEnd } rep success
+        ] cacheKey globalCache =[]
       } τuncachedParser rep
       cacheKey globalCache * _ len dearray
     } τparsers nt parsers =[] } each
   } /generateLogicParsers deffd
 
-  { ==nonterminals ==variableNonTerminals
-    variableNonTerminals dom { ==nonterminal
-      nonterminal variableNonTerminals * ==validVars
-      { ==toks ==start
-        start toks len lt { start toks * validVars .has } andif { [ start _ 1 add start toks * validVars * ] start 1 add 1 } { 0 } ? *
-      } nonterminal nonterminals =[]
-    } each
+  { ==tok
+    tok variables .has {
+      " " tok variables * cat
+    } { tok } ? *
   } /noMetaVariables deffst
 
-  { ==nonterminals ==variableNonTerminals
-    variableNonTerminals dom { ==nonterminal
-      nonterminal variableNonTerminals * ==validVars
-      { ==toks ==start
-        start toks len lt {
-          start toks * ==var
-          var len { 0 var * 0 "$" * eq } andif { var ".(.*)\\.[0-9]+" regex } andif { =var } rep
-          var validVars .has { [ start _ 1 add var validVars * ] start 1 add 1 } { 0 } ? *
-        } rep
-      } τalsoMetaVars nonterminal nonterminals =[]
-    } each
+  { ==tok
+    tok len { 0 tok * 0 "$" * eq } andif { tok ".(.*)\\.[0-9]+" regex } andif { =tok } rep
+    tok variables .has {
+      " " tok variables * cat
+    } { tok } ? *
   } /alsoMetaVariables deffst
 
   { [| "Generating logic parser...\n"      |] out |noMetaVariables   generateLogicParsers } memoized /logicParsers deffst
@@ -2814,6 +2840,7 @@ objset ==blocks
   { ==node node len 2 sub node * } /logicEnd deffst
   { ==node node len _ 3 sub node * -01 2 sub node * range } /logicRange deffst
   { ==node node len 1 sub node * } /logicNonTerminal deffst
+  { ==node node len 3 sub } /logicChildCount deffst
   { ==tokens { tokens len eq { 1 } { -- 0 } ? * } { 0 } ? * } /fullyParsed deffst
 
   { ==name
