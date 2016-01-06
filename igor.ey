@@ -518,13 +518,10 @@ objset ==blocks
     [ ] ==lastSearch
     [ ] ==loadedCommands
 
-    { _ ==old ==toks
-      {
-        toks metaSubstitution applySubstitution =toks
-        old len toks len eq { old toks eq all } andif not
-      } { toks =old } loop
-      toks
-    } τexpandMeta /expandMeta deffst
+    { ==tok tok metaSubstitution .has {
+      tok metaSubstitution * |expandMetaToken each
+    } { tok } ? * } /expandMetaToken deffst
+    { [ -01 |expandMetaToken each ] } τexpandMeta /expandMeta deffst
 
     { ==theorem ==substitution
       theorem mandatoryVariables dom { ==var
