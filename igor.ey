@@ -1815,7 +1815,7 @@ objset ==blocks
     } /printNumber deffst
 
     { ==goal
-      { "\e[31msolve:arith not applicable, expected |- ( <decimal> { + , x. , ^ } <decimal> ) = <decimal>\e[0m\n" out } =*notApplicable
+      { "\e[31msolve:arith not applicable, expected |- ( <decimal> { + , - , x. , ^ } <decimal> ) = <decimal>\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
       [| tokens { " " } each "\n" |] out
       [ /dec0h /addid1i /addid2i /mul01i /mul02i /mulid1i /mulid2i /numexp0 /numexp1 ] { ==thm
@@ -1903,6 +1903,10 @@ objset ==blocks
                         }
                         { 1 } { "\e[31msolve:arith does not deal with ( [0-9] + [0-9] )\e[0m\n" out }
                       ] conds
+                    }
+                    { operation logicNonTerminal /cmin eq } {
+                      /subaddi goal tacUse
+                      goal [ |auto |tacSolveArith ] tacAttemptNext
                     }
                     { operation logicNonTerminal /cmul eq } {
                       [
