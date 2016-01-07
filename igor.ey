@@ -304,7 +304,8 @@ objset ==blocks
 } /collectEHyps deffst
 
 <
-  { [ } "[|" deffd { ] |cat fold } τcatFold "|]" deffd
+  sys .asmroutines .|catstrarray =*:catstrarray
+  { [ } "[|" deffd { ] catstrarray } τcatFold "|]" deffd
 
   emptyBlock ==renderContext
   emptyBlock ==userContext
@@ -602,10 +603,12 @@ objset ==blocks
     } τapplyTheorem /applyTheorem deffst
 
     { ==assertion ==substitution
-      assertion .name dump
-      substitution dom { ==v
-        [| v " = " v substitution * { renderName " " } each "\n" |] out
-      } each
+      silent not {
+        [| "using e-hyp: " assertion .name "\n" |] out
+        substitution dom { ==v
+          [| v " = " v substitution * { renderName " " } each "\n" |] out
+        } each
+      } rep
       assertion .hyps { assertion .ctx isEHyp } grep { ==name
         name assertion .ctx getEHyp ==toks
         0 toks * "|-" eq { 1 toks /wff logicParsers * * } andif { ==parse
@@ -639,7 +642,9 @@ objset ==blocks
     } τresolveEhypSubstitutions /resolveEhypSubstitutions deffst
 
     { ==allowIndirectUsage ==goal ==name
-      [| "using: " name "\n" |] out
+      silent not {
+        [| "using: " name "\n" |] out
+      } rep
       [
         { name assertions .has } {
           name assertions * ==a
@@ -1817,7 +1822,9 @@ objset ==blocks
     { ==goal
       { "\e[31msolve:arith not applicable, expected |- ( <decimal> { + , - , x. , ^ } <decimal> ) = <decimal>\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      [| tokens { " " } each "\n" |] out
+      silent not {
+        [| tokens { " " } each "\n" |] out
+      } rep
       [ /dec0h /addid1i /addid2i /mul01i /mul02i /mulid1i /mulid2i /numexp0 /numexp1 ] { ==thm
         goal .isopen { thm tokens canUse } andif {
           thm goal use
