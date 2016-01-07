@@ -1002,7 +1002,6 @@ objset ==blocks
           1 tokens 0 tokens * logicParsers * * { ==parse
             # parse tree order is by token sequence, but hypothesis order is by set.mm
             # only apply topmost parse rule and handle rest via big recursion
-                    # a 0 choices * goal applyTheorem
             parse logicNonTerminal goal use
             goal [ |auto ] tacAttemptNext
           } |failed ? *
