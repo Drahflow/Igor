@@ -908,7 +908,11 @@ objset ==blocks
         stem lastMetaVariables .has { stem lastMetaVariables * =metaVar } rep
         metaVar metaSubstitution .has {
           allMetaVariables dom { ==v
-            v metaSubstitution .has not { v =metaVar } rep
+            v metaSubstitution .has not {
+              v "^\\$([^.]+)\\.[0-9]+$" regex { stem eq {
+                v =metaVar
+              } rep } rep
+            } rep
           } each
         } rep
       } rep
