@@ -517,6 +517,7 @@ objset ==blocks
     0 ==selectedGoal
     0 ==nextMetaVariable
     map ==lastMetaVariables
+    map ==allMetaVariables
     map ==metaSubstitution
     1 ==redisplay 0 ==silent
     [ ] ==lastSearch
@@ -533,6 +534,7 @@ objset ==blocks
           var substitution .has not {
             [| "$" var "." nextMetaVariable _ 1 add =nextMetaVariable txt .produce .u |] ==newVar
             newVar var lastMetaVariables =[]
+            1 newVar allMetaVariables =[]
             [ newVar ] var substitution =[]
           } rep
         } rep
@@ -904,6 +906,11 @@ objset ==blocks
       0 ==disjunctionsViolated
       metaVar "^\\$([^.]+)$" regex { ==stem
         stem lastMetaVariables .has { stem lastMetaVariables * =metaVar } rep
+        metaVar metaSubstitution .has {
+          allMetaVariables dom { ==v
+            v metaSubstitution .has not { v =metaVar } rep
+          } each
+        } rep
       } rep
 
       tokens { ==x metaVar ==y
