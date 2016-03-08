@@ -1065,6 +1065,24 @@ objset ==blocks
               } rep
             } rep
 
+            goal .isopen { parse logicNonTerminal /wne eq } andif {
+              0 parse * parseNumber { ==left
+                1 parse * parseNumber { ==right
+                  left right lt {
+                    goal preparation ==goal
+                    /ltneii goal use
+                    goal [ |auto ] tacAttemptNext
+                  } rep
+
+                  left right gt {
+                    goal preparation ==goal
+                    /gtneii goal use
+                    goal [ |auto ] tacAttemptNext
+                  } rep
+                } rep
+              } rep
+            } rep
+
             goal .isopen { parse logicNonTerminal /wbr eq } andif
                          { 0 1 parse * logicRange tokens * * "<" eq } andif {
               goal preparation ==goal
@@ -1149,6 +1167,25 @@ objset ==blocks
                 } rep
               } rep
             } rep
+
+            goal .isopen { parse logicNonTerminal "wceq" eq } andif
+                { 0 parse * logicNonTerminal /co eq } andif {
+              0 0 parse * * ==left
+              1 0 parse * * ==operation
+              2 0 parse * * ==right
+              1 parse * ==result
+
+              left parseNumber { ==leftNum
+                right parseNumber { ==rightNum
+                  result parseNumber { ==resultNum
+                    operation logicNonTerminal [ /caddc /cmin /cmul /cexp ] eq any {
+                      goal preparation ==goal
+                      goal tacSolveArith
+                    } rep
+                  } rep
+                } rep
+              } rep
+            } rep
           } /trivialities deffst
           { } parse trivialities
 
@@ -1216,6 +1253,7 @@ objset ==blocks
                   [ /3orbi1d /3orbi2d /3orbi3d /3orbi123d ] ==w3o
                   [ /notbid ] ==wn
                   [ /eqeq1d /eqeq2d /eqeq12d ] ==wceq
+                  [ /neeq1d /neeq2d /neeq12d ] ==wne
                   [ /sseq1d /sseq2d /sseq12d ] ==wss
                   [ /albid ] ==wal
                   [ /exbid ] ==wex
