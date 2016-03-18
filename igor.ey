@@ -1085,11 +1085,11 @@ objset ==blocks
 
             goal .isopen { parse logicNonTerminal /wbr eq } andif
                          { 0 1 parse * logicRange tokens * * "<" eq } andif {
-              goal preparation ==goal
-
               0 parse * parseNumber { ==left
                 2 parse * parseNumber { ==right
                   0 parse * logicNonTerminal /cdc neq {
+                    goal preparation ==goal
+
                     /mpbir goal use
                     goal .isopen not {
                       [ ";" "0" 0 parse * logicRange tokens * _ len dearray "<"
@@ -1108,6 +1108,8 @@ objset ==blocks
                       } rep
                     } rep
                   } {
+                    goal preparation ==goal
+
                     left 10 div right 10 div lt {
                       /decltc goal use
                     } {
@@ -1178,7 +1180,7 @@ objset ==blocks
               left parseNumber { ==leftNum
                 right parseNumber { ==rightNum
                   result parseNumber { ==resultNum
-                    operation logicNonTerminal [ /caddc /cmin /cmul /cexp ] eq any {
+                    operation logicNonTerminal [ /caddc /cmin /cmul /cexp /cmo ] eq any {
                       goal preparation ==goal
                       goal tacSolveArith
                     } rep
@@ -1748,6 +1750,25 @@ objset ==blocks
       tmp =tacNormalizeConsequent
     } /tacNormalizeAntecedentOnly deffst
 
+    { ==goal ==from ==to
+      { "\e[31mtacRename not applicable, expected |- ...\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      tokens to neq all {
+        0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+          goal .thm expandMeta ==tokens
+          /vtocl goal use
+          goal .isopen not {
+            [ from ] /A lastMetaVariables * let
+            [ to ] /x lastMetaVariables * let
+            [ parse logicRange tokens * { _ ==t from eq to t ? } each ] /ph lastMetaVariables * let
+
+            5 goal .resolution .hypotheses * tacRewriteAntecedent
+            goal [ |auto ] tacAttemptNext
+          } rep
+        } |notApplicable ? *
+      } { "\e[31mtarget name already in use, cannot rename\e[0m\n" out } ? *
+    } /tacRename deffst
+
     { ==goal
       { "\e[31mtacNormalizeConsequent not applicable, expected |- ...\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
@@ -2135,6 +2156,18 @@ objset ==blocks
                               step [ |auto ] tacAttemptNext
                             } rep
                             goal [ |auto ] tacAttemptNext
+                          } rep
+                        }
+                      ] conds
+                    }
+                    { operation logicNonTerminal /cmo eq } {
+                      [
+                        { leftNum rightNum mod resultNum neq } { "\e[31mincorrect modulo result\e[0m\n" out }
+                        { 1 } {
+                          /nnmulmodvali goal use
+                          goal .isopen not {
+                            leftNum rightNum div printNumber /D lastMetaVariables * let
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
                           } rep
                         }
                       ] conds
@@ -2732,6 +2765,8 @@ objset ==blocks
           goals len { selectedGoal goals * tacNormalize } |solved ? * }
         { input "^ *normalize:ante\n" regex } {
           goals len { selectedGoal goals * tacNormalizeAntecedentOnly } |solved ? * }
+        { input "^ *rename ([^ ]+) to ([^ ]+)\n" regex } {
+          goals len { selectedGoal goals * tacRename } |solved ? * }
         { input "^ *expand (.*)\n" regex } { ==name
           goals len { name selectedGoal goals * tacExpand } |solved ? * }
         { input "^ *solve:arith\n" regex } {
