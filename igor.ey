@@ -1631,6 +1631,7 @@ objset ==blocks
                 goal [ |auto ] tacAttemptNext
                 goal .isopen not {
                   2 goal .resolution .hypotheses * =goal
+                  rebuild 1 sub =rebuild
                 } rep
               } {
                 /adantl goal use
@@ -1660,6 +1661,23 @@ objset ==blocks
         } rep
       } { "\e[31mtacDropAll not applicable, expected |- ... -> ... \e[0m\n" out } ? *
     } /tacDropAll deffst
+
+    { ==goal ==tokens # a sequence of tokens to search for
+      goal antecedents ==antes
+      antes len {
+        [ ] ==toRemove # ante indices to drop
+
+        0 antes len range { _ ==i antes * ==ante
+          0 ante len tokens len sub range { ==start
+            start _ tokens len add range ante * tokens eq all {
+              toRemove [ i ] cat =toRemove
+            } rep
+          } each
+        } each
+
+        toRemove antes * goal tacDropAll
+      } { "\e[31mtacDropMatching not applicable, expected |- ... -> ... \e[0m\n" out } ? *
+    } /tacDropMatching deffst
 
     { ==goal
       goal .thm expandMeta ==tokens
@@ -2754,6 +2772,8 @@ objset ==blocks
           goals len { tokens selectedGoal goals * tacConclude } |solved ? * }
         { input "^ *and conclude (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacAndConclude } |solved ? * }
+        { input "^ *drop everything matching (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacDropMatching } |solved ? * }
         { input "^ *drop (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacDrop } |solved ? * }
         { input "^ *normalize\n" regex } {
