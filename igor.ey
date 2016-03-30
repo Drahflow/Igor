@@ -1386,6 +1386,24 @@ objset ==blocks
       } |notApplicable ? *
     } /tacRewriteFull deffst
 
+    { ==goal ==antecedent
+      { "\e[31mrewrite not applicable, expected |- ... as goal and ... { = , <-> } ... as argument\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        0 antecedent /wff logicParsers * * { ==antecedentParse
+          antecedentParse logicNonTerminal [ /wceq /wb ] eq any {
+            /mpcom goal use
+            goal .isopen not {
+              antecedent /ph lastMetaVariables * let
+              3 goal .resolution .hypotheses * tacAndSelect
+              4 goal .resolution .hypotheses * tacContinueWithRewrite
+              goal [ |auto ] tacAttemptNext
+            } rep
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacRewrite deffst
+
     { ==goal ==name
       name assertions .has {
         name assertions * ==a
@@ -2761,6 +2779,8 @@ objset ==blocks
         { input "^ *and rewrite\n" regex } { goals len { selectedGoal goals * tacContinueWithRewrite } |solved ? * }
         { input "^ *rewrite:full (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacRewriteFull } |solved ? * }
+        { input "^ *rewrite (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacRewrite } |solved ? * }
         { input "^ *substitutions\n" regex } { goals tacSubstitutions }
         { input "^ *under (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacUnder } |solved ? * }
