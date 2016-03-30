@@ -466,10 +466,11 @@ objset ==blocks
   } τapplySubstitution /applySubstitution deffst
 
   { <
-    ==thm < > ==resolution 1 ==isopen
+    ==thm < > ==resolution 1 ==isopen "" ==autohint
 
     { < > =resolution 1 =isopen } =*open
     { =resolution 0 =isopen } =*close
+    { =autohint } =*hint
   > } /goal deffst
 
   { < ==theorem ==substitution ==hypotheses > } /step deffst
@@ -606,7 +607,7 @@ objset ==blocks
 
     { ==assertion ==substitution
       silent not {
-        [| "using e-hyp: " assertion .name "\n" |] out
+        [| "using e-hyp for: " assertion .name "\n" |] out
         substitution dom { ==v
           [| v " = " v substitution * { renderName " " } each "\n" |] out
         } each
@@ -701,6 +702,10 @@ objset ==blocks
                       goal
                     } /resolvePath deffst
 
+                    { ==goal ==name
+                      name goal -1010 .thm expandMeta canUse { use } { .hint } ? *
+                    } /useOrHint deffst
+
                     {
                       [
                         { i logicNonTerminal /wb eq } {
@@ -719,26 +724,20 @@ objset ==blocks
                                 goal .isopen not {
                                   0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
                                   substitution 4 goal .resolution .hypotheses * path resolvePath ==subgoal
-                                  name subgoal .thm expandMeta canUse {
-                                    name subgoal use
-                                  } rep
+                                  name subgoal useOrHint
                                 } rep
                               } {
                                 /sylib goal use
                                 goal .isopen not {
                                   0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
-                                  name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                    name 4 goal .resolution .hypotheses * use
-                                  } rep
+                                  name 4 goal .resolution .hypotheses * useOrHint
                                 } rep
                               } ? *
                             } {
                               /mpbi goal use
                               goal .isopen not {
                                 0 i * logicRange a .thm * substitution applySubstitution /ph lastMetaVariables * let
-                                name 3 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                  name 3 goal .resolution .hypotheses * use
-                                } rep
+                                name 3 goal .resolution .hypotheses * useOrHint
                               } rep
                             } ? *
                           } {
@@ -753,26 +752,20 @@ objset ==blocks
                                   goal .isopen not {
                                     0 i * logicRange a .thm * substitution applySubstitution /ch lastMetaVariables * let
                                     substitution 4 goal .resolution .hypotheses * path resolvePath ==subgoal
-                                    name subgoal .thm expandMeta canUse {
-                                      name subgoal use
-                                    } rep
+                                    name subgoal useOrHint
                                   } rep
                                 } {
                                   /sylibr goal use
                                   goal .isopen not {
                                     1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
-                                    name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                      name 4 goal .resolution .hypotheses * use
-                                    } rep
+                                    name 4 goal .resolution .hypotheses * useOrHint
                                   } rep
                                 } ? *
                               } {
                                 /mpbir goal use
                                 goal .isopen not {
                                   1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
-                                  name 3 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                    name 3 goal .resolution .hypotheses * use
-                                  } rep
+                                  name 3 goal .resolution .hypotheses * useOrHint
                                 } rep
                               } ? *
                             } rep
@@ -791,26 +784,20 @@ objset ==blocks
                                 /mpd goal use
                                 goal .isopen not {
                                   0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
-                                  name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                    name 4 goal .resolution .hypotheses * use
-                                  } rep
+                                  name 4 goal .resolution .hypotheses * useOrHint
                                 } rep
                               } {
                                 /syl goal use
                                 goal .isopen not {
                                   0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
-                                  name 4 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                    name 4 goal .resolution .hypotheses * use
-                                  } rep
+                                  name 4 goal .resolution .hypotheses * useOrHint
                                 } rep
                               } ? *
                             } {
                               /ax-mp goal use
                               goal .isopen not {
                                 0 i * logicRange a .thm * substitution applySubstitution /ph lastMetaVariables * let
-                                name 3 goal .resolution .hypotheses * .thm expandMeta canUse {
-                                  name 3 goal .resolution .hypotheses * use
-                                } rep
+                                name 3 goal .resolution .hypotheses * useOrHint
                               } rep
                             } ? *
                             0
@@ -1017,6 +1004,10 @@ objset ==blocks
             goal [ |auto ] tacAttemptNext
           } |failed ? *
         } τauto3
+        { goal .autohint "" neq { goal .autohint tokens canUse } andif } {
+          goal .autohint goal use
+          goal [ |auto ] tacAttemptNext
+        } τauto6
         { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif } τauto4 { ==parse
           { ==parse =*preparation
             goal .isopen { parse logicNonTerminal /wi eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif {
@@ -2697,7 +2688,11 @@ objset ==blocks
             antes { ==toks
               [| "* " toks { renderName " " } each "\n" |] out
             } each
-            [| "\e[1m-------------------------------------------------\e[0m\n" |] out
+            [|
+              "\e[1m-------------------------------------------------"
+              goal .autohint "" neq { " \e[32m(hint: " goal .autohint ")" } rep
+              "\e[0m\n"
+            |] out
             [| "  "
                parse logicNonTerminal /wi eq { 1 parse * } { parse } ? * logicRange tokens *
                  { renderName " " } each
