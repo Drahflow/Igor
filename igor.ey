@@ -523,6 +523,8 @@ objset ==blocks
     1 ==redisplay 0 ==silent
     [ ] ==lastSearch
     [ ] ==loadedCommands
+    [ ] ==loadedAutomations
+    [ ] ==loadedTrivialities
 
     { ==tok tok metaSubstitution .has {
       tok metaSubstitution * |expandMetaToken each
@@ -1157,6 +1159,12 @@ objset ==blocks
                     /nn0rei goal use
                     goal [ |auto ] tacAttemptNext
                   } rep
+
+                  goal .isopen { setName "RR+" eq } andif { type "NN0" eq } andif {
+                    goal preparation ==goal
+                    /elrpii goal use
+                    goal [ |auto ] tacAttemptNext
+                  } rep
                 } rep
               } rep
             } rep
@@ -1179,6 +1187,8 @@ objset ==blocks
                 } rep
               } rep
             } rep
+
+            loadedTrivialities "*" | each
           } /trivialities deffst
           { } parse trivialities
 
@@ -1215,6 +1225,7 @@ objset ==blocks
             } rep
           } rep
         } τauto5
+        loadedAutomations "*" | each
       ] conds
     } τauto /auto deffst
 
