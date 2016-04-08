@@ -2917,13 +2917,18 @@ objset ==blocks
     } each
 
     map ==relevantRules # nonterminal -> [ assertion ... ]
+    map ==singularRules # token -> nonterminal (for when only a single token is expanded, this is only an optimization)
     assertions dom { assertions * ==a
       a .type "a" eq {
         0 a .thm * _ ==nt variableNonTerminals .has {
           a .ctx collectEHyps dom len 0 eq {
-            1 a .thm len range a .thm * ==expectedTokens
-            nt relevantRules .has not { [ ] nt relevantRules =[] } rep
-            nt relevantRules * [ a ] cat nt relevantRules =[]
+            a .thm len 2 eq { 1 a .thm * constants .has } andif {
+              a 1 a .thm * singularRules =[]
+            } {
+              1 a .thm len range a .thm * ==expectedTokens
+              nt relevantRules .has not { [ ] nt relevantRules =[] } rep
+              nt relevantRules * [ a ] cat nt relevantRules =[]
+            } ? *
           } rep
         } rep
       } rep
@@ -2934,7 +2939,7 @@ objset ==blocks
     variableNonTerminals dom { ==nt nt :nonterminal nt parserNonterminals =[] } each
     variableNonTerminals dom { ==nt
       nt parserNonterminals * 
-      [ " " nt cat ] # terminal for variable tokens
+      [ " " nt cat ] # terminal for variable and singularRules tokens
       { :0 } # keep value
       :rule
 
@@ -2966,13 +2971,20 @@ objset ==blocks
     variableNonTerminals dom { _ ==nt parserNonterminals * ==NT
       NT :automaton nt automata =[]
     } each
-    automata
+    [ automata singularRules ]
   } memoized /prepareLogicParsers deffd
 
   # generate parser functions
   # { ==toks ==start [...] <parse> end success[0/1] }
   { =*variableTranslation
-    prepareLogicParsers ==automata
+    prepareLogicParsers 2 dearray ==singularRules ==automata
+    { ==tok ==value
+      tok singularRules .has {
+        [ 0 value * 1 value * tok singularRules * .name ] " " tok singularRules * .thm 0 -01 * cat
+      } {
+        value tok # nothing to do
+      } ? *
+    } /singularRulesTranslation deffst
     map ==globalCache # for repeated invocations
     map _ ==parsers # returned
     automata dom { ==nt {
@@ -2982,7 +2994,7 @@ objset ==blocks
         [
           nt automata * ==automaton
           automaton .run =*consume
-          start toks len range { ==i [ i _ 1 add "" ] i toks * variableTranslation consume -- } each
+          start toks len range { ==i [ i _ 1 add "" ] i toks * singularRulesTranslation variableTranslation consume -- } each
           [ toks len toks len "" ] "" consume automaton .result ==result
           result len 1 gt { result dump "ambiguous grammar" die } rep
           result len 1 eq ==success
