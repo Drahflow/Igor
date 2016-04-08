@@ -465,11 +465,15 @@ objset ==blocks
     [ tokens { _ substitution .has { substitution * _ len dearray } rep } each ]
   } τapplySubstitution /applySubstitution deffst
 
+  < "a" ==type emptyBlock ==ctx "?" ==thm { "Fake theorem is fake" die }" =*proof "?" ==name
+    list _ _ ==hyps ==disj ==allDisj > ==:fakeTheorem
+
   { <
     ==thm < > ==resolution 1 ==isopen "" ==autohint
 
     { < > =resolution 1 =isopen } =*open
     { =resolution 0 =isopen } =*close
+    { < fakeTheorem ==theorem map ==substitution [ ] ==hypotheses > =resolution 0 =isopen } =*fakeclose
     { =autohint } =*hint
   > } /goal deffst
 
@@ -997,13 +1001,15 @@ objset ==blocks
           txt directTheoremIndex * goal use
           goal [ |auto ] tacAttemptNext
         } τauto2
-        { 0 tokens * logicParsers .has } {
+        { 0 tokens * logicParsers .has { tokens tokenIsMetaVar any not } andif } {
           { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
           1 tokens 0 tokens * logicParsers * * { ==parse
-            # parse tree order is by token sequence, but hypothesis order is by set.mm
-            # only apply topmost parse rule and handle rest via big recursion
-            parse logicNonTerminal goal use
-            goal [ |auto ] tacAttemptNext
+            faketrivialities { goal .fakeclose } {
+              # parse tree order is by token sequence, but hypothesis order is by set.mm
+              # only apply topmost parse rule and handle rest via big recursion
+              parse logicNonTerminal goal use
+              goal [ |auto ] tacAttemptNext
+            } ? *
           } |failed ? *
         } τauto3
         { goal .autohint "" neq { goal .autohint tokens canUse } andif } {
@@ -1126,8 +1132,14 @@ objset ==blocks
 
                 goal .isopen { setName "NN0" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
                   goal preparation ==goal
-                  /deccl goal use
-                  goal [ |auto ] tacAttemptNext
+                  faketrivialities {
+                    0 parse * tokens classify /NN0 eq {
+                      goal .fakeclose
+                    } rep
+                  } {
+                    /deccl goal use
+                    goal [ |auto ] tacAttemptNext
+                  } ? *
                 } rep
 
                 goal .isopen { setName "NN" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
@@ -1229,7 +1241,7 @@ objset ==blocks
       ] conds
     } τauto /auto deffst
 
-    { ==token 0 token * 0 "$" * eq } /tokenIsMetaVar deffst
+    { ==token 0 token * 0 "$" * eq } '0.0 /tokenIsMetaVar deffst
 
     { ==tokens
       tokens len 1 eq { 0 tokens * tokenIsMetaVar } andif
@@ -1361,7 +1373,9 @@ objset ==blocks
           goal .isopen not {
             1 parse * logicRange tokens * from to rewriteTokens /ch lastMetaVariables * let
             goal [ |auto ] tacAttemptNext
-            4 goal .resolution .hypotheses * ==g g .isopen { g tacDistrAntecedent } rep
+            4 goal .resolution .hypotheses * ==g g .isopen {
+              faketrivialities { g .fakeclose } { g tacDistrAntecedent } ? *
+            } rep
           } rep
         } |notApplicable ? *
       } |notApplicable ? *
@@ -1388,7 +1402,9 @@ objset ==blocks
                   antecedent /ph lastMetaVariables * let
                   mpbirMaj [ |auto ] tacAttemptNext
 
-                  3 mpbirMaj .resolution .hypotheses * ==g g .isopen { g tacDistrAntecedent } rep
+                  3 mpbirMaj .resolution .hypotheses * ==g g .isopen {
+                    faketrivialities { g .fakeclose } { g tacDistrAntecedent } ? *
+                  } rep
                 } rep
               } rep
             } rep
@@ -1466,21 +1482,23 @@ objset ==blocks
           success antes len 1 sub eq ==lastTerm
 
           success 0 ge {
-            { success 1 ge } {
-              /adantl goal use
-              goal [ |auto ] tacAttemptNext
+            faketrivialities { goal .fakeclose } {
+              { success 1 ge } {
+                /adantl goal use
+                goal [ |auto ] tacAttemptNext
+                goal .isopen {
+                  1 neg =success
+                } {
+                  3 goal .resolution .hypotheses * =goal
+                  goal .isopen not { 1 neg =success } rep
+                  success 1 sub =success
+                } ? *
+              } loop
               goal .isopen {
-                1 neg =success
-              } {
-                3 goal .resolution .hypotheses * =goal
-                goal .isopen not { 1 neg =success } rep
-                success 1 sub =success
-              } ? *
-            } loop
-            goal .isopen {
-              lastTerm /id /simpl ? goal use
-              goal [ |auto ] tacAttemptNext
-            } rep
+                lastTerm /id /simpl ? goal use
+                goal [ |auto ] tacAttemptNext
+              } rep
+            } ? *
           } { "\e[31mtacSelect not applicable, consequent not found in antecedents\e[0m\n" out } ? *
         } |notApplicable ? *
       } |notApplicable ? *
@@ -1960,6 +1978,7 @@ objset ==blocks
                     { operation logicNonTerminal /caddc eq } {
                       [
                         { leftNum rightNum add resultNum neq } { "\e[31mincorrect addition result\e[0m\n" out }
+                        { faketrivialities } { goal .fakeclose }
                         { left logicNonTerminal /cdc eq right logicNonTerminal /cdc eq or } {
                           leftNum 10 mod rightNum 10 mod add 9 gt {
                             /decaddc goal use
@@ -2031,6 +2050,7 @@ objset ==blocks
                     { operation logicNonTerminal /cmul eq } {
                       [
                         { leftNum rightNum mul resultNum neq } { "\e[31mincorrect multiplication result\e[0m\n" out }
+                        { faketrivialities } { goal .fakeclose }
                         # TODO: WAITS FOR normalize:arith (because some subgoals need complex arith reductions)
                         # { leftNum txt .produce .u len 3 ge { rightNum txt .produce .u len 3 ge } andif } {
                         #   { -0110 == printNumber -01 lastMetaVariables * let }' "=>" deffst
@@ -2129,6 +2149,7 @@ objset ==blocks
                     { operation logicNonTerminal /cexp eq } {
                       [
                         { leftNum rightNum exp resultNum neq } { "\e[31mincorrect exponentiation result\e[0m\n" out }
+                        { faketrivialities } { goal .fakeclose }
                         { 1 } {
                           rightNum 2 mod 0 eq {
                             rightNum 2 div _ ==leftPart ==rightPart
@@ -2201,6 +2222,7 @@ objset ==blocks
                     { operation logicNonTerminal /cmo eq } {
                       [
                         { leftNum rightNum mod resultNum neq } { "\e[31mincorrect modulo result\e[0m\n" out }
+                        { faketrivialities } { goal .fakeclose }
                         { 1 } {
                           /nnmulmodvali goal use
                           goal .isopen not {
@@ -2692,6 +2714,7 @@ objset ==blocks
     1 ==running
     0 ==autoall
     0 ==antedisp
+    0 ==faketrivialities
 
     { include }' /load deffst
 
@@ -2850,6 +2873,8 @@ objset ==blocks
         }
         { input "^ *autoall\n" regex } { 1 =autoall }
         { input "^ *noautoall\n" regex } { 0 =autoall }
+        { input "^ *faketrivialities\n" regex } { 1 =faketrivialities }
+        { input "^ *nofaketrivialities\n" regex } { 0 =faketrivialities }
         { input "^ *antedisp\n" regex } { 1 =antedisp }
         { input "^ *noantedisp\n" regex } { 0 =antedisp }
         { input "^ *silent\n" regex } { 1 =silent }
