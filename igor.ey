@@ -756,7 +756,7 @@ objset ==blocks
                                 path len {
                                   /mpbird goal use
                                   goal .isopen not {
-                                    0 i * logicRange a .thm * substitution applySubstitution /ch lastMetaVariables * let
+                                    1 i * logicRange a .thm * substitution applySubstitution /ch lastMetaVariables * let
                                     substitution 4 goal .resolution .hypotheses * path resolvePath ==subgoal
                                     name subgoal useOrHint
                                   } rep
