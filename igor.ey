@@ -1689,11 +1689,13 @@ objset ==blocks
               } ? *
               removed 1 add =removed
             } {
-              /impcom goal use
-              goal [ |auto ] tacAttemptNext
-              goal .isopen not {
-                3 goal .resolution .hypotheses * =goal
-                rebuild 1 add =rebuild
+              i antes len 1 sub lt {
+                /impcom goal use
+                goal [ |auto ] tacAttemptNext
+                goal .isopen not {
+                  3 goal .resolution .hypotheses * =goal
+                  rebuild 1 add =rebuild
+                } rep
               } rep
             } ? *
           } rep
@@ -2745,6 +2747,15 @@ objset ==blocks
           [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
         } each
 
+        {
+          goals dom len 1 gt {
+            [| "\n" |] out
+            selectedGoal ==i
+            i selectedGoal eq "\e[1m" "" ? ==hl
+            [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
+          } rep
+        } /displayCurrentGoal deffst
+
         antedisp { goals len } andif {
           selectedGoal goals * ==goal
           goal .thm expandMeta ==tokens
@@ -2767,8 +2778,8 @@ objset ==blocks
                parse logicNonTerminal /wi eq { 1 parse * } { parse } ? * logicRange tokens *
                  { renderName " " } each
            "\n" |] out
-          } rep
-        } rep
+          } |displayCurrentGoal ? *
+        } |displayCurrentGoal ? *
       } τdisplay /display deffst
       redisplay |display rep
       1 =redisplay
