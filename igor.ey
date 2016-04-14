@@ -1499,7 +1499,7 @@ objset ==blocks
                 goal [ |auto ] tacAttemptNext
               } rep
             } ? *
-          } { "\e[31mtacSelect not applicable, consequent not found in antecedents\e[0m\n" out } ? *
+          } { "\e[33mtacSelect not applicable, consequent not found in antecedents\e[0m\n" out } ? *
         } |notApplicable ? *
       } |notApplicable ? *
     } /tacSelect deffst
