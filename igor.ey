@@ -2974,7 +2974,7 @@ objset ==blocks
               childParsesToKeep { s -01 :child } each
               s childCount 1 sub :child logicStart
               s :0 logicEnd
-              assertion .name _ dump
+              assertion .name
             ] }
           :rule
         } each
