@@ -2929,12 +2929,15 @@ objset ==blocks
 
     map ==relevantRules # nonterminal -> [ assertion ... ]
     map ==singularRules # token -> nonterminal (for when only a single token is expanded, this is only an optimization)
+    [ "/" ] ==:NONTRIVIALSINGULARTOKENS # / as in [ A / x ] ph is _not_ in fact a class, but / as in 6 / 3 is.
     assertions dom { assertions * ==a
       a .type "a" eq {
         0 a .thm * _ ==nt variableNonTerminals .has {
           a .ctx collectEHyps dom len 0 eq {
             a .thm len 2 eq { 1 a .thm * constants .has } andif {
-              a 1 a .thm * singularRules =[]
+              1 a .thm * NONTRIVIALSINGULARTOKENS eq any not {
+                a 1 a .thm * singularRules =[]
+              } rep
             } {
               1 a .thm len range a .thm * ==expectedTokens
               nt relevantRules .has not { [ ] nt relevantRules =[] } rep
@@ -2971,7 +2974,7 @@ objset ==blocks
               childParsesToKeep { s -01 :child } each
               s childCount 1 sub :child logicStart
               s :0 logicEnd
-              assertion .name
+              assertion .name _ dump
             ] }
           :rule
         } each
