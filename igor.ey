@@ -1407,7 +1407,7 @@ objset ==blocks
             1 parse * logicRange tokens * from to rewriteTokens /ch lastMetaVariables * let
             goal [ |auto ] tacAttemptNext
             4 goal .resolution .hypotheses * ==g g .isopen {
-              faketrivialities { tokens "[" neq all } andif { g .fakeclose } { g tacDistrAntecedent } ? *
+              g tacDistrAntecedent
             } rep
           } rep
         } |notApplicable ? *
@@ -1436,7 +1436,7 @@ objset ==blocks
                   mpbirMaj [ |auto ] tacAttemptNext
 
                   3 mpbirMaj .resolution .hypotheses * ==g g .isopen {
-                    faketrivialities { g .fakeclose } { g tacDistrAntecedent } ? *
+                    g tacDistrAntecedent
                   } rep
                 } rep
               } rep
