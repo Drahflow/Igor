@@ -1691,14 +1691,16 @@ objset ==blocks
             } rep
           } ? *
 
-          success {
-            /expcom goal use
-            goal [ |auto ] tacAttemptNext
+          success 0 ge {
+            success {
+              /expcom goal use
+              goal [ |auto ] tacAttemptNext
 
-            goal .isopen not {
-              3 goal .resolution .hypotheses * =goal
+              goal .isopen not {
+                3 goal .resolution .hypotheses * =goal
+              } rep
             } rep
-          } rep
+          } { "\e[31mtacDrop is buggy and had negative success count\e[0m\n" out } ? *
         } { "\e[31mtacDrop not applicable, consequent not found in antecedents\e[0m\n" out } ? *
       } |notApplicable ? *
     } /tacDrop deffst
@@ -1743,13 +1745,15 @@ objset ==blocks
           } rep
         } each
 
-        rebuild {
-          /expcom goal use
-          goal [ |auto ] tacAttemptNext
-          goal .isopen not {
-            3 goal .resolution .hypotheses * =goal
+        rebuild 0 ge {
+          rebuild {
+            /expcom goal use
+            goal [ |auto ] tacAttemptNext
+            goal .isopen not {
+              3 goal .resolution .hypotheses * =goal
+            } rep
           } rep
-        } rep
+        } { "\e[31mtacDropAll is buggy and had negative rebuild count\e[0m\n" out } ? *
       } { "\e[31mtacDropAll not applicable, expected |- ... -> ... \e[0m\n" out } ? *
     } /tacDropAll deffst
 
