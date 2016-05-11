@@ -1160,6 +1160,12 @@ objset ==blocks
                   goal [ |auto ] tacAttemptNext
                 } rep
 
+                goal .isopen { 0 parse * logicNonTerminal "cfv" eq } andif { setName "_V" eq } andif {
+                  goal preparation ==goal
+                  /fvex goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+
                 goal .isopen { setName "NN0" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
                   goal preparation ==goal
                   faketrivialities {
@@ -2522,6 +2528,65 @@ objset ==blocks
       } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
     } /tacCasesExplicit deffst
 
+    { ==goal
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+          tokens
+          "|- ( ph -> A. x ph )" " " str .split
+        /wff 1 possibleSubstitutionsForToks ==substs
+        substs len 0 gt {
+          0 parse * logicNonTerminal ==nt
+          [
+            { nt /wi eq } { /hbim goal use }
+            { nt /wa eq } { /hban goal use }
+            { nt /w3a eq } { /hb3an goal use }
+            { nt /wal eq } {
+              1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
+                /hba1 goal use
+              } {
+                /hbal goal use
+              } ? *
+            }
+            { nt /wral eq } {
+              1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
+                /hbra1 goal use
+              } {
+                /hbral goal use
+              } ? *
+            }
+            { nt /wex eq } {
+              1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
+                /hbe1 goal use
+              } {
+                /hbex goal use
+              } ? *
+            }
+            { nt /wrex eq } {
+              1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
+                /hbre1 goal use
+              } {
+                /hbrex goal use
+              } ? *
+            }
+            { nt /wsbc eq } {
+              0 1 0 parse * * logicRange * tokens * 0 /x 0 substs * * * eq {
+                /hbsbc1f goal use
+                [ "a\"" ] /y lastMetaVariables * let
+              } {
+                /hbsbc goal use
+                goal .isopen not {
+                  [ "a\"" ] /z lastMetaVariables * let
+                } rep
+              } ? *
+            }
+            { 1 } { [| "\e[31mNo rewrite rule known for connective: " nt "\e[0m\n" |] out }
+          ] conds
+
+          goal [ |auto |tacNonfree ] tacAttemptNext
+        } { "\e[31mNot in fact a trivial non-free variable proof.\e[0m\n" out } ? *
+      } { "\e[31mCurrent goal did not parse as wff.\e[0m\n" out } ? *
+    } /tacNonfree deffst
+
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
     { < map ==transitions objset ==theorems > } /tokenNode deffst
@@ -2855,6 +2920,9 @@ objset ==blocks
         { input "^ *todo\n" regex } {
           selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep
         }
+        { input "^ *next\n" regex } {
+          selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep
+        }
         { input "^ *use (.*)\n" regex } { selectedGoal goals * tacUse }
         { input "^ *let (\\$[^=]+) = (.*)\n" regex } { ==metaVar " " str .split { "" neq } grep ==tokens
           tokens metaVar let
@@ -2917,6 +2985,8 @@ objset ==blocks
           goals len { selectedGoal goals * tacCasesUnion } |solved ? * }
         { input "^ *cases:explicit\n" regex } {
           goals len { selectedGoal goals * tacCasesExplicit } |solved ? * }
+        { input " *nonfree\n" regex } {
+          goals len { selectedGoal goals * tacNonfree } |solved ? * }
         { input "^ *tree\n" regex } { 0 tree }
         { input "^ *tree:full\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
@@ -3103,6 +3173,22 @@ objset ==blocks
     [
       { name assertions .has } {
         name assertions * ==a
+        a .hyps { ==hyp
+          /hypothesis: hyp cat dump
+          [
+            { hyp a .ctx isEHyp } {
+              hyp a .ctx getEHyp ==hypToks
+              [| hypToks { renderName " " } each "\n" |] out
+              [ 1 hypToks /wff logicParsers * * ] dump
+            }
+            { hyp a .ctx isFHyp } {
+              hyp a .ctx getFHyp ==hypToks
+              [| hypToks { renderName " " } each "\n" |] out
+            }
+            { 1 } { "Hypothesis is neither e- nor f-hyp. Probably a bug." dump }
+          ] conds
+        } each
+        /theorem: dump
         [ 1 a .thm /wff logicParsers * * ] dump
       }
       { 1 } { [| "\e[31m" name " is not a proposition\e[0m" |] dump }
