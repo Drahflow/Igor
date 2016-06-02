@@ -1166,6 +1166,12 @@ objset ==blocks
                   goal [ |auto ] tacAttemptNext
                 } rep
 
+                goal .isopen { 0 parse * logicNonTerminal "co" eq } andif { setName "_V" eq } andif {
+                  goal preparation ==goal
+                  /ovex goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+
                 goal .isopen { setName "NN0" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
                   goal preparation ==goal
                   faketrivialities {
@@ -1769,7 +1775,7 @@ objset ==blocks
         [ ] ==toRemove # ante indices to drop
 
         0 antes len range { _ ==i antes * ==ante
-          0 ante len tokens len sub range { ==start
+          0 ante len tokens len sub 1 add range { ==start
             start _ tokens len add range ante * tokens eq all {
               toRemove [ i ] cat =toRemove
             } rep
@@ -3062,10 +3068,9 @@ objset ==blocks
       a .type "a" eq {
         0 a .thm * _ ==nt variableNonTerminals .has {
           a .ctx collectEHyps dom len 0 eq {
-            a .thm len 2 eq { 1 a .thm * constants .has } andif {
-              1 a .thm * NONTRIVIALSINGULARTOKENS eq any not {
-                a 1 a .thm * singularRules =[]
-              } rep
+            a .thm len 2 eq { 1 a .thm * constants .has } andif
+                { 1 a .thm * NONTRIVIALSINGULARTOKENS eq any not } andif {
+              a 1 a .thm * singularRules =[]
             } {
               1 a .thm len range a .thm * ==expectedTokens
               nt relevantRules .has not { [ ] nt relevantRules =[] } rep
