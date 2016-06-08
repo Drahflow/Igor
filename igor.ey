@@ -23,6 +23,15 @@
   { quoted { ~ANDIF_ZERO "?" ~ "*" ~ ~not ~not } { { 0 } ? * not not } ? * }
 > -- /andif defq
 
+<
+  [ ] ==a [ ] ==b
+  { =a =b
+    a len b len eq {
+      1 a dom { _ a * -01 b * eq and }" each
+    }" { 0 }" ? *
+  }'
+> -- /arrEq deffd
+
 map ==constants
 map ==assertions
 objset ==blocks
@@ -248,7 +257,7 @@ objset ==blocks
               [ h ass .ctx getEHyp { # ==sym
                 _ ass .ctx isVar { substitution * _ len dearray } rep
               } each ] ==mask
-              mask target eq all not { mask dump target dump "Hypthesis does not match stack" die } rep
+              mask target arrEq not { mask dump target dump "Hypthesis does not match stack" die } rep
           } rep } each
 
         ass .disj { =*d
@@ -278,7 +287,7 @@ objset ==blocks
 
   [
     { stack len 1 neq } { "Stack not empty after proof." dump 0 }
-    { 0 stack * pstm .thm eq all not } { "Final stack contents: " dump 0 stack * dump "and theorem: " pstm .thm dump "do not match" dump 0 }
+    { 0 stack * pstm .thm arrEq not } { "Final stack contents: " dump 0 stack * dump "and theorem: " pstm .thm dump "do not match" dump 0 }
     { 1 } { 1 }
   ] conds
 } /verifyProof deffd
@@ -431,7 +440,7 @@ objset ==blocks
 
               var substitution .has {
                 var substitution * ==old
-                old len new len eq { old new eq all } andif valid and =valid
+                old new arrEq valid and =valid
               } {
                 new var substitution =[]
               } ? *
@@ -478,14 +487,6 @@ objset ==blocks
   > } /goal deffst
 
   { < ==theorem ==substitution ==hypotheses > } /step deffst
-
-  { # ==goal
-    objset ==goals
-    {
-      _ .isopen { goals .put } { .resolution .hypotheses |collect each } ? *
-    } /collect deffst
-    collect goals dom
-  } τopenGoals /openGoals deffst
 
   { ==proposition
 
@@ -849,7 +850,7 @@ objset ==blocks
           ] conds
         }
         { name userContext isEHyp } {
-          goal .thm expandMeta name userContext getEHyp eq all {
+          goal .thm expandMeta name userContext getEHyp arrEq {
             [ ] map < "f" ==type userContext ==ctx name userContext getEHyp ==thm { "no proof" die } =*proof name ==name >
               step goal .close
           } {
@@ -858,7 +859,7 @@ objset ==blocks
           } ? *
         }
         { name userContext isFHyp } {
-          goal .thm expandMeta name userContext getFHyp eq all {
+          goal .thm expandMeta name userContext getFHyp arrEq {
             [ ] map < "f" ==type userContext ==ctx name userContext getFHyp ==thm { "no proof" die } =*proof name ==name >
               step goal .close
           } {
@@ -887,10 +888,10 @@ objset ==blocks
           } rep
         }
         { name userContext isEHyp } {
-          tokens name userContext getEHyp eq all =usable
+          tokens name userContext getEHyp arrEq =usable
         }
         { name userContext isFHyp } {
-          tokens name userContext getFHyp eq all =usable
+          tokens name userContext getFHyp arrEq =usable
         }
       ] conds
       usable
@@ -939,6 +940,27 @@ objset ==blocks
         } each
       } rep
     } τlet /let deffst
+
+    [ ] ==allOpenGoals
+    { # ==goal
+      objset ==goals
+      {
+        _ .isopen { goals .put } { .resolution .hypotheses |collect each } ? *
+      } /collect deffst
+      collect goals dom
+    } /openGoalsRecursive deffst
+
+    { ==goal
+      goal sys .asm .rawAddress mainGoal sys .asm .rawAddress eq {
+        allOpenGoals len 0 eq {
+          mainGoal openGoalsRecursive _ =allOpenGoals
+        } {
+          [ allOpenGoals { openGoalsRecursive _ len dearray } each ] _ =allOpenGoals
+        } ? *
+      } {
+        goal openGoalsRecursive
+      } ? *
+    } τopenGoals /openGoals deffst
 
     { map _ ==directTheoremIndex # returned
       [| "Indexing theorems by text...\n" |] out
@@ -1019,20 +1041,20 @@ objset ==blocks
         } τauto6
         { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif } τauto4 { ==parse
           { ==parse =*preparation
-            goal .isopen { parse logicNonTerminal /wi eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif {
+            goal .isopen { parse logicNonTerminal /wi eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
               goal preparation ==goal
               /id goal use
               goal [ |auto ] tacAttemptNext
             } rep
 
-            goal .isopen { parse logicNonTerminal /wb eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif {
+            goal .isopen { parse logicNonTerminal /wb eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
               goal preparation ==goal
               /biid goal use
               goal [ |auto ] tacAttemptNext
             } rep
 
             goal .isopen { parse logicNonTerminal /wi eq } andif { 1 parse * logicNonTerminal /wal eq } andif
-              { 0 parse * logicRange tokens * 1 1 parse * * logicRange tokens * eq all } andif {
+              { 0 parse * logicRange tokens * 1 1 parse * * logicRange tokens * arrEq } andif {
               goal preparation ==goal
 
               /ax-17 assertions * ==theorem
@@ -1066,7 +1088,7 @@ objset ==blocks
               } rep
             } rep
 
-            goal .isopen { parse logicNonTerminal /wceq eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * eq all } andif {
+            goal .isopen { parse logicNonTerminal /wceq eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
               goal preparation ==goal
               /eqid goal use
               goal [ |auto ] tacAttemptNext
@@ -1075,7 +1097,7 @@ objset ==blocks
             goal .isopen { parse logicNonTerminal /wbr eq } andif
                          { 0 1 parse * logicRange tokens * * "<_" eq } andif
                          { 0 parse * tokens classify [ "NN" "NN0" "RR" ] eq any } andif {
-              0 parse * logicRange tokens * 2 parse * logicRange tokens * eq all {
+              0 parse * logicRange tokens * 2 parse * logicRange tokens * arrEq {
                 goal preparation ==goal
                 /leidi goal use
                 goal [ |auto ] tacAttemptNext
@@ -1256,13 +1278,13 @@ objset ==blocks
             } rep
 
             goal antecedents { ==ante
-              ante len target len eq { ante target eq all } andif {
+              ante target arrEq {
                 goal tacSelect
               } rep
             } each
 
             proofContext collectEHyps _ ==hyps dom { ==name
-              name hyps * len 1 sub target len eq { 1 name hyps * len range name hyps * * target eq all } andif {
+              name hyps * len 1 sub target len eq { 1 name hyps * len range name hyps * * target arrEq } andif {
                 /a1i goal use
                 goal .isopen not {
                   name 2 goal .resolution .hypotheses * use
@@ -1397,7 +1419,7 @@ objset ==blocks
     { ==to ==from ==tokens
       [
         0 ==i { i tokens len lt } {
-          i from len add tokens len le { i _ from len add range tokens * from eq all } andif {
+          i from len add tokens len le { i _ from len add range tokens * from arrEq } andif {
             to _ len dearray i from len add =i
           } {
             i tokens * i 1 add =i
@@ -1527,7 +1549,7 @@ objset ==blocks
           0 ==i 1 neg ==success
           { i antes len lt } {
             i antes * ==ante
-            ante len target len eq { ante target eq all } andif {
+            ante target arrEq {
               i =success antes len =i
             } rep
             i 1 add =i
@@ -1567,7 +1589,7 @@ objset ==blocks
 
           goal antecedents ==antes
           antes { ==ante
-            ante len target len eq { ante target eq all } andif { 1 =existsAsAnte } rep
+            ante target arrEq { 1 =existsAsAnte } rep
           } each
 
           existsAsAnte not { 1 parse * logicNonTerminal /wa eq } andif {
@@ -1670,7 +1692,7 @@ objset ==blocks
         0 ==i 1 neg ==success
         { i antes len lt } {
           i antes * ==ante
-          ante len target len eq { ante target eq all } andif {
+          ante target arrEq {
             i =success antes len =i
           } rep
           i 1 add =i
@@ -1776,7 +1798,7 @@ objset ==blocks
 
         0 antes len range { _ ==i antes * ==ante
           0 ante len tokens len sub 1 add range { ==start
-            start _ tokens len add range ante * tokens eq all {
+            start _ tokens len add range ante * tokens arrEq {
               toRemove [ i ] cat =toRemove
             } rep
           } each
@@ -2372,7 +2394,7 @@ objset ==blocks
                             { 1 anteParse * logicNonTerminal comparison eq } andif
                             { 2 anteParse * logicRange ante * ==at
                               2 1 parse * * logicRange tokens * ==pt
-                              pt len at len eq { pt at eq all } andif } andif
+                              pt at arrEq } andif
                             { 0 anteParse * parseNumber } andif { ==anteNumber
                           anteNumber target gt {
                             /letrd goal use
@@ -2392,7 +2414,7 @@ objset ==blocks
                             { 1 anteParse * logicNonTerminal comparison eq } andif
                             { 0 anteParse * logicRange ante * ==at
                               0 1 parse * * logicRange tokens * ==pt
-                              pt len at len eq { pt at eq all } andif } andif
+                              pt at arrEq } andif
                             { 2 anteParse * parseNumber } andif { ==anteNumber
                           anteNumber target lt {
                             /letrd goal use
@@ -2823,6 +2845,7 @@ objset ==blocks
       } /recurse deffst
       mainGoal recurse
       map =closedGoalIndex
+      [ ] =allOpenGoals
     } /reopen deffst
 
     { objset _ ==children .put
