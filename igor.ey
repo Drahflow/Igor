@@ -532,10 +532,10 @@ objset ==blocks
     [ ] ==loadedTrivialities
     [ ] ==loadedDisplays
 
-    { ==tok tok metaSubstitution .has {
-      tok metaSubstitution * |expandMetaToken each
-    } { tok } ? * } /expandMetaToken deffst
-    { [ -01 |expandMetaToken each ] } τexpandMeta /expandMeta deffst
+    { _ metaSubstitution .has {
+      metaSubstitution * |expandMetaToken each
+    }" rep }' /expandMetaToken deffst
+    { [ -01 { _ 0 -01 * 36 eq |expandMetaToken rep }" each ] } τexpandMeta /expandMeta deffst
 
     { ==theorem ==substitution
       theorem mandatoryVariables dom { ==var
