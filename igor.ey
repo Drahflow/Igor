@@ -2858,6 +2858,7 @@ objset ==blocks
       } /recurse deffst
       mainGoal recurse
       map =closedGoalIndex
+      [ ] =allOpenGoals
     } /reopenParentOf deffst
 
     1 ==running
