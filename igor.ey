@@ -1370,6 +1370,7 @@ objset ==blocks
                   [ /cnveqd ] ==ccnv
                   [ /unieqd ] ==cuni
                   [ /relexpeq12d ] ==crelexp
+                  [ /ifeq1d /ifeq2d /ifbid /ifeq12d /ifbieq12d ] ==cif
                 > =thms
               } |notApplicable ? *
             }
