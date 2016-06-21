@@ -2573,8 +2573,10 @@ objset ==blocks
           0 parse * logicNonTerminal ==nt
           [
             { nt /wi eq } { /hbim goal use }
+            { nt /wb eq } { /hbbi goal use }
             { nt /wa eq } { /hban goal use }
             { nt /w3a eq } { /hb3an goal use }
+            { nt /wbr eq } { /hbbr goal use }
             { nt /wal eq } {
               1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
                 /hba1 goal use
