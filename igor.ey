@@ -1546,6 +1546,8 @@ objset ==blocks
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         goal antecedents ==antes
         antes len {
+          [ ] ==goalsToAuto
+
           1 parse * logicRange tokens * ==target
           0 ==i 1 neg ==success
           { i antes len lt } {
@@ -1562,7 +1564,7 @@ objset ==blocks
             faketrivialities { goal .fakeclose } {
               { success 1 ge } {
                 /adantl goal use
-                goal [ |auto ] tacAttemptNext
+                goalsToAuto [ goal ] cat =goalsToAuto
                 goal .isopen {
                   1 neg =success
                 } {
@@ -1573,10 +1575,12 @@ objset ==blocks
               } loop
               goal .isopen {
                 lastTerm /id /simpl ? goal use
-                goal [ |auto ] tacAttemptNext
+                goalsToAuto [ goal ] cat =goalsToAuto
               } rep
             } ? *
           } { "\e[33mtacSelect not applicable, consequent not found in antecedents\e[0m\n" out } ? *
+
+          goalsToAuto { [ |auto ] tacAttemptNext } each
         } |notApplicable ? *
       } |notApplicable ? *
     } /tacSelect deffst
@@ -1879,7 +1883,9 @@ objset ==blocks
           doRewrite and
         } { } loop
 
-        goal tacNormalize
+        goal .isopen {
+          goal tacNormalize
+        } rep
       } rep
     } /tacNormalizeAntecedent deffst
 
@@ -1917,21 +1923,21 @@ objset ==blocks
             [
               { 1 parse * logicNonTerminal /wa eq } {
                 /jca goal use
-                goal [ |auto |tacNormalizeConsequent |tacNormalize ] tacAttemptNext
+                goal [ |auto |tacNormalize |tacNormalizeConsequent ] tacAttemptNext
               }
               { 1 parse * logicNonTerminal /w3a eq } {
                 /3jca goal use
-                goal [ |auto |tacNormalizeConsequent |tacNormalize ] tacAttemptNext
+                goal [ |auto |tacNormalize |tacNormalizeConsequent ] tacAttemptNext
               }
             ] conds
           }
           { parse logicNonTerminal /wa eq } {
             /pm3.2i goal use
-            goal [ |auto |tacNormalizeConsequent |tacNormalize ] tacAttemptNext
+            goal [ |auto |tacNormalize |tacNormalizeConsequent ] tacAttemptNext
           }
           { parse logicNonTerminal /w3a eq } {
             /3pm3.2i goal use
-            goal [ |auto |tacNormalizeConsequent |tacNormalize ] tacAttemptNext
+            goal [ |auto |tacNormalize |tacNormalizeConsequent ] tacAttemptNext
           }
         ] conds
       } |notApplicable ? *
@@ -1944,7 +1950,7 @@ objset ==blocks
         parse logicNonTerminal /wi eq {
           1 parse * logicNonTerminal /wi eq {
             /expcom goal use
-            goal [ |auto |tacNormalize |tacNormalizeAntecedent |tacNormalizeConsequent ] tacAttemptNext
+            goal [ |auto |tacNormalize ] tacAttemptNext
           } {
             goal tacNormalizeAntecedent
             goal .isopen { goal tacNormalizeConsequent } rep
