@@ -1563,15 +1563,74 @@ objset ==blocks
           success 0 ge {
             faketrivialities { goal .fakeclose } {
               { success 1 ge } {
-                /adantl goal use
-                goalsToAuto [ goal ] cat =goalsToAuto
-                goal .isopen {
-                  1 neg =success
-                } {
-                  3 goal .resolution .hypotheses * =goal
-                  goal .isopen not { 1 neg =success } rep
-                  success 1 sub =success
-                } ? *
+                [
+                  { success 16 ge } {
+                    /adantl16 goal use
+                    goalsToAuto [ goal ] cat =goalsToAuto
+                    goal .isopen {
+                      1 neg =success
+                    } {
+                      18 goal .resolution .hypotheses * =goal
+                      goal .isopen not { 1 neg =success } rep
+                      success 16 sub =success
+                    } ? *
+                  }
+                  { success 8 ge } {
+                    /adantl8 goal use
+                    goalsToAuto [ goal ] cat =goalsToAuto
+                    goal .isopen {
+                      1 neg =success
+                    } {
+                      10 goal .resolution .hypotheses * =goal
+                      goal .isopen not { 1 neg =success } rep
+                      success 8 sub =success
+                    } ? *
+                  }
+                  { success 4 ge } {
+                    /adantl4 goal use
+                    goalsToAuto [ goal ] cat =goalsToAuto
+                    goal .isopen {
+                      1 neg =success
+                    } {
+                      6 goal .resolution .hypotheses * =goal
+                      goal .isopen not { 1 neg =success } rep
+                      success 4 sub =success
+                    } ? *
+                  }
+                  { success 3 ge } {
+                    /adantl3 goal use
+                    goalsToAuto [ goal ] cat =goalsToAuto
+                    goal .isopen {
+                      1 neg =success
+                    } {
+                      5 goal .resolution .hypotheses * =goal
+                      goal .isopen not { 1 neg =success } rep
+                      success 3 sub =success
+                    } ? *
+                  }
+                  { success 2 ge } {
+                    /adantl2 goal use
+                    goalsToAuto [ goal ] cat =goalsToAuto
+                    goal .isopen {
+                      1 neg =success
+                    } {
+                      4 goal .resolution .hypotheses * =goal
+                      goal .isopen not { 1 neg =success } rep
+                      success 2 sub =success
+                    } ? *
+                  }
+                  { success 1 ge } {
+                    /adantl goal use
+                    goalsToAuto [ goal ] cat =goalsToAuto
+                    goal .isopen {
+                      1 neg =success
+                    } {
+                      3 goal .resolution .hypotheses * =goal
+                      goal .isopen not { 1 neg =success } rep
+                      success 1 sub =success
+                    } ? *
+                  }
+                ] conds
               } loop
               goal .isopen {
                 lastTerm /id /simpl ? goal use
