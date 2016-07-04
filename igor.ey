@@ -476,13 +476,14 @@ objset ==blocks
 
   < "a" ==type emptyBlock ==ctx "?" ==thm { "Fake theorem is fake" die }" =*proof "?" ==name
     list _ _ ==hyps ==disj ==allDisj > ==:fakeTheorem
+  < fakeTheorem ==theorem map ==substitution [ ] ==hypotheses > ==:fakeResolution
 
   { <
     ==thm < > ==resolution 1 ==isopen "" ==autohint
 
     { < > =resolution 1 =isopen } =*open
     { =resolution 0 =isopen } =*close
-    { < fakeTheorem ==theorem map ==substitution [ ] ==hypotheses > =resolution 0 =isopen } =*fakeclose
+    { fakeResolution =resolution 0 =isopen } =*fakeclose
     { =autohint } =*hint
   > } /goal deffst
 
@@ -3310,11 +3311,15 @@ objset ==blocks
       } ? *
     } /singularRulesTranslation deffst
     map ==globalCache # for repeated invocations
+    0 ==globalCacheResetCounter # kill global cache once in a while to allow GC
     map _ ==parsers # returned
     automata dom { ==nt {
       ==toks ==start
       [| nt toks { " " } each start txt .produce .hu |] ==cacheKey
       cacheKey globalCache .has not {
+        globalCacheResetCounter 1 add _ =globalCacheResetCounter 500 gt {
+          0 =globalCacheResetCounter map =globalCache
+        } rep
         [
           nt automata * ==automaton
           automaton .run =*consume
