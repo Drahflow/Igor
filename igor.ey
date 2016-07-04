@@ -313,8 +313,7 @@ objset ==blocks
 } /collectEHyps deffst
 
 <
-  sys .asmroutines .|catstrarray =*:catstrarray
-  { [ } "[|" deffd { ] catstrarray } τcatFold "|]" deffd
+  { [ } "[|" deffd sys .asmroutines .|assemblestr "|]" deffd
 
   emptyBlock ==renderContext
   emptyBlock ==userContext
@@ -536,7 +535,10 @@ objset ==blocks
     { _ metaSubstitution .has {
       metaSubstitution * |expandMetaToken each
     }" rep }' /expandMetaToken deffst
-    { [ -01 { _ 0 -01 * 36 eq |expandMetaToken rep }" each ] } τexpandMeta /expandMeta deffst
+    <
+      "" ==s
+      { [ -01 { _ =s 0 s * 36 eq { expandMetaToken }" rep }" each ] }'
+    > -- τexpandMeta /expandMeta deffst
 
     { ==theorem ==substitution
       theorem mandatoryVariables dom { ==var
@@ -1831,113 +1833,68 @@ objset ==blocks
       } { "\e[31mdesired conclusion did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
     } /tacAndConclude deffst
 
-    { ==goal ==tokens
-      { "\e[31mtacDrop not applicable, expected |- ... -> ... \e[0m\n" out } =*notApplicable
-
-      goal antecedents ==antes
-      antes len {
-        tokens ==target
-        0 ==i 1 neg ==success
-        { i antes len lt } {
-          i antes * ==ante
-          ante target arrEq {
-            i =success antes len =i
-          } rep
-          i 1 add =i
-        } loop
-
-        success antes len 1 sub eq ==lastTerm
-
-        success 0 ge {
-          success {
-            /impcom goal use
-            goal [ |auto ] tacAttemptNext
-
-            goal .isopen not {
-              3 goal .resolution .hypotheses * =goal
-            } rep
-          } rep
-
-          lastTerm {
-            /a1i goal use
-            goal [ |auto ] tacAttemptNext
-            goal .isopen not {
-              2 goal .resolution .hypotheses * =goal
-            } rep
-            success 1 sub =success
-          } {
-            /adantl goal use
-            goal [ |auto ] tacAttemptNext
-            goal .isopen not {
-              3 goal .resolution .hypotheses * =goal
-            } rep
-          } ? *
-
-          success 0 ge {
-            success {
-              /expcom goal use
-              goal [ |auto ] tacAttemptNext
-
-              goal .isopen not {
-                3 goal .resolution .hypotheses * =goal
-              } rep
-            } rep
-          } { "\e[31mtacDrop is buggy and had negative success count\e[0m\n" out } ? *
-        } { "\e[31mtacDrop not applicable, consequent not found in antecedents\e[0m\n" out } ? *
-      } |notApplicable ? *
-    } /tacDrop deffst
-
     { ==goal ==tokens # an array of arrays of tokens
+      goal antecedents ==antes
+
       map ==toRemove
       tokens { ==toks 1 [| toks { " " } each |] toRemove =[] } each
-      0 ==rebuild
-      0 ==removed
+      [ ] ==toKeep
+      [ ] ==kept
 
-      goal antecedents ==antes
+      antes { ==ante
+        [| ante { " " } each |] toRemove .has {
+          kept [ 0 ] cat =kept
+        } {
+          toKeep [ ante ] cat =toKeep
+          kept [ 1 ] cat =kept
+        } ? *
+      } each
 
-      antes len {
-        0 antes len range { _ ==i antes * ==ante
-          removed tokens len lt {
-            [| ante { " " } each |] toRemove .has {
-              i antes len 1 sub eq {
-                /a1i goal use
-                goal [ |auto ] tacAttemptNext
-                goal .isopen not {
-                  2 goal .resolution .hypotheses * =goal
-                  rebuild 1 sub =rebuild
+      { ==clauses # array of array of tokens
+        [
+          { clauses len 0 eq } { [ "T." ] }
+          { clauses len 1 eq } { [ 0 clauses * _ len dearray ] }
+          { 1 } {
+            [ "("
+              0 clauses * _ len dearray
+            "/\\"
+              1 clauses len range clauses * conjuction _ len dearray
+            ")" ]
+          }
+        ] conds
+      } /conjuction deffst
+
+      /syl goal use
+      goal .isopen not {
+        toKeep conjuction /ps lastMetaVariables * let
+        goal [ |auto ] tacAttemptNext
+
+        3 goal .resolution .hypotheses * ==conversion
+        faketrivialities { conversion .fakeclose } {
+          kept { ==k
+            conversion .isopen {
+              k {
+                /anim2i conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  3 conversion .resolution .hypotheses * =conversion
                 } rep
               } {
-                /adantl goal use
-                goal [ |auto ] tacAttemptNext
-                goal .isopen not {
-                  3 goal .resolution .hypotheses * =goal
+                /adantl conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  3 conversion .resolution .hypotheses * =conversion
                 } rep
               } ? *
-              removed 1 add =removed
-            } {
-              i antes len 1 sub lt {
-                /impcom goal use
-                goal [ |auto ] tacAttemptNext
-                goal .isopen not {
-                  3 goal .resolution .hypotheses * =goal
-                  rebuild 1 add =rebuild
-                } rep
-              } rep
-            } ? *
-          } rep
-        } each
-
-        rebuild 0 ge {
-          rebuild {
-            /expcom goal use
-            goal [ |auto ] tacAttemptNext
-            goal .isopen not {
-              3 goal .resolution .hypotheses * =goal
             } rep
-          } rep
-        } { "\e[31mtacDropAll is buggy and had negative rebuild count\e[0m\n" out } ? *
-      } { "\e[31mtacDropAll not applicable, expected |- ... -> ... \e[0m\n" out } ? *
+          } each
+        } ? *
+      } rep
     } /tacDropAll deffst
+
+    { ==goal ==tokens
+      [ tokens ] goal tacDropAll
+    } /tacDrop deffst
 
     { ==goal ==tokens # a sequence of tokens to search for
       goal antecedents ==antes
