@@ -2048,13 +2048,39 @@ objset ==blocks
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
         parse logicNonTerminal /wi eq {
-          1 parse * logicNonTerminal /wi eq {
-            /expcom goal use
-            goal [ |auto |tacNormalize ] tacAttemptNext
-          } {
-            goal tacNormalizeAntecedent
-            goal .isopen { goal tacNormalizeConsequent } rep
-          } ? *
+          0 ==implicationCount
+          1 parse * ==i
+          { i logicNonTerminal /wi eq } {
+            implicationCount 1 add =implicationCount
+            1 i * =i
+          } loop
+
+          [
+            { implicationCount 16 ge } {
+              /expcom16 goal use
+              goal [ |auto |tacNormalize ] tacAttemptNext
+            }
+            { implicationCount 8 ge } {
+              /expcom8 goal use
+              goal [ |auto |tacNormalize ] tacAttemptNext
+            }
+            { implicationCount 4 ge } {
+              /expcom4 goal use
+              goal [ |auto |tacNormalize ] tacAttemptNext
+            }
+            { implicationCount 2 ge } {
+              /expcom2 goal use
+              goal [ |auto |tacNormalize ] tacAttemptNext
+            }
+            { implicationCount 1 ge } {
+              /expcom goal use
+              goal [ |auto |tacNormalize ] tacAttemptNext
+            }
+            { 1 } {
+              goal tacNormalizeAntecedent
+              goal .isopen { goal tacNormalizeConsequent } rep
+            }
+          ] conds
         } rep
       } |notApplicable ? *
     } /tacNormalize deffst
@@ -2977,7 +3003,7 @@ objset ==blocks
 
     { include }' /load deffst
 
-    { running } {
+    { running } { [
       proofContext _ =userContext =renderContext
       mainGoal openGoals ==goals
 
@@ -3162,7 +3188,10 @@ objset ==blocks
         { input "^ *load (.*)\n" regex } { load }
         loadedCommands "*" | each
       ] conds
-    } loop
+    ] _ ==residue len 0 gt {
+      [| "\e[31mSomething left on the stack:\e[0m\n" |] out
+      residue dump
+    } } loop
   } /proveProposition deffd
 
   { ==name
