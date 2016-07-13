@@ -1302,6 +1302,33 @@ objset ==blocks
                 2 goal .resolution .hypotheses *
               } 1 parse * trivialities
             } rep
+
+            goal .isopen {
+              [| 1 parse * logicRange tokens * { " " } each |] ==conclusion
+              conclusion recordedSolutions .has {
+                map ==anteSet
+                goal antecedents { [| -01 { " " } each |] _ anteSet =[] } each
+
+                conclusion recordedSolutions * { ==solution
+                  goal .isopen {
+                    [| solution .thm expandMeta { " " } each |] ==solutionTxt
+                    solutionTxt closedGoalIndex .has {
+                      [
+                        solution antecedents {
+                          [| -01 { " " } each |] anteSet .has
+                        } each
+                      ] all {
+                        solution .thm expandMeta ==solutionToks
+                        0 solutionToks * "|-" eq
+                          { 1 solutionToks /wff metaLogicParsers * * } andif { ==solutionParse
+                          0 solutionParse * logicRange solutionToks * goal tacWithOnly
+                        } rep
+                      } rep
+                    } rep
+                  } rep
+                } each
+              } rep
+            } rep
           } rep
         } τauto5
         loadedAutomations "*" | each
@@ -2702,6 +2729,8 @@ objset ==blocks
             { nt /wb eq } { /hbbi goal use }
             { nt /wa eq } { /hban goal use }
             { nt /w3a eq } { /hb3an goal use }
+            { nt /wo eq } { /hbor goal use }
+            { nt /w3o eq } { /hb3or goal use }
             { nt /wbr eq } { /hbbr goal use }
             { nt /wal eq } {
               1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
@@ -2749,6 +2778,25 @@ objset ==blocks
         } { "\e[31mNot in fact a trivial non-free variable proof.\e[0m\n" out } ? *
       } { "\e[31mCurrent goal did not parse as wff.\e[0m\n" out } ? *
     } /tacNonfree deffst
+
+    # from conclusion to array of earlier solutions to it
+    map ==recordedSolutions
+
+    { ==goal
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          [| 1 parse * logicRange tokens * { " " } each |]
+        } {
+          [| parse logicRange tokens * { " " } each |]
+        } ? * ==conclusion
+
+        conclusion recordedSolutions .has not { [ ] conclusion recordedSolutions =[] } rep
+
+          conclusion recordedSolutions * [ goal ] cat
+        conclusion recordedSolutions =[]
+      } { [| "\e[31mGoal is not |- ph\e[0m\n" |] out } ? *
+    } /recordSolution deffst
 
     # Models all known truths as an accepting FSM. Theorem variables become
     # self-loops, theorem tokens become transitions.
@@ -3088,6 +3136,9 @@ objset ==blocks
         { input "^ *next\n" regex } {
           selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep
         }
+        { input "^ *prev\n" regex } {
+          selectedGoal 0 gt { selectedGoal 1 sub =selectedGoal } rep
+        }
         { input "^ *use (.*)\n" regex } { selectedGoal goals * tacUse }
         { input "^ *let (\\$[^=]+) = (.*)\n" regex } { ==metaVar " " str .split { "" neq } grep ==tokens
           tokens metaVar let
@@ -3154,6 +3205,8 @@ objset ==blocks
           goals len { selectedGoal goals * tacCasesExplicit } |solved ? * }
         { input " *nonfree\n" regex } {
           goals len { selectedGoal goals * tacNonfree } |solved ? * }
+        { input " *take note\n" regex } {
+          goals len { selectedGoal goals * recordSolution } |solved ? * }
         { input "^ *tree\n" regex } { 0 tree }
         { input "^ *tree:full\n" regex } { 1 tree }
         { input "^ *export\n" regex } { export }
