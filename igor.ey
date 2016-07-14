@@ -2011,7 +2011,7 @@ objset ==blocks
         } { } loop
 
         goal .isopen {
-          goal tacNormalize
+          goal tacNormalizeLogic
         } rep
       } rep
     } /tacNormalizeAntecedent deffst
@@ -2050,21 +2050,21 @@ objset ==blocks
             [
               { 1 parse * logicNonTerminal /wa eq } {
                 /jca goal use
-                goal [ |auto |tacNormalize |tacNormalizeConsequent ] tacAttemptNext
+                goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
               }
               { 1 parse * logicNonTerminal /w3a eq } {
                 /3jca goal use
-                goal [ |auto |tacNormalize |tacNormalizeConsequent ] tacAttemptNext
+                goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
               }
             ] conds
           }
           { parse logicNonTerminal /wa eq } {
             /pm3.2i goal use
-            goal [ |auto |tacNormalize |tacNormalizeConsequent ] tacAttemptNext
+            goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
           }
           { parse logicNonTerminal /w3a eq } {
             /3pm3.2i goal use
-            goal [ |auto |tacNormalize |tacNormalizeConsequent ] tacAttemptNext
+            goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
           }
         ] conds
       } |notApplicable ? *
@@ -2085,23 +2085,23 @@ objset ==blocks
           [
             { implicationCount 16 ge } {
               /expcom16 goal use
-              goal [ |auto |tacNormalize ] tacAttemptNext
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
             }
             { implicationCount 8 ge } {
               /expcom8 goal use
-              goal [ |auto |tacNormalize ] tacAttemptNext
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
             }
             { implicationCount 4 ge } {
               /expcom4 goal use
-              goal [ |auto |tacNormalize ] tacAttemptNext
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
             }
             { implicationCount 2 ge } {
               /expcom2 goal use
-              goal [ |auto |tacNormalize ] tacAttemptNext
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
             }
             { implicationCount 1 ge } {
               /expcom goal use
-              goal [ |auto |tacNormalize ] tacAttemptNext
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
             }
             { 1 } {
               goal tacNormalizeAntecedent
@@ -2110,6 +2110,49 @@ objset ==blocks
           ] conds
         } rep
       } |notApplicable ? *
+    } /tacNormalizeLogic deffst
+
+    { ==parse ==tokens
+      0 ==M 0 ==N
+      parse logicNonTerminal /co eq
+          { 0 parse * parseNumber _ { -01 =N } rep } andif
+          { 2 parse * parseNumber _ { -01 =M } rep } andif
+          { 1 parse * logicNonTerminal [ /caddc /cmin /cmul /cmo /cexp ] eq any } andif {
+        1 parse * logicNonTerminal ==nt
+        { N printNumber _ len dearray } =*Nt { M printNumber _ len dearray } =*Mt
+
+        [
+          { nt /caddc eq } { [ "(" Nt "+" Mt ")" "=" N M add printNumber _ len dearray ] }
+          { nt /cmin eq } { [ N M ge { "(" Nt "-" Mt ")" "=" N M sub printNumber _ len dearray ] } rep }
+          { nt /cmul eq } { [ "(" Nt "x." Mt ")" "=" N M mul printNumber _ len dearray ] }
+          { nt /cmo eq } { [ "(" Nt "mod" Mt ")" "=" N M mod printNumber _ len dearray ] }
+          { nt /cexp eq } { [ "(" Nt "^" Mt ")" "=" N M exp printNumber _ len dearray ] }
+        ] conds
+      } {
+        0 parse logicChildCount range { tokens -01 parse * extractArithmeticTrivialities } each
+      } ? *
+    } /extractArithmeticTrivialities deffst
+
+    { ==goal
+      { "\e[31mnormalize:arith not applicable, expected |- ...\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        [ tokens parse extractArithmeticTrivialities ] ==equalities
+        equalities len 0 gt {
+          0 equalities * goal tacRewriteFull
+          goal [ |auto |tacNormalizeArith ] tacAttemptNext
+        } rep
+      } |notApplicable ? *
+    } /tacNormalizeArith deffst
+
+    { ==goal
+      goal tacNormalizeArith
+      goal openGoals { ==g
+        0 g .thm * "|-" eq {
+          g tacNormalizeLogic
+          g .isopen { g auto } rep
+        } rep
+      } each
     } /tacNormalize deffst
 
     { ==goals
@@ -3187,6 +3230,10 @@ objset ==blocks
           goals len { tokens selectedGoal goals * tacDrop } |solved ? * }
         { input "^ *normalize\n" regex } {
           goals len { selectedGoal goals * tacNormalize } |solved ? * }
+        { input "^ *normalize:logic\n" regex } {
+          goals len { selectedGoal goals * tacNormalizeLogic } |solved ? * }
+        { input "^ *normalize:arith\n" regex } {
+          goals len { selectedGoal goals * tacNormalizeArith } |solved ? * }
         { input "^ *normalize:ante\n" regex } {
           goals len { selectedGoal goals * tacNormalizeAntecedentOnly } |solved ? * }
         { input "^ *rename ([^ ]+) to ([^ ]+)\n" regex } {
