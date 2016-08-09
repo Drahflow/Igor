@@ -473,22 +473,28 @@ objset ==blocks
     [ tokens { _ substitution .has { substitution * _ len dearray } rep } each ]
   } τapplySubstitution /applySubstitution deffst
 
-  < "a" ==type emptyBlock ==ctx "?" ==thm { "Fake theorem is fake" die }" =*proof "?" ==name
-    list _ _ ==hyps ==disj ==allDisj > ==:fakeTheorem
-  < fakeTheorem ==theorem map ==substitution [ ] ==hypotheses > ==:fakeResolution
-
-  { <
-    ==thm < > ==resolution 1 ==isopen "" ==autohint
-
-    { < > =resolution 1 =isopen } =*open
-    { =resolution 0 =isopen } =*close
-    { fakeResolution =resolution 0 =isopen } =*fakeclose
-    { =autohint } =*hint
-  > } /goal deffst
-
   { < ==theorem ==substitution ==hypotheses > } /step deffst
 
   { ==proposition
+
+    < "a" ==type emptyBlock ==ctx "?" ==thm { "Fake theorem is fake" die }" =*proof "?" ==name
+      list _ _ ==hyps ==disj ==allDisj > ==:fakeTheorem
+    < fakeTheorem ==theorem map ==substitution [ ] ==hypotheses > ==:fakeResolution
+
+    { <
+      ==thm [ ] ==parents < > ==resolution 1 ==isopen "" ==autohint
+
+      { [ -01 ] parents cat =parents } =*addParent
+      { < > =resolution 1 =isopen } =*open
+      { =resolution 0 =isopen
+        resolution .hypotheses { self -01 .addParent } each
+        self amendClosedGoalIndex
+      } =*close
+      { fakeResolution =resolution 0 =isopen
+        self amendClosedGoalIndex
+      } =*fakeclose
+      { =autohint } =*hint
+    > _ ==self } /goal deffst
 
     map ==disj map ==nonDisj
     { ==x ==y
@@ -607,10 +613,6 @@ objset ==blocks
             ] conds
           } each
         ] ==hypotheses
-
-        hypotheses len not {
-          amendClosedGoalIndex
-        } rep
 
         hypotheses substitution theorem step closedGoal .close
       } rep
@@ -981,8 +983,31 @@ objset ==blocks
     } memoized /directTheoremIndex deffst
 
     map ==closedGoalIndex
-    # THIS IS TOO SLOW FOR DEEP PROOFS
-    {
+    { ==newlyClosedGoal
+      { ==goal
+        [| goal .thm expandMeta { " " } each |] ==txt
+
+        txt closedGoalIndex .has not {
+          goal txt closedGoalIndex =[]
+        } rep
+      } /addClosedGoal deffst
+
+      { ==goal
+        [
+          goal .resolution .hypotheses { ==hyp
+            [| hyp .thm expandMeta { " " } each |] ==txt
+            txt closedGoalIndex .has
+          } each
+        ] all {
+          goal addClosedGoal
+          goal .parents |recurse each
+        } rep
+      } /recurse deffst
+
+      newlyClosedGoal recurse
+    } τclosedGoalIndex /amendClosedGoalIndex deffst
+
+    { map =closedGoalIndex
       { ==goal
         goal .isopen { 1 } {
           [| goal .thm expandMeta { " " } each |] ==txt
@@ -995,7 +1020,7 @@ objset ==blocks
         } ? *
       } /recurse deffst
       mainGoal recurse --
-    } τclosedGoalIndex /amendClosedGoalIndex deffst
+    } τclosedGoalIndex /rebuildClosedGoalIndex deffst
 
     { ==toTry ==goal
       goal .isopen not {
@@ -1022,7 +1047,10 @@ objset ==blocks
       [
         { txt closedGoalIndex .has } {
           silent not { [| "re-using earlier proof\n" |] out } rep
-          txt closedGoalIndex * .resolution goal .close
+
+          txt closedGoalIndex * .resolution _ goal .close
+                                              .hypotheses { ==h goal h .addParent } each
+          goal amendClosedGoalIndex
         } τauto1
         { txt directTheoremIndex .has } {
           txt directTheoremIndex * goal use
@@ -3132,8 +3160,9 @@ objset ==blocks
         goal .isopen not { goal .resolution .hypotheses |recurse each } rep
       } /recurse deffst
       mainGoal recurse
-      map =closedGoalIndex
+
       [ ] =allOpenGoals
+      rebuildClosedGoalIndex
     } /reopen deffst
 
     { objset _ ==children .put
@@ -3145,8 +3174,9 @@ objset ==blocks
         } rep
       } /recurse deffst
       mainGoal recurse
-      map =closedGoalIndex
+
       [ ] =allOpenGoals
+      rebuildClosedGoalIndex
     } /reopenParentOf deffst
 
     1 ==running
@@ -3160,7 +3190,6 @@ objset ==blocks
       proofContext _ =userContext =renderContext
       mainGoal openGoals ==goals
 
-      amendClosedGoalIndex
       autoall { lastMetaVariables map =lastMetaVariables goals |auto each =lastMetaVariables mainGoal openGoals =goals } rep
 
       { selectedGoal goals len ge selectedGoal 0 gt and } { selectedGoal 1 sub =selectedGoal } loop
