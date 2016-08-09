@@ -981,6 +981,7 @@ objset ==blocks
     } memoized /directTheoremIndex deffst
 
     map ==closedGoalIndex
+    # THIS IS TOO SLOW FOR DEEP PROOFS
     {
       { ==goal
         goal .isopen { 1 } {
@@ -1358,7 +1359,7 @@ objset ==blocks
                   [ /bibi1d /bibi2d /bibi12d ] ==wb
                   [ /eleq1d /eleq2d /eleq12d ] ==wcel
                   [ /orbi1d /orbi2d /orbi12d ] ==wo
-                  [ /anbi1d /anbi2d /anbi12d ] ==wa
+                  [ /anbi1d /anbi2d4 /anbi2d /anbi12d ] ==wa
                   [ /3anbi1d /3anbi2d /3anbi3d /3anbi12d /3anbi13d /3anbi23d /3anbi123d ] ==w3a
                   [ /3orbi1d /3orbi2d /3orbi3d /3orbi123d ] ==w3o
                   [ /notbid ] ==wn
@@ -1770,7 +1771,13 @@ objset ==blocks
           } each
 
           existsAsAnte not { 1 parse * logicNonTerminal /wa eq } andif {
-            /jca goal use
+              1 1 parse * * logicNonTerminal /wa eq
+              { 1 1 1 parse * * * logicNonTerminal /wa eq } andif
+              { 1 1 1 1 parse * * * * logicNonTerminal /wa eq } andif {
+              /jca4 goal use
+            } {
+              /jca goal use
+            } ? *
             goal [ |auto |tacAndSelect ] tacAttemptNext
           } {
             goal tacSelect
@@ -1980,7 +1987,7 @@ objset ==blocks
                 { 0 parse * logicNonTerminal /wa eq } {
                   [
                     { 0 0 parse * * logicNonTerminal /wa eq } {
-                      /anassrs goal use
+                      /animpass goal use
                       goal [ |auto ] tacAttemptNext
                       goal .isopen { 0 =doRewrite } { 4 goal .resolution .hypotheses * =goal } ? *
                     }
@@ -2049,7 +2056,13 @@ objset ==blocks
           { parse logicNonTerminal /wi eq } {
             [
               { 1 parse * logicNonTerminal /wa eq } {
-                /jca goal use
+                  1 1 parse * * logicNonTerminal /wa eq
+                  { 1 1 1 parse * * * logicNonTerminal /wa eq } andif
+                  { 1 1 1 1 parse * * * * logicNonTerminal /wa eq } andif {
+                  /jca4 goal use
+                } {
+                  /jca goal use
+                } ? *
                 goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
               }
               { 1 parse * logicNonTerminal /w3a eq } {
@@ -2223,7 +2236,7 @@ objset ==blocks
         [
           { t ";" eq } { }
           { t len 1 eq { 0 t * 48 ge 0 t * 57 le and } andif } { 10 mul 0 t * 48 sub add }
-          { 1 } { "\e[31minvalid number in parseNumberToks\e[0m" out -- 1 neg }
+          { 1 } { "\e[33minvalid number in parseNumberToks\e[0m" out -- 1 neg }
         ] conds
       } each
     } τparseNumberToks /parseNumberToks deffst
@@ -2822,6 +2835,55 @@ objset ==blocks
       } { "\e[31mCurrent goal did not parse as wff.\e[0m\n" out } ? *
     } /tacNonfree deffst
 
+    # TODO: Make it respect nondisj directives and create substitutions over variables where neccessary
+    { ==goal ==elementToks
+      0 elementToks /class metaLogicParsers * * { --
+        goal .thm expandMeta ==tokens
+        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+          parse logicNonTerminal /wi eq {
+            [
+              { 1 parse * logicNonTerminal /wrex eq } {
+                /syl goal use
+                goal .isopen not {
+                  [ "("
+                    elementToks _ len dearray "e." 1 1 parse * * logicRange tokens * _ len dearray
+                    "/\\"
+                    0 1 parse * * logicRange tokens * ==from
+                    2 1 parse * * logicRange tokens * from elementToks rewriteTokens _ len dearray
+                    ")"
+                  ] /ps lastMetaVariables * let
+                  goal [ |auto ] tacAttemptNext
+                  4 goal .resolution .hypotheses * ==existence
+                  existence .isopen {
+                    /rcla4e existence use
+                    existence [ |auto ] tacAttemptNext
+                  } rep
+                } rep
+              }
+              { 1 parse * logicNonTerminal /wex eq } {
+                /sylc goal use
+                goal .isopen not {
+                  [ elementToks _ len dearray "e." "_V" ] /ps lastMetaVariables * let
+                    0 1 parse * * logicRange tokens * ==from
+                    1 1 parse * * logicRange tokens * from elementToks rewriteTokens
+                  /ch lastMetaVariables * let
+                  goal [ |auto ] tacAttemptNext
+                  6 goal .resolution .hypotheses * ==existence
+                  existence .isopen {
+                    /cla4egf existence use
+                    existence [ |auto ] tacAttemptNext
+                  } rep
+                } rep
+              } 
+              { 1 } { "\e[31mNot an existential goal\e[0m" |] out }
+            ] conds
+          } {
+            [| "\e[31mTODO: tacNamely does not support |- ( ph -> ps ) goals yet\e[0m" |] out
+          } ? *
+        } { [| "\e[31mGoal is not |- ph\e[0m" |] out } ? *
+      } { [| "\e[31mGiven element does not parse as class\e[0m" |] out } ? *
+    } /tacNamely deffst
+
     # from conclusion to array of earlier solutions to it
     map ==recordedSolutions
 
@@ -3104,17 +3166,19 @@ objset ==blocks
       { selectedGoal goals len ge selectedGoal 0 gt and } { selectedGoal 1 sub =selectedGoal } loop
 
       {
-        " " ==sep
-        [| nonDisj dom sort { ==x
-          x nonDisj * dom sort { ==y
-            sep ", " =sep x renderName " <=> " y renderName
-          } each
-        } each "\n" |] out
-        [| disj dom sort { ==x
-          x disj * dom sort { ==y
-            sep ", " =sep x renderName " <!> " y renderName
-          } each
-        } each "\n" |] out
+        silent not {
+          " " ==sep
+          [| nonDisj dom sort { ==x
+            x nonDisj * dom sort { ==y
+              sep ", " =sep x renderName " <=> " y renderName
+            } each
+          } each "\n" |] out
+          [| disj dom sort { ==x
+            x disj * dom sort { ==y
+              sep ", " =sep x renderName " <!> " y renderName
+            } each
+          } each "\n" |] out
+        } rep
 
         goals dom { ==i
           i selectedGoal eq "\e[1m" "" ? ==hl
@@ -3250,6 +3314,8 @@ objset ==blocks
           goals len { selectedGoal goals * tacCasesUnion } |solved ? * }
         { input "^ *cases:explicit\n" regex } {
           goals len { selectedGoal goals * tacCasesExplicit } |solved ? * }
+        { input "^ *namely (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacNamely } |solved ? * }
         { input " *nonfree\n" regex } {
           goals len { selectedGoal goals * tacNonfree } |solved ? * }
         { input " *take note\n" regex } {
