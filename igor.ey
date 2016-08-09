@@ -993,12 +993,15 @@ objset ==blocks
       } /addClosedGoal deffst
 
       { ==goal
-        [
-          goal .resolution .hypotheses { ==hyp
+        goal .resolution .hypotheses _ =*hyps len 1 sub ==i
+        1 { _ i 0 ge and } {
+          i hyps ==hyp
+          hyp .isopen { -- 0 } {
             [| hyp .thm expandMeta { " " } each |] ==txt
-            txt closedGoalIndex .has
-          } each
-        ] all {
+            -- txt closedGoalIndex .has
+          } ? *
+          i 1 sub =i
+        } loop {
           goal addClosedGoal
           goal .parents |recurse each
         } rep
