@@ -473,28 +473,32 @@ objset ==blocks
     [ tokens { _ substitution .has { substitution * _ len dearray } rep } each ]
   } τapplySubstitution /applySubstitution deffst
 
-  { < ==theorem ==substitution ==hypotheses > } /step deffst
-
   { ==proposition
 
     < "a" ==type emptyBlock ==ctx "?" ==thm { "Fake theorem is fake" die }" =*proof "?" ==name
       list _ _ ==hyps ==disj ==allDisj > ==:fakeTheorem
-    < fakeTheorem ==theorem map ==substitution [ ] ==hypotheses > ==:fakeResolution
+    < fakeTheorem ==theorem [ ] ==hypotheses > ==:fakeResolution
 
-    { <
-      ==thm [ ] ==parents < > ==resolution 1 ==isopen "" ==autohint
+    { < ==theorem ==hypotheses > } /step deffst
 
-      { [ -01 ] parents cat =parents } =*addParent
-      { < > =resolution 1 =isopen } =*open
-      { =resolution 0 =isopen
-        resolution .hypotheses { self -01 .addParent } each
-        self amendClosedGoalIndex
-      } =*close
-      { fakeResolution =resolution 0 =isopen
-        self amendClosedGoalIndex
-      } =*fakeclose
-      { =autohint } =*hint
-    > _ ==self } /goal deffst
+    < < > ==s
+
+      { =s [ -01 ] s .parents cat /parents s .set } /addParent defmst
+      { =s < > /resolution s .set 1 /isopen s .set } /open defmst
+      { ==s /resolution s .set 0 /isopen s .set
+        s .resolution .hypotheses { s -01 .addParent } each
+        s amendClosedGoalIndex
+      } /close defmst
+      { ==s fakeResolution /resolution s .set 0 /isopen s .set
+        s amendClosedGoalIndex
+      } /fakeclose defmst
+      { =s /autohint s .set } /hint defmst
+
+      {
+        ==thm [ ] ==parents < > ==resolution 1 ==isopen "" ==autohint
+        { = }' =*set scope
+      }
+    > -- /goal deffst
 
     map ==disj map ==nonDisj
     { ==x ==y
@@ -614,7 +618,7 @@ objset ==blocks
           } each
         ] ==hypotheses
 
-        hypotheses substitution theorem step closedGoal .close
+        hypotheses theorem step closedGoal .close
       } rep
     } τapplyTheorem /applyTheorem deffst
 
@@ -856,7 +860,7 @@ objset ==blocks
         }
         { name userContext isEHyp } {
           goal .thm expandMeta name userContext getEHyp arrEq {
-            [ ] map < "f" ==type userContext ==ctx name userContext getEHyp ==thm { "no proof" die } =*proof name ==name >
+            [ ] < "f" ==type userContext ==ctx name userContext getEHyp ==thm { "no proof" die } =*proof name ==name >
               step goal .close
           } {
             [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
@@ -865,7 +869,7 @@ objset ==blocks
         }
         { name userContext isFHyp } {
           goal .thm expandMeta name userContext getFHyp arrEq {
-            [ ] map < "f" ==type userContext ==ctx name userContext getFHyp ==thm { "no proof" die } =*proof name ==name >
+            [ ] < "f" ==type userContext ==ctx name userContext getFHyp ==thm { "no proof" die } =*proof name ==name >
               step goal .close
           } {
             [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
