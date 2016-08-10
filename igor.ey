@@ -318,34 +318,50 @@ objset ==blocks
   emptyBlock ==renderContext
   emptyBlock ==userContext
   emptyBlock ==proofContext
+  0 ==silent
 
-  map ==renderNameCache
-  { ==name
-    name renderNameCache .has not {
-      [
-        { name constants .has } {
-          [| "\e[37m" name "\e[0m" |]
-        }
-        { name assertions .has } {
-          name assertions * ==a
-          [
-            { a .type "p" eq } { [| "\e[36m" name "\e[0m" |] }
-            { a .type "a" eq } { [| "\e[31m" name "\e[0m" |] }
-            { 1 } { name }
-          ] conds
-        }
-        { name renderContext isVar } { [| "\e[32m" name "\e[0m" |] }
-        { 0 name * 0 "$" * eq } { [| "\e[33m" name "\e[0m" |] }
-        { 1 } { name }
-      ] conds
-    name renderNameCache =[] } rep
-    name renderNameCache *
-  } τrenderName /renderName deffd
+  <
+    map ==:renderNameCache
+    "" ==name
+
+    { =name
+      name renderNameCache .has not {
+        [
+          { name constants .has } {
+            [| "\e[37m" name "\e[0m" |]
+          }
+          { name assertions .has } {
+            name assertions * ==a
+            [
+              { a .type "p" eq } { [| "\e[36m" name "\e[0m" |] }
+              { a .type "a" eq } { [| "\e[31m" name "\e[0m" |] }
+              { 1 } { name }
+            ] conds
+          }
+          { name renderContext isVar } { [| "\e[32m" name "\e[0m" |] }
+          { 0 name * 0 "$" * eq } { [| "\e[33m" name "\e[0m" |] }
+          { 1 } { name }
+        ] conds
+      name renderNameCache =[] } rep
+      name renderNameCache *
+    }'
+  > -- τrenderName /renderName deffd
 
   "" ==inputBuffer
   {
+    { ==s
+      s "" neq {
+        0 ==i { i s len lt i s * 10 neq and } { i 1 add =i } loop
+        i s len lt {
+          i 1 add s str .postfix
+          i 1 add s str .prefix
+          1
+        } { 0 } ? *
+      } { 0 } ? *
+    } /extractFirstLine deffst
+
     0 ==eof
-    { eof not { inputBuffer "^([^\n]*\n)(.*)" regex not } andif } {
+    { eof not { inputBuffer extractFirstLine not } andif } {
       65536 sys .in .read _ ==input "" eq =eof
       inputBuffer input cat =inputBuffer
     } loop eof { "" } { -01 =inputBuffer } ? *
@@ -555,7 +571,7 @@ objset ==blocks
     map ==lastMetaVariables
     map ==allMetaVariables
     map ==metaSubstitution
-    1 ==redisplay 0 ==silent
+    1 ==redisplay
     [ ] ==lastSearch
     [ ] ==loadedCommands
     [ ] ==loadedAutomations
@@ -3237,52 +3253,58 @@ objset ==blocks
           } each "\n" |] out
         } rep
 
-        goals dom { ==i
-          i selectedGoal eq "\e[1m" "" ? ==hl
-          [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
-        } each
-
-        loadedDisplays "*" | each
-
-        {
-          goals dom len 1 gt {
-            [| "\n" |] out
-            selectedGoal ==i
+        silent 1 le {
+          goals dom { ==i
             i selectedGoal eq "\e[1m" "" ? ==hl
             [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
-          } rep
-        } /displayCurrentGoal deffst
+          } each
 
-        antedisp { goals len } andif {
-          selectedGoal goals * ==goal
-          goal .thm expandMeta ==tokens
-          0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
-            [| "\n" |] out
-            proofContext collectEHyps _ ==hyps dom { ==name
-              [| "+ " name hyps * _ len 1 -01 range -01* { renderName " " } each "\n" |] out
-            } each
-            goal antecedents ==antes
-            [| "\n" |] out
-            antes { ==toks
-              [| "* " toks { renderName " " } each "\n" |] out
-            } each
-            [|
-              "\e[1m-------------------------------------------------"
-              goal .autohint "" neq { " \e[32m(hint: " goal .autohint ")" } rep
-              "\e[0m\n"
-            |] out
-            [| "  "
-               parse logicNonTerminal /wi eq { 1 parse * } { parse } ? * logicRange tokens *
-                 { renderName " " } each
-           "\n" |] out
+          loadedDisplays "*" | each
+
+          {
+            goals dom len 1 gt {
+              [| "\n" |] out
+              selectedGoal ==i
+              i selectedGoal eq "\e[1m" "" ? ==hl
+              [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
+            } rep
+          } /displayCurrentGoal deffst
+
+          antedisp { goals len } andif {
+            selectedGoal goals * ==goal
+            goal .thm expandMeta ==tokens
+            0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+              [| "\n" |] out
+              proofContext collectEHyps _ ==hyps dom { ==name
+                [| "+ " name hyps * _ len 1 -01 range -01* { renderName " " } each "\n" |] out
+              } each
+              goal antecedents ==antes
+              [| "\n" |] out
+              antes { ==toks
+                [| "* " toks { renderName " " } each "\n" |] out
+              } each
+              [|
+                "\e[1m-------------------------------------------------"
+                goal .autohint "" neq { " \e[32m(hint: " goal .autohint ")" } rep
+                "\e[0m\n"
+              |] out
+              [| "  "
+                 parse logicNonTerminal /wi eq { 1 parse * } { parse } ? * logicRange tokens *
+                   { renderName " " } each
+             "\n" |] out
+            } |displayCurrentGoal ? *
           } |displayCurrentGoal ? *
-        } |displayCurrentGoal ? *
+        } {
+          "." out
+        } ? *
       } τdisplay /display deffst
       redisplay |display rep
       1 =redisplay
 
       # perfstats
-      "proof> " sys .out .writeall
+      silent 1 le {
+        "proof> " sys .out .writeall
+      } rep
       inputCmd ==cmd ==args
 
       { "\e[32mWe are done here.\e[0m\n" out } =*solved
@@ -3401,7 +3423,8 @@ objset ==blocks
         { cmd "nofaketrivialities" eq } { 0 =faketrivialities }
         { cmd "antedisp" eq } { 1 =antedisp }
         { cmd "noantedisp" eq } { 0 =antedisp }
-        { cmd "silent" eq } { 1 =silent }
+        { cmd "silent" eq } { 2 =silent }
+        { cmd "quiet" eq } { 1 =silent }
         { cmd "nosilent" eq } { 0 =silent }
         { cmd "load" eq } { args load }
         { [ cmd { _ 48 ge -01 57 le and } each ] all } {
@@ -3601,6 +3624,9 @@ objset ==blocks
         { cmd "show" eq } { args show }
         { cmd "parse" eq } { args parseTokens }
         { cmd "prove" eq } { args prove }
+        { cmd "silent" eq } { 2 =silent }
+        { cmd "quiet" eq } { 1 =silent }
+        { cmd "nosilent" eq } { 0 =silent }
       ] conds
     } loop
   }
