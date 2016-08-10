@@ -53,6 +53,8 @@ objset ==blocks
   { time keys { _ dump _ time -01 . txt .produce .u " μs" cat dump count -01 . txt .produce .u " calls" cat dump } each }
 > -- /perfstats deffd -- { -- } "τ" defq
 
+{ ==n =*f { n dump f "/" n cat dump } } "δ" deffst
+
 <
   { -- } "$$" defq # { ==name _ "$" name cat " " cat -01 cat dump } "$$" deffd
 
@@ -521,9 +523,16 @@ objset ==blocks
 
       { =s [ -01 ] s .parents cat /parents s .set } /addParent defmst
       { =s < > /resolution s .set 1 /isopen s .set } /open defmst
-      { ==s /resolution s .set 0 /isopen s .set
-        s .resolution .hypotheses { s -01 .addParent } each
-        s amendClosedGoalIndex
+      { ==s
+        s .isopen {
+          /resolution s .set
+          0 /isopen s .set
+          s .resolution .hypotheses { s -01 .addParent } each
+          s amendClosedGoalIndex
+        } {
+          --
+          [| "\e[31mSome tactics tried to re-close a closed goal\e[0m\n" |] out
+        } ? *
       } /close defmst
       { ==s fakeResolution /resolution s .set 0 /isopen s .set
         s amendClosedGoalIndex
@@ -1091,9 +1100,7 @@ objset ==blocks
         { txt closedGoalIndex .has } {
           silent not { [| "re-using earlier proof\n" |] out } rep
 
-          txt closedGoalIndex * .resolution _ goal .close
-                                              .hypotheses { ==h goal h .addParent } each
-          goal amendClosedGoalIndex
+          txt closedGoalIndex * .resolution goal .close
         } τauto1
         { txt directTheoremIndex .has } {
           txt directTheoremIndex * goal use
@@ -2067,11 +2074,12 @@ objset ==blocks
                       goal [ |auto ] tacAttemptNext
                       goal .isopen { 0 =doRewrite } { 5 goal .resolution .hypotheses * =goal } ? *
                     }
-                    { 1 } {
+                    { goal .isopen } {
                       /impcom goal use
                       goal [ |auto ] tacAttemptNext
                       goal .isopen { 0 =doRewrite } { 3 goal .resolution .hypotheses * =goal } ? *
                     }
+                    { 1 } { 0 =doRewrite }
                   ] conds
                   1
                 }
