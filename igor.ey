@@ -351,6 +351,26 @@ objset ==blocks
     } loop eof { "" } { -01 =inputBuffer } ? *
   } /inputLine deffd
 
+  {
+    "" ==cmd "" ==args
+    inputLine ==input
+    input "" eq {
+      "quit" =cmd
+    } {
+      1 neg input str .prefix =input
+      input len 0 gt {
+        0 { _ _ input len lt -01 input * 32 eq and } { 1 add } loop input str .postfix =input
+        input len 0 gt {
+          0 { _ _ input len lt -01 input * 32 neq and } { 1 add } loop _ input str .prefix =cmd input str .postfix =input
+          input len 0 gt {
+            0 { _ _ input len lt -01 input * 32 eq and } { 1 add } loop input str .postfix =args
+          } rep
+        } rep
+      } rep
+    } ? *
+    args cmd
+  } /inputCmd deffd
+
   sys .out .|writeall /out deffd
 
   { -- } /showBlock deffd
@@ -2622,6 +2642,7 @@ objset ==blocks
       } rep
     } /tacSolveArith deffst
 
+    # TODO: replace this by a more general implementation
     { ==goal
       { "\e[31msolve:range not applicable, expected |- ... -> <decimal> { < , <_ } ... (or the other way around)\e[0m\n" out } =*notApplicable
 
@@ -2909,7 +2930,7 @@ objset ==blocks
                     existence [ |auto ] tacAttemptNext
                   } rep
                 } rep
-              } 
+              }
               { 1 } { "\e[31mNot an existential goal\e[0m" |] out }
             ] conds
           } {
@@ -3262,41 +3283,35 @@ objset ==blocks
 
       # perfstats
       "proof> " sys .out .writeall
-      inputLine ==input
+      inputCmd ==cmd ==args
 
       { "\e[32mWe are done here.\e[0m\n" out } =*solved
       [
-        { input "" eq } { 0 =running }
-        { input "^ *quit\n" regex } { 0 =running }
-        { input "^ *what\n" regex } { display 0 =redisplay }
-        { input "^ *show (.*)\n" regex } { show 0 =redisplay }
-        { input "^ *(\\d+)\n" regex } {
-          txt .consume .u _ goals len ge { -- goals len 1 sub } rep =selectedGoal
-        }
-        { input "^ *todo\n" regex } {
+        { cmd "quit" eq } { 0 =running }
+        { cmd "what" eq } { display 0 =redisplay }
+        { cmd "show" eq } { args show 0 =redisplay }
+        { cmd "todo" eq } {
           selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep
         }
-        { input "^ *next\n" regex } {
+        { cmd "next" eq } {
           selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep
         }
-        { input "^ *prev\n" regex } {
+        { cmd "prev" eq } {
           selectedGoal 0 gt { selectedGoal 1 sub =selectedGoal } rep
         }
-        { input "^ *use (.*)\n" regex } { selectedGoal goals * tacUse }
-        { input "^ *let (\\$[^=]+) = (.*)\n" regex } { ==metaVar " " str .split { "" neq } grep ==tokens
+        { cmd "use" eq } { args selectedGoal goals * tacUse }
+        { cmd "let" eq { args "^(\\$[^=]+) = (.*)" regex } andif } { ==metaVar " " str .split { "" neq } grep ==tokens
           tokens metaVar let
         }
-        { input "^ *unlet (\\$[^=]+)\n" regex } { ==v [ v ] v metaSubstitution =[] }
-        { input "^ *lets\n" regex } {
+        { cmd "unlet" eq { args "^(\\$[^=]+)$" regex } andif } { ==v [ v ] v metaSubstitution =[] }
+        { cmd "lets" eq } {
           metaSubstitution dom { ==v
             [| v " = " v metaSubstitution * { renderName " " } each "\n" |] out
           } each
           0 =redisplay
         }
-        { input "^ *nondisj (.*) <=> (.*)\n" regex } { markNonDisj }
-        { input "^ *auto\n" regex
-          input "^ *\n" regex or } { goals len { selectedGoal goals * auto } |solved ? * }
-        { input "^ */(.*)\n" regex } { ==search 0 ==success
+        { cmd "nondisj" eq { args "^(.*) <=> (.*)" regex } andif } { markNonDisj }
+        { cmd "/" eq } { args ==search 0 ==success
           goals dom { ==i
             1 neg [ [| i goals * .thm expandMeta { " " } each |] search regex ] * { success not } andif {
               i =selectedGoal 1 =success
@@ -3304,71 +3319,72 @@ objset ==blocks
           } each
           success not { "\e[31mno such goal found\e[0m\n" out } rep
         }
-        { input "^ *distr:ante\n" regex } { goals len { selectedGoal goals * tacDistrAntecedentMeta } |solved ? * }
-        { input "^ *rewrite:ante\n" regex } { goals len { selectedGoal goals * tacRewriteAntecedent } |solved ? * }
-        { input "^ *and rewrite\n" regex } { goals len { selectedGoal goals * tacContinueWithRewrite } |solved ? * }
-        { input "^ *rewrite:full (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "" eq cmd "auto" eq or } { goals len { selectedGoal goals * auto } |solved ? * }
+        { cmd "distr:ante" eq } { goals len { selectedGoal goals * tacDistrAntecedentMeta } |solved ? * }
+        { cmd "rewrite:ante" eq } { goals len { selectedGoal goals * tacRewriteAntecedent } |solved ? * }
+        { cmd "and" eq { args "rewrite" eq } andif } { goals len { selectedGoal goals * tacContinueWithRewrite } |solved ? * }
+        { cmd "rewrite:full" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacRewriteFull } |solved ? * }
-        { input "^ *rewrite (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "rewrite" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacRewrite } |solved ? * }
-        { input "^ *replace (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "replace" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacReplace } |solved ? * }
-        { input "^ *substitutions\n" regex } { goals tacSubstitutions }
-        { input "^ *under (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "substitutions" eq } { goals tacSubstitutions }
+        { cmd "under" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacUnder } |solved ? * }
-        { input "^ *with only (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "with" eq { args "^only (.*)" regex } andif } {  " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacWithOnly } |solved ? * }
-        { input "^ *with (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "with" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacWith } |solved ? * }
-        { input "^ *conclude (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "conclude" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacConclude } |solved ? * }
-        { input "^ *and conclude (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "and" eq { args "conclude" eq } andif } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacAndConclude } |solved ? * }
-        { input "^ *drop everything matching (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "drop" eq { args "^everything matching (.*)" regex } andif } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacDropMatching } |solved ? * }
-        { input "^ *drop (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "drop" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacDrop } |solved ? * }
-        { input "^ *normalize\n" regex } {
+        { cmd "normalize" eq } {
           goals len { selectedGoal goals * tacNormalize } |solved ? * }
-        { input "^ *normalize:logic\n" regex } {
+        { cmd "normalize:logic" eq } {
           goals len { selectedGoal goals * tacNormalizeLogic } |solved ? * }
-        { input "^ *normalize:arith\n" regex } {
+        { cmd "normalize:arith" eq } {
           goals len { selectedGoal goals * tacNormalizeArith } |solved ? * }
-        { input "^ *normalize:ante\n" regex } {
+        { cmd "normalize:ante" eq } {
           goals len { selectedGoal goals * tacNormalizeAntecedentOnly } |solved ? * }
-        { input "^ *rename ([^ ]+) to ([^ ]+)\n" regex } {
+        { cmd "rename" eq { args "^([^ ]+) to ([^ ]+)$" regex } andif } {
           goals len { selectedGoal goals * tacRename } |solved ? * }
-        { input "^ *expand (.*)\n" regex } { ==name
+        { cmd "expand" eq } { args ==name
           goals len { name selectedGoal goals * tacExpand } |solved ? * }
-        { input "^ *solve:arith\n" regex } {
+        { cmd "solve:arith" eq } {
           goals len { selectedGoal goals * tacSolveArith } |solved ? * }
-        { input "^ *solve:range\n" regex } {
+        { cmd "solve:range" eq } {
           goals len { selectedGoal goals * tacSolveRange } |solved ? * }
-        { input "^ *solve:function\n" regex } {
+        { cmd "solve:function" eq } {
           goals len { selectedGoal goals * tacSolveFunction } |solved ? * }
-        { input "^ *cases:union\n" regex } {
+        { cmd "cases:union" eq } {
           goals len { selectedGoal goals * tacCasesUnion } |solved ? * }
-        { input "^ *cases:explicit\n" regex } {
+        { cmd "cases:explicit" eq } {
           goals len { selectedGoal goals * tacCasesExplicit } |solved ? * }
-        { input "^ *namely (.*)\n" regex } { " " str .split { "" neq } grep ==tokens
+        { cmd "namely" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacNamely } |solved ? * }
-        { input " *nonfree\n" regex } {
+        { cmd "nonfree" eq } {
           goals len { selectedGoal goals * tacNonfree } |solved ? * }
-        { input " *take note\n" regex } {
+        { cmd "take" eq { args "note" eq } andif } {
           goals len { selectedGoal goals * recordSolution } |solved ? * }
-        { input "^ *tree\n" regex } { 0 tree }
-        { input "^ *tree:full\n" regex } { 1 tree }
-        { input "^ *export\n" regex } { export }
-        { input "^ *export:compressed\n" regex } { exportCompressed }
-        { input "^ *export:disj\n" regex } { exportDisjuncts }
-        { input "^ *reopen (\\d+)\n" regex } { txt .consume .u reopen }
-        { input "^ *reopen\n" regex } {
+        { cmd "tree" eq } { 0 tree }
+        { cmd "tree:full" eq } { 1 tree }
+        { cmd "export" eq } { export }
+        { cmd "export:compressed" eq } { exportCompressed }
+        { cmd "export:disj" eq } { exportDisjuncts }
+        { cmd "reopen" eq { args "^(\\d+)$" regex } andif } { txt .consume .u reopen }
+        { cmd "reopen" eq } {
           goals len { selectedGoal goals * reopenParentOf } |solved ? * }
-        { input "^ *sug\n" regex } {
+        { cmd "sug" eq } {
           goals len { selectedGoal goals * suggest } |solved ? * }
-        { input "^ *search (.*)\n" regex } { " " str .split _ =lastSearch search }
-        { input "^ *search\n" regex } { lastSearch search }
-        { input "^ *parse\n" regex } {
+        { cmd "search" eq args "" neq and } { args " " str .split _ =lastSearch search }
+        { cmd "search" eq } { lastSearch search }
+        { cmd "parse" eq } {
           goals len {
             0 selectedGoal goals * .thm * ==head
 
@@ -3379,15 +3395,18 @@ objset ==blocks
             ] conds
           } |solved ? *
         }
-        { input "^ *autoall\n" regex } { 1 =autoall }
-        { input "^ *noautoall\n" regex } { 0 =autoall }
-        { input "^ *faketrivialities\n" regex } { 1 =faketrivialities }
-        { input "^ *nofaketrivialities\n" regex } { 0 =faketrivialities }
-        { input "^ *antedisp\n" regex } { 1 =antedisp }
-        { input "^ *noantedisp\n" regex } { 0 =antedisp }
-        { input "^ *silent\n" regex } { 1 =silent }
-        { input "^ *nosilent\n" regex } { 0 =silent }
-        { input "^ *load (.*)\n" regex } { load }
+        { cmd "autoall" eq } { 1 =autoall }
+        { cmd "noautoall" eq } { 0 =autoall }
+        { cmd "faketrivialities" eq } { 1 =faketrivialities }
+        { cmd "nofaketrivialities" eq } { 0 =faketrivialities }
+        { cmd "antedisp" eq } { 1 =antedisp }
+        { cmd "noantedisp" eq } { 0 =antedisp }
+        { cmd "silent" eq } { 1 =silent }
+        { cmd "nosilent" eq } { 0 =silent }
+        { cmd "load" eq } { args load }
+        { [ cmd { _ 48 ge -01 57 le and } each ] all } {
+          txt .consume .u _ goals len ge { -- goals len 1 sub } rep =selectedGoal
+        }
         loadedCommands "*" | each
       ] conds
     ] _ ==residue len 0 gt {
@@ -3451,7 +3470,7 @@ objset ==blocks
     map ==parserNonterminals
     variableNonTerminals dom { ==nt nt :nonterminal nt parserNonterminals =[] } each
     variableNonTerminals dom { ==nt
-      nt parserNonterminals * 
+      nt parserNonterminals *
       [ " " nt cat ] # terminal for variable and singularRules tokens
       { :0 } # keep value
       :rule
@@ -3560,7 +3579,7 @@ objset ==blocks
               hyp a .ctx getFHyp ==hypToks
               [| hypToks { renderName " " } each "\n" |] out
             }
-            { 1 } { "Hypothesis is neither e- nor f-hyp. Probably a bug." dump }
+            { 1 } { "\e[31mHypothesis is neither e- nor f-hyp. Probably a bug.\e[0m" dump }
           ] conds
         } each
         /theorem: dump
@@ -3574,14 +3593,14 @@ objset ==blocks
     1 ==running
     { running } {
       "> " sys .out .writeall
-      inputLine ==input
+      inputCmd ==cmd ==args
 
       [
-        { input "" eq } { 0 =running }
-        { input "^ *quit\n" regex } { 0 =running }
-        { input "^ *show (.*)\n" regex } { show }
-        { input "^ *parse (.*)\n" regex } { parseTokens }
-        { input "^ *prove (.*)\n" regex } { prove }
+        { cmd "" eq } { 0 =running }
+        { cmd "quit" eq } { 0 =running }
+        { cmd "show" eq } { args show }
+        { cmd "parse" eq } { args parseTokens }
+        { cmd "prove" eq } { args prove }
       ] conds
     } loop
   }
