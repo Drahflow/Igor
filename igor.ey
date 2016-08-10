@@ -2322,9 +2322,6 @@ objset ==blocks
     { ==goal
       { "\e[31msolve:arith not applicable, expected |- ( <decimal> { + , - , x. , ^ } <decimal> ) = <decimal>\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      silent not {
-        [| tokens { " " } each "\n" |] out
-      } rep
       [ /dec0h /addid1i /addid2i /mul01i /mul02i /mulid1i /mulid2i /numexp0 /numexp1 ] { ==thm
         goal .isopen { thm tokens canUse } andif {
           thm goal use
@@ -2732,7 +2729,6 @@ objset ==blocks
     { ==goal
       { "\e[31msolve:function not applicable, expected |- [ ph -> ] ( F ` A ) = B or |- [ ph -> ] ( A F B ) = C\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
-      [| tokens { " " } each "\n" |] out
       # [ /dec0h /addid1i /addid2i /mul01i /mul02i /mulid1i /mulid2i /numexp0 /numexp1 ] { ==thm
       #   goal .isopen { thm tokens canUse } andif {
       #     thm goal use
