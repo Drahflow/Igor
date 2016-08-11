@@ -300,9 +300,9 @@ objset ==blocks
 } { _ dump _ keys dump .remaining die } ?!metamath
 
 { =*f 0 ==computed "" ==?result {
-  computed not { 1 =computed f =result } rep
+  computed not { 1 =computed f =result }" rep
   result
-} } /memoized deffst
+}' } /memoized deffst
 
 { ==ctx map _ ==result # returned
   [ ctx { _ .?'e }' { _ .parent }' loop -- ] reverse ==ctxs
@@ -530,8 +530,8 @@ objset ==blocks
           s .resolution .hypotheses { s -01 .addParent } each
           s amendClosedGoalIndex
         } {
-          --
-          [| "\e[31mSome tactics tried to re-close a closed goal\e[0m\n" |] out
+          -- # we could just ignore the re-close, but it points to a missing abort condition in some automation
+          [| "\e[31mSome tactics tried to re-close a closed goal\e[0m\n" |] die
         } ? *
       } /close defmst
       { ==s fakeResolution /resolution s .set 0 /isopen s .set
@@ -730,8 +730,10 @@ objset ==blocks
                     implChoices len 1 eq {
                       /a1i goal use
                       goal .isopen not {
-                        name 2 goal .resolution .hypotheses * use
                         1 =indirectUsage
+
+                        2 goal .resolution .hypotheses * ==g
+                        g .isopen { name g use } rep
                       } rep
                     } rep
                   } rep
@@ -765,7 +767,9 @@ objset ==blocks
                     } /resolvePath deffst
 
                     { ==goal ==name
-                      name goal -1010 .thm expandMeta canUse { use } { .hint } ? *
+                      goal .isopen {
+                        name goal -1010 .thm expandMeta canUse { use } { .hint } ? *
+                      } rep
                     } /useOrHint deffst
 
                     {
@@ -1094,324 +1098,368 @@ objset ==blocks
     } τclassify /classify deffst
 
     { ==goal
-      goal .thm expandMeta ==tokens
-      [| tokens { " " }" each |] ==txt
-      [
-        { txt closedGoalIndex .has } {
-          silent not { [| "re-using earlier proof\n" |] out } rep
+      goal .isopen {
+        goal .thm expandMeta ==tokens
+        [| tokens { " " }" each |] ==txt
+        [
+          { txt closedGoalIndex .has } {
+            silent not { [| "re-using earlier proof\n" |] out } rep
 
-          txt closedGoalIndex * .resolution goal .close
-        } τauto1
-        { txt directTheoremIndex .has } {
-          txt directTheoremIndex * goal use
-          goal [ |auto ] tacAttemptNext
-        } τauto2
-        { 0 tokens * logicParsers .has { tokens tokenIsMetaVar any not } andif } {
-          { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
-          1 tokens 0 tokens * logicParsers * * { ==parse
-            faketrivialities { goal .fakeclose } {
-              # parse tree order is by token sequence, but hypothesis order is by set.mm
-              # only apply topmost parse rule and handle rest via big recursion
-              parse logicNonTerminal goal use
-              goal [ |auto ] tacAttemptNext
-            } ? *
-          } |failed ? *
-        } τauto3
-        { goal .autohint "" neq { goal .autohint tokens canUse } andif } {
-          goal .autohint goal use
-          goal [ |auto ] tacAttemptNext
-        } τauto6
-        { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif } τauto4 { ==parse
-          { ==parse =*preparation
-            goal .isopen { parse logicNonTerminal /wi eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
-              goal preparation ==goal
-              /id goal use
-              goal [ |auto ] tacAttemptNext
-            } rep
+            txt closedGoalIndex * .resolution goal .close
+          } τauto1
+          { txt directTheoremIndex .has } {
+            txt directTheoremIndex * goal use
+            goal [ |auto ] tacAttemptNext
+          } τauto2
+          { 0 tokens * logicParsers .has { tokens tokenIsMetaVar any not } andif } {
+            { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
+            1 tokens 0 tokens * logicParsers * * { ==parse
+              faketrivialities { goal .fakeclose } {
+                # parse tree order is by token sequence, but hypothesis order is by set.mm
+                # only apply topmost parse rule and handle rest via big recursion
+                parse logicNonTerminal goal use
+                goal [ |auto ] tacAttemptNext
+              } ? *
+            } |failed ? *
+          } τauto3
+          { goal .autohint "" neq { goal .autohint tokens canUse } andif } {
+            goal .autohint goal use
+            goal [ |auto ] tacAttemptNext
+          } τauto6
+          { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif } τauto4 { ==parse
+            { ==parse =*preparation
+              goal .isopen { parse logicNonTerminal /wi eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
+                goal .isopen {
+                  /id goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+              } rep
 
-            goal .isopen { parse logicNonTerminal /wb eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
-              goal preparation ==goal
-              /biid goal use
-              goal [ |auto ] tacAttemptNext
-            } rep
+              goal .isopen { parse logicNonTerminal /wb eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
+                goal .isopen {
+                  /biid goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+              } rep
 
-            goal .isopen { parse logicNonTerminal /wi eq } andif { 1 parse * logicNonTerminal /wal eq } andif
-              { 0 parse * logicRange tokens * 1 1 parse * * logicRange tokens * arrEq } andif {
-              goal preparation ==goal
+              goal .isopen { parse logicNonTerminal /wi eq } andif { 1 parse * logicNonTerminal /wal eq } andif
+                { 0 parse * logicRange tokens * 1 1 parse * * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
 
-              /ax-17 assertions * ==theorem
-              tokens theorem possibleSubstitutions ==substitutions
+                goal .isopen {
+                  /ax-17 assertions * ==theorem
+                  tokens theorem possibleSubstitutions ==substitutions
 
-              substitutions len 1 eq { 0 substitutions * ==substitution
-                0 ==disjunctionsViolated
-                theorem .disj { 2 dearray ==x ==y
-                  x substitution * { ==xTok
-                    xTok constants .has not {
-                      y substitution * { ==yTok
-                        yTok constants .has not {
-                          xTok yTok eq {
-                            1 =disjunctionsViolated
-                          } rep
-                          xTok yTok mustNotDisj {
-                            1 =disjunctionsViolated
-                          } rep
+                  substitutions len 1 eq { 0 substitutions * ==substitution
+                    0 ==disjunctionsViolated
+                    theorem .disj { 2 dearray ==x ==y
+                      x substitution * { ==xTok
+                        xTok constants .has not {
+                          y substitution * { ==yTok
+                            yTok constants .has not {
+                              xTok yTok eq {
+                                1 =disjunctionsViolated
+                              } rep
+                              xTok yTok mustNotDisj {
+                                1 =disjunctionsViolated
+                              } rep
+                            } rep
+                          } each
                         } rep
                       } each
+                    } each
+
+                    disjunctionsViolated not {
+                      /ax-17 goal use
                     } rep
-                  } each
-                } each
+                    # TODO do something with hb* theorems here
 
-                disjunctionsViolated not {
-                  /ax-17 goal use
+                    goal [ |auto ] tacAttemptNext
+                  } rep
                 } rep
-                # TODO do something with hb* theorems here
-
-                goal [ |auto ] tacAttemptNext
               } rep
-            } rep
 
-            goal .isopen { parse logicNonTerminal /wceq eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
-              goal preparation ==goal
-              /eqid goal use
-              goal [ |auto ] tacAttemptNext
-            } rep
-
-            goal .isopen { parse logicNonTerminal /wbr eq } andif
-                         { 0 1 parse * logicRange tokens * * "<_" eq } andif
-                         { 0 parse * tokens classify [ "NN" "NN0" "RR" ] eq any } andif {
-              0 parse * logicRange tokens * 2 parse * logicRange tokens * arrEq {
+              goal .isopen { parse logicNonTerminal /wceq eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
                 goal preparation ==goal
-                /leidi goal use
-                goal [ |auto ] tacAttemptNext
-              } rep
-
-              goal .isopen {
-                0 parse * parseNumber { ==left
-                  2 parse * parseNumber { ==right
-                    left right lt {
-                      goal preparation ==goal
-                      /ltleii goal use
-                      goal [ |auto ] tacAttemptNext
-                    } rep
-                  } rep
+                goal .isopen {
+                  /eqid goal use
+                  goal [ |auto ] tacAttemptNext
                 } rep
               } rep
-            } rep
 
-            goal .isopen { parse logicNonTerminal /wne eq } andif {
-              0 parse * parseNumber { ==left
-                1 parse * parseNumber { ==right
-                  left right lt {
-                    goal preparation ==goal
-                    /ltneii goal use
-                    goal [ |auto ] tacAttemptNext
-                  } rep
-
-                  left right gt {
-                    goal preparation ==goal
-                    /gtneii goal use
-                    goal [ |auto ] tacAttemptNext
-                  } rep
+              goal .isopen { parse logicNonTerminal /wbr eq } andif
+                           { 0 1 parse * logicRange tokens * * "<_" eq } andif
+                           { 0 parse * tokens classify [ "NN" "NN0" "RR" ] eq any } andif {
+                0 parse * logicRange tokens * 2 parse * logicRange tokens * arrEq {
+                  goal preparation ==goal
+                  /leidi goal use
+                  goal [ |auto ] tacAttemptNext
                 } rep
-              } rep
-            } rep
 
-            goal .isopen { parse logicNonTerminal /wbr eq } andif
-                         { 0 1 parse * logicRange tokens * * "<" eq } andif {
-              0 parse * parseNumber { ==left
-                2 parse * parseNumber { ==right
-                  0 parse * logicNonTerminal /cdc neq {
-                    goal preparation ==goal
-
-                    /mpbir goal use
-                    goal .isopen not {
-                      [ ";" "0" 0 parse * logicRange tokens * _ len dearray "<"
-                        2 parse * logicRange tokens * _ len dearray ] /ps lastMetaVariables * let
-                      goal [ |auto ] tacAttemptNext
-                      3 goal .resolution .hypotheses * =goal
-
-                      goal .isopen {
-                        /breq1i goal use
-                        goal [ |auto ] tacAttemptNext
-                        4 goal .resolution .hypotheses * =goal
+                goal .isopen {
+                  0 parse * parseNumber { ==left
+                    2 parse * parseNumber { ==right
+                      left right lt {
+                        goal preparation ==goal
                         goal .isopen {
-                          /dec0h goal use
+                          /ltleii goal use
                           goal [ |auto ] tacAttemptNext
                         } rep
                       } rep
                     } rep
-                  } {
-                    goal preparation ==goal
-
-                    left 10 div right 10 div lt {
-                      /decltc goal use
-                    } {
-                      /declt goal use
-                    } ? *
-                    goal [ |auto ] tacAttemptNext
-                  } ? *
+                  } rep
                 } rep
               } rep
-            } rep
 
-            goal .isopen { parse logicNonTerminal /wcel eq } andif {
-              1 parse * logicRange tokens * ==set
-
-              set len 1 eq { 0 set * ==setName
-                goal .isopen { 0 parse * logicNonTerminal "cv" eq } andif { setName "_V" eq } andif {
-                  goal preparation ==goal
-                  /vex goal use
-                  goal [ |auto ] tacAttemptNext
-                } rep
-
-                goal .isopen { 0 parse * logicNonTerminal "cfv" eq } andif { setName "_V" eq } andif {
-                  goal preparation ==goal
-                  /fvex goal use
-                  goal [ |auto ] tacAttemptNext
-                } rep
-
-                goal .isopen { 0 parse * logicNonTerminal "co" eq } andif { setName "_V" eq } andif {
-                  goal preparation ==goal
-                  /ovex goal use
-                  goal [ |auto ] tacAttemptNext
-                } rep
-
-                goal .isopen { setName "NN0" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
-                  goal preparation ==goal
-                  faketrivialities {
-                    0 parse * tokens classify /NN0 eq {
-                      goal .fakeclose
+              goal .isopen { parse logicNonTerminal /wne eq } andif {
+                0 parse * parseNumber { ==left
+                  1 parse * parseNumber { ==right
+                    left right lt {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /ltneii goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
                     } rep
-                  } {
-                    /deccl goal use
-                    goal [ |auto ] tacAttemptNext
-                  } ? *
+
+                    left right gt {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /gtneii goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } rep
+                  } rep
                 } rep
+              } rep
 
-                goal .isopen { setName "NN" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
-                  goal preparation ==goal
-                  1 0 parse * * logicNonTerminal /cc0 eq /decnnclb /decnncl ? goal use
-                  goal [ |auto ] tacAttemptNext
+              goal .isopen { parse logicNonTerminal /wbr eq } andif
+                           { 0 1 parse * logicRange tokens * * "<" eq } andif {
+                0 parse * parseNumber { ==left
+                  2 parse * parseNumber { ==right
+                    0 parse * logicNonTerminal /cdc neq {
+                      goal preparation ==goal
+                      
+                      goal .isopen {
+                        /mpbir goal use
+                        goal .isopen not {
+                          [ ";" "0" 0 parse * logicRange tokens * _ len dearray "<"
+                            2 parse * logicRange tokens * _ len dearray ] /ps lastMetaVariables * let
+                          goal [ |auto ] tacAttemptNext
+                          3 goal .resolution .hypotheses * =goal
+
+                          goal .isopen {
+                            /breq1i goal use
+                            goal [ |auto ] tacAttemptNext
+                            4 goal .resolution .hypotheses * =goal
+                            goal .isopen {
+                              /dec0h goal use
+                              goal [ |auto ] tacAttemptNext
+                            } rep
+                          } rep
+                        } rep
+                      } rep
+                    } {
+                      goal preparation ==goal
+
+                      goal .isopen {
+                        left 10 div right 10 div lt {
+                          /decltc goal use
+                        } {
+                          /declt goal use
+                        } ? *
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } ? *
+                  } rep
                 } rep
+              } rep
 
-                0 parse * tokens classify ==type
+              goal .isopen { parse logicNonTerminal /wcel eq } andif {
+                1 parse * logicRange tokens * ==set
 
-                type "" neq {
-                  goal .isopen { setName "_V" eq } andif {
+                set len 1 eq { 0 set * ==setName
+                  goal .isopen { 0 parse * logicNonTerminal "cv" eq } andif { setName "_V" eq } andif {
                     goal preparation ==goal
-                    /elexi goal use
-                    goal .isopen not {
-                      [ type ] /B lastMetaVariables * let
+                    goal .isopen {
+                      /vex goal use
                       goal [ |auto ] tacAttemptNext
                     } rep
                   } rep
 
-                  goal .isopen { setName "CC" eq } andif { type "NN0" eq } andif {
+                  goal .isopen { 0 parse * logicNonTerminal "cfv" eq } andif { setName "_V" eq } andif {
                     goal preparation ==goal
-                    /nn0cni goal use
-                    goal [ |auto ] tacAttemptNext
+                    goal .isopen {
+                      /fvex goal use
+                      goal [ |auto ] tacAttemptNext
+                    } rep
                   } rep
 
-                  goal .isopen { setName "RR" eq } andif { type "NN0" eq } andif {
+                  goal .isopen { 0 parse * logicNonTerminal "co" eq } andif { setName "_V" eq } andif {
                     goal preparation ==goal
-                    /nn0rei goal use
-                    goal [ |auto ] tacAttemptNext
+                    goal .isopen {
+                      /ovex goal use
+                      goal [ |auto ] tacAttemptNext
+                    } rep
                   } rep
 
-                  goal .isopen { setName "RR+" eq } andif { type "NN0" eq } andif {
+                  goal .isopen { setName "NN0" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
                     goal preparation ==goal
-                    /elrpii goal use
-                    goal [ |auto ] tacAttemptNext
+                    goal .isopen {
+                      faketrivialities {
+                        0 parse * tokens classify /NN0 eq {
+                          goal .fakeclose
+                        } rep
+                      } {
+                        /deccl goal use
+                        goal [ |auto ] tacAttemptNext
+                      } ? *
+                    } rep
                   } rep
-                } rep
-              } rep
-            } rep
 
-            goal .isopen { parse logicNonTerminal "wceq" eq } andif
-                { 0 parse * logicNonTerminal /co eq } andif {
-              0 0 parse * * ==left
-              1 0 parse * * ==operation
-              2 0 parse * * ==right
-              1 parse * ==result
+                  goal .isopen { setName "NN" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
+                    goal preparation ==goal
+                    goal .isopen {
+                      1 0 parse * * logicNonTerminal /cc0 eq /decnnclb /decnncl ? goal use
+                      goal [ |auto ] tacAttemptNext
+                    } rep
+                  } rep
 
-              left parseNumber { ==leftNum
-                right parseNumber { ==rightNum
-                  result parseNumber { ==resultNum
-                    operation logicNonTerminal [ /caddc /cmin /cmul /cexp /cmo ] eq any {
+                  0 parse * tokens classify ==type
+
+                  type "" neq {
+                    goal .isopen { setName "_V" eq } andif {
                       goal preparation ==goal
-                      goal tacSolveArith
+                      goal .isopen {
+                        /elexi goal use
+                        goal .isopen not {
+                          [ type ] /B lastMetaVariables * let
+                          goal [ |auto ] tacAttemptNext
+                        } rep
+                      } rep
+                    } rep
+
+                    goal .isopen { setName "CC" eq } andif { type "NN0" eq } andif {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /nn0cni goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } rep
+
+                    goal .isopen { setName "RR" eq } andif { type "NN0" eq } andif {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /nn0rei goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } rep
+
+                    goal .isopen { setName "RR+" eq } andif { type "NN0" eq } andif {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /elrpii goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
                     } rep
                   } rep
                 } rep
               } rep
-            } rep
 
-            loadedTrivialities "*" | each
-          } /trivialities deffst
-          { } parse trivialities
+              goal .isopen { parse logicNonTerminal "wceq" eq } andif
+                  { 0 parse * logicNonTerminal /co eq } andif {
+                0 0 parse * * ==left
+                1 0 parse * * ==operation
+                2 0 parse * * ==right
+                1 parse * ==result
 
-          goal .isopen { parse logicNonTerminal /wi eq } andif {
-            1 parse * logicRange tokens * ==target
-            [| "|- " target { " " } each |] ==targetTxt
-
-            targetTxt directTheoremIndex .has {
-              /a1i goal use
-              goal [ |auto ] tacAttemptNext
-            } rep
-
-            goal antecedents { ==ante
-              ante target arrEq {
-                goal tacSelect
-              } rep
-            } each
-
-            proofContext collectEHyps _ ==hyps dom { ==name
-              name hyps * len 1 sub target len eq { 1 name hyps * len range name hyps * * target arrEq } andif {
-                /a1i goal use
-                goal .isopen not {
-                  name 2 goal .resolution .hypotheses * use
-                } rep
-              } rep
-            } each
-
-            goal .isopen { parse logicNonTerminal /wi eq } andif {
-              { ==goal
-                /a1i goal use
-                goal [ |auto ] tacAttemptNext
-                2 goal .resolution .hypotheses *
-              } 1 parse * trivialities
-            } rep
-
-            goal .isopen {
-              [| 1 parse * logicRange tokens * { " " } each |] ==conclusion
-              conclusion recordedSolutions .has {
-                map ==anteSet
-                goal antecedents { [| -01 { " " } each |] _ anteSet =[] } each
-
-                conclusion recordedSolutions * { ==solution
-                  goal .isopen {
-                    [| solution .thm expandMeta { " " } each |] ==solutionTxt
-                    solutionTxt closedGoalIndex .has {
-                      [
-                        solution antecedents {
-                          [| -01 { " " } each |] anteSet .has
-                        } each
-                      ] all {
-                        solution .thm expandMeta ==solutionToks
-                        0 solutionToks * "|-" eq
-                          { 1 solutionToks /wff metaLogicParsers * * } andif { ==solutionParse
-                          0 solutionParse * logicRange solutionToks * goal tacWithOnly
+                left parseNumber { ==leftNum
+                  right parseNumber { ==rightNum
+                    result parseNumber { ==resultNum
+                      operation logicNonTerminal [ /caddc /cmin /cmul /cexp /cmo ] eq any {
+                        goal preparation ==goal
+                        goal .isopen {
+                          goal tacSolveArith
                         } rep
                       } rep
                     } rep
                   } rep
+                } rep
+              } rep
+
+              loadedTrivialities "*" | each
+            } /trivialities deffst
+            { } parse trivialities
+
+            goal .isopen { parse logicNonTerminal /wi eq } andif {
+              1 parse * logicRange tokens * ==target
+              [| "|- " target { " " } each |] ==targetTxt
+
+              targetTxt directTheoremIndex .has {
+                /a1i goal use
+                goal [ |auto ] tacAttemptNext
+              } rep
+
+              goal .isopen {
+                goal antecedents { ==ante
+                  ante target arrEq {
+                    goal tacSelect
+                  } rep
                 } each
               } rep
+
+              goal .isopen {
+                proofContext collectEHyps _ ==hyps dom { ==name
+                  name hyps * len 1 sub target len eq { 1 name hyps * len range name hyps * * target arrEq } andif {
+                    /a1i goal use
+                    goal .isopen not {
+                      name 2 goal .resolution .hypotheses * use
+                    } rep
+                  } rep
+                } each
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wi eq } andif {
+                { ==goal
+                  /a1i goal use
+                  goal [ |auto ] tacAttemptNext
+                  2 goal .resolution .hypotheses *
+                } 1 parse * trivialities
+              } rep
+
+              goal .isopen {
+                [| 1 parse * logicRange tokens * { " " } each |] ==conclusion
+                conclusion recordedSolutions .has {
+                  map ==anteSet
+                  goal antecedents { [| -01 { " " } each |] _ anteSet =[] } each
+
+                  conclusion recordedSolutions * { ==solution
+                    goal .isopen {
+                      [| solution .thm expandMeta { " " } each |] ==solutionTxt
+                      solutionTxt closedGoalIndex .has {
+                        [
+                          solution antecedents {
+                            [| -01 { " " } each |] anteSet .has
+                          } each
+                        ] all {
+                          solution .thm expandMeta ==solutionToks
+                          0 solutionToks * "|-" eq
+                            { 1 solutionToks /wff metaLogicParsers * * } andif { ==solutionParse
+                            0 solutionParse * logicRange solutionToks * goal tacWithOnly
+                          } rep
+                        } rep
+                      } rep
+                    } rep
+                  } each
+                } rep
+              } rep
             } rep
-          } rep
-        } τauto5
-        loadedAutomations "*" | each
-      ] conds
+          } τauto5
+          loadedAutomations "*" | each
+        ] conds
+      } rep
     } τauto /auto deffst
 
     { ==token 0 token * 0 "$" * eq } '0.0 /tokenIsMetaVar deffst
@@ -1600,15 +1648,15 @@ objset ==blocks
               /mpcom goal use
               goal .isopen not {
                 antecedent /ph lastMetaVariables * let
-                3 goal .resolution .hypotheses * tacAndSelect
-                4 goal .resolution .hypotheses * tacContinueWithRewrite
+                3 goal .resolution .hypotheses * _ .isopen { tacAndSelect } { -- } ? *
+                4 goal .resolution .hypotheses * _ .isopen { tacContinueWithRewrite } { -- } ? *
                 goal [ |auto ] tacAttemptNext
               } rep
             } {
               /ax-mp goal use
               goal .isopen not {
                 antecedent /ph lastMetaVariables * let
-                3 goal .resolution .hypotheses * tacContinueWithRewrite
+                3 goal .resolution .hypotheses * _ .isopen { tacContinueWithRewrite } { -- } ? *
                 goal [ |auto ] tacAttemptNext
               } rep
             } ? *
@@ -1631,8 +1679,10 @@ objset ==blocks
                   goal .isopen not {
                     goal [ |auto ] tacAttemptNext
                     3 goal .resolution .hypotheses * ==g
-                    /breq123d g use
-                    g [ |auto ] tacAttemptNext
+                    g .isopen {
+                      /breq123d g use
+                      g [ |auto ] tacAttemptNext
+                    } rep
                   } rep
                 }
                 { 1 } {
@@ -1683,17 +1733,19 @@ objset ==blocks
               } rep
             } rep
 
-            /mpdr goal use
-            goal .isopen not {
-              1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * let
-              3 goal .resolution .hypotheses * ==g g .isopen {
-                g tacReplaceRecursion
+            goal .isopen {
+              /mpdr goal use
+              goal .isopen not {
+                1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * let
+                3 goal .resolution .hypotheses * ==g g .isopen {
+                  g tacReplaceRecursion
+                } rep
+                4 goal .resolution .hypotheses * ==g g .isopen {
+                  /a1i g use
+                  g [ |auto ] tacAttemptNext
+                } rep
+                goal [ |auto ] tacAttemptNext
               } rep
-              4 goal .resolution .hypotheses * ==g g .isopen {
-                /a1i g use
-                g [ |auto ] tacAttemptNext
-              } rep
-              goal [ |auto ] tacAttemptNext
             } rep
           } |notApplicable ? *
         } |notApplicable ? *
@@ -1707,7 +1759,10 @@ objset ==blocks
         goal .isopen not {
           3 goal .resolution .hypotheses * ==mpbirMaj
           mpbirMaj .isopen not {
-            name 2 mpbirMaj .resolution .hypotheses * use
+            2 mpbirMaj .resolution .hypotheses * ==g
+            g .isopen {
+              name g use
+            } rep
           } rep
         } rep
       } {
@@ -1848,17 +1903,19 @@ objset ==blocks
             ante target arrEq { 1 =existsAsAnte } rep
           } each
 
-          existsAsAnte not { 1 parse * logicNonTerminal /wa eq } andif {
-              1 1 parse * * logicNonTerminal /wa eq
-              { 1 1 1 parse * * * logicNonTerminal /wa eq } andif
-              { 1 1 1 1 parse * * * * logicNonTerminal /wa eq } andif {
-              /jca4 goal use
-            } {
-              /jca goal use
-            } ? *
-            goal [ |auto |tacAndSelect ] tacAttemptNext
-          } {
+          existsAsAnte {
             goal tacSelect
+          } {
+            1 parse * logicNonTerminal /wa eq {
+                1 1 parse * * logicNonTerminal /wa eq
+                { 1 1 1 parse * * * logicNonTerminal /wa eq } andif
+                { 1 1 1 1 parse * * * * logicNonTerminal /wa eq } andif {
+                /jca4 goal use
+              } {
+                /jca goal use
+              } ? *
+              goal [ |auto |tacAndSelect ] tacAttemptNext
+            } rep
           } ? *
         } |notApplicable ? *
       } |notApplicable ? *
@@ -1870,7 +1927,7 @@ objset ==blocks
         goal .isopen not {
           tokens /ph lastMetaVariables * let
           goal [ |auto ] tacAttemptNext
-          3 goal .resolution .hypotheses * tacAndSelect
+          3 goal .resolution .hypotheses * _ .isopen { tacAndSelect } { -- } ? *
         } rep
       } { "\e[31mdesired antecedent did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
     } /tacUnder deffst
@@ -1885,7 +1942,7 @@ objset ==blocks
             goal .isopen not {
               tokens /ps lastMetaVariables * let
               goal [ |auto ] tacAttemptNext
-              3 goal .resolution .hypotheses * tacAndSelect
+              3 goal .resolution .hypotheses * _ .isopen { tacAndSelect } { -- } ? *
             } rep
           } {
             /ax-mp goal use
@@ -1904,7 +1961,7 @@ objset ==blocks
         goal .isopen not {
           tokens /ps lastMetaVariables * let
           goal [ |auto ] tacAttemptNext
-          3 goal .resolution .hypotheses * tacAndSelect
+          3 goal .resolution .hypotheses * _ .isopen { tacAndSelect } { -- } ? *
         } rep
       } { "\e[31mdesired antecedent did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
     } /tacWithOnly deffst
@@ -2039,8 +2096,10 @@ objset ==blocks
           toRewrite tacRewriteAntecedent
           toRewrite .isopen not {
             3 toRewrite .resolution .hypotheses * ==continuation
-            /a1i continuation use
-            continuation [ |auto ] tacAttemptNext
+            continuation .isopen {
+              /a1i continuation use
+              continuation [ |auto ] tacAttemptNext
+            } rep
           } rep
           goal [ |auto ] tacAttemptNext
         } { "\e[31mcurrent goal is not |- ( ... -> ... )\e[0m\n" out } ? *
@@ -3499,7 +3558,7 @@ objset ==blocks
     variableNonTerminals dom { ==nt
       nt parserNonterminals *
       [ " " nt cat ] # terminal for variable and singularRules tokens
-      { :0 } # keep value
+      { :0 }' # keep value
       :rule
 
       nt relevantRules .has {
@@ -3516,7 +3575,7 @@ objset ==blocks
               } each
             ] _ len ==childCount
             { ==s [
-              childParsesToKeep { s -01 :child } each
+              childParsesToKeep { s -01 :child }' each
               s childCount 1 sub :child logicStart
               s :0 logicEnd
               assertion .name
@@ -3537,13 +3596,15 @@ objset ==blocks
   # { ==toks ==start [...] <parse> end success[0/1] }
   { =*variableTranslation
     prepareLogicParsers 2 dearray ==singularRules ==automata
-    { ==tok ==value
-      tok singularRules .has {
-        [ 0 value * 1 value * tok singularRules * .name ] " " tok singularRules * .thm 0 -01 * cat
-      } {
-        value tok # nothing to do
-      } ? *
-    } /singularRulesTranslation deffst
+    < "" ==tok [ ] ==value
+      { =tok =value
+        tok singularRules .has {
+          [ 0 value * 1 value * tok singularRules * .name ] " " tok singularRules * .thm 0 -01 * cat
+        }' {
+          value tok # nothing to do
+        }' ? *
+      }'
+    > -- /singularRulesTranslation deffst
     map ==globalCache # for repeated invocations
     0 ==globalCacheResetCounter # kill global cache once in a while to allow GC
     map _ ==parsers # returned
@@ -3568,11 +3629,14 @@ objset ==blocks
     } τparsers nt parsers =[] } each
   } /generateLogicParsers deffd
 
-  { ==tok
-    tok variables .has {
-      " " tok variables * cat
-    } { tok } ? *
-  } /noMetaVariables deffst
+  < "" ==tok
+    { =tok
+      tok variables .has {
+        " " tok variables * cat
+      }' { tok }' ? *
+    }'
+  > -- /noMetaVariables deffst
+
 
   { ==tok
     tok len { 0 tok * 0 "$" * eq } andif { tok ".(.*)\\.[0-9]+" regex } andif { =tok } rep
