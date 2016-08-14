@@ -2134,9 +2134,21 @@ objset ==blocks
                       goal .isopen { 0 =doRewrite } { 5 goal .resolution .hypotheses * =goal } ? *
                     }
                     { goal .isopen } {
-                      /impcom goal use
-                      goal [ |auto ] tacAttemptNext
-                      goal .isopen { 0 =doRewrite } { 3 goal .resolution .hypotheses * =goal } ? *
+                      { ==parse
+                        [
+                          { 0 parse * logicNonTerminal /wa eq } { 1 }
+                          { 1 parse * logicNonTerminal /wa eq } { 1 parse * hasAnyNestedConjucts }
+                          { 1 } { 0 }
+                        ] conds
+                      } /hasAnyNestedConjucts deffst
+
+                      0 parse * hasAnyNestedConjucts {
+                        /impcom goal use
+                        goal [ |auto ] tacAttemptNext
+                        goal .isopen { 0 =doRewrite } { 3 goal .resolution .hypotheses * =goal } ? *
+                      } {
+                        0 =doRewrite
+                      } ? *
                     }
                     { 1 } { 0 =doRewrite }
                   ] conds
