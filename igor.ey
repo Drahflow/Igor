@@ -1239,40 +1239,46 @@ objset ==blocks
                            { 0 1 parse * logicRange tokens * * "<" eq } andif {
                 0 parse * parseNumber { ==left
                   2 parse * parseNumber { ==right
-                    0 parse * logicNonTerminal /cdc neq {
-                      goal preparation ==goal
-                      
-                      goal .isopen {
-                        /mpbir goal use
-                        goal .isopen not {
-                          [ ";" "0" 0 parse * logicRange tokens * _ len dearray "<"
-                            2 parse * logicRange tokens * _ len dearray ] /ps lastMetaVariables * let
-                          goal [ |auto ] tacAttemptNext
-                          3 goal .resolution .hypotheses * =goal
-
+                    left right lt {
+                      faketrivialities {
+                        goal .fakeclose
+                      } {
+                        0 parse * logicNonTerminal /cdc neq {
+                          goal preparation ==goal
+                          
                           goal .isopen {
-                            /breq1i goal use
-                            goal [ |auto ] tacAttemptNext
-                            4 goal .resolution .hypotheses * =goal
-                            goal .isopen {
-                              /dec0h goal use
+                            /mpbir goal use
+                            goal .isopen not {
+                              [ ";" "0" 0 parse * logicRange tokens * _ len dearray "<"
+                                2 parse * logicRange tokens * _ len dearray ] /ps lastMetaVariables * let
                               goal [ |auto ] tacAttemptNext
+                              3 goal .resolution .hypotheses * =goal
+
+                              goal .isopen {
+                                /breq1i goal use
+                                goal [ |auto ] tacAttemptNext
+                                4 goal .resolution .hypotheses * =goal
+                                goal .isopen {
+                                  /dec0h goal use
+                                  goal [ |auto ] tacAttemptNext
+                                } rep
+                              } rep
                             } rep
                           } rep
-                        } rep
-                      } rep
-                    } {
-                      goal preparation ==goal
-
-                      goal .isopen {
-                        left 10 div right 10 div lt {
-                          /decltc goal use
                         } {
-                          /declt goal use
+                          goal preparation ==goal
+
+                          goal .isopen {
+                            left 10 div right 10 div lt {
+                              /decltc goal use
+                            } {
+                              /declt goal use
+                            } ? *
+                            goal [ |auto ] tacAttemptNext
+                          } rep
                         } ? *
-                        goal [ |auto ] tacAttemptNext
-                      } rep
-                    } ? *
+                      } ? *
+                    } rep
                   } rep
                 } rep
               } rep
