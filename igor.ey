@@ -748,7 +748,7 @@ objset ==blocks
                       1 goalParse * 1 =hasAntes
                     } {
                       goalParse
-                    } ? * logicRange goalToks * ==relevantGoalToks
+                    } ? * ==relevantGoalParse
 
                     assertionParse ==i [ ] ==path
                     { ==path ==goal ==substitution
@@ -779,8 +779,8 @@ objset ==blocks
                     {
                       [
                         { i logicNonTerminal /wb eq } {
-                          relevantGoalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForToks ==rightChoices
-                          relevantGoalToks 0 i * logicRange a .thm * /wff 0 possibleSubstitutionsForToks ==leftChoices
+                          relevantGoalParse goalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForParse ==rightChoices
+                          relevantGoalParse goalToks 0 i * logicRange a .thm * /wff 0 possibleSubstitutionsForParse ==leftChoices
 
                           # prefer substitutions with more variables known (i.e. better match)
                           rightChoices len 1 eq { leftChoices len 1 eq { 0 leftChoices * dom len 0 rightChoices * dom len gt } andif not } andif {
@@ -843,7 +843,7 @@ objset ==blocks
                           0
                         }
                         { i logicNonTerminal /wi eq } {
-                          relevantGoalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForToks ==rightChoices
+                          relevantGoalParse goalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForParse ==rightChoices
                           rightChoices len 1 eq {
                             0 rightChoices * ==substitution
                             substitution a resolveEhypSubstitutions
@@ -2932,9 +2932,9 @@ objset ==blocks
     { ==goal
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
-          tokens
+          parse tokens
           "|- ( ph -> A. x ph )" " " str .split
-        /wff 1 possibleSubstitutionsForToks ==substs
+        /wff 1 possibleSubstitutionsForParse ==substs
         substs len 0 gt {
           0 parse * logicNonTerminal ==nt
           [
