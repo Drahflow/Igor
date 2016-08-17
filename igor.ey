@@ -2392,7 +2392,7 @@ objset ==blocks
         [
           { t ";" eq } { }
           { t len 1 eq { 0 t * 48 ge 0 t * 57 le and } andif } { 10 mul 0 t * 48 sub add }
-          { 1 } { "\e[33minvalid number in parseNumberToks\e[0m" out -- 1 neg }
+          { 1 } { "\e[33minvalid number in parseNumberToks\e[0m\n" out -- 1 neg }
         ] conds
       } each
     } τparseNumberToks /parseNumberToks deffst
