@@ -462,38 +462,42 @@ objset ==blocks
     } loop
   } /readNumber deffd
 
-  { ==start ==rootNonterminal ==assertionTokens ==tokens ==tokensParse map ==substitution
+  { ==assertionTokens ==assertionParse ==tokens ==tokensParse map ==substitution
     1 ==valid
     0 ==i
 
-    start assertionTokens rootNonterminal logicParsers * * not { 0 =valid } { ==assertionParse
-      { ==assertionParse ==tokensParse
-        assertionParse logicNonTerminal ==nt
-        [
-          { nt "" eq } { # terminal
-            tokensParse logicRange tokens * ==new
-            assertionParse logicStart assertionTokens * ==var
+    { ==assertionParse ==tokensParse
+      assertionParse logicNonTerminal ==nt
+      [
+        { nt "" eq } { # terminal
+          tokensParse logicRange tokens * ==new
+          assertionParse logicStart assertionTokens * ==var
 
-            var substitution .has {
-              var substitution * ==old
-              old new arrEq valid and =valid
-            } {
-              new var substitution =[]
-            } ? *
-          }
-          { nt tokensParse logicNonTerminal eq } {
-            0 assertionParse logicChildCount range { ==i
-              i tokensParse * i assertionParse * recurse
-            } each
-          }
-          { 1 } { 0 =valid }
-        ] conds
-      } /recurse deffst
+          var substitution .has {
+            var substitution * ==old
+            old new arrEq valid and =valid
+          } {
+            new var substitution =[]
+          } ? *
+        }
+        { nt tokensParse logicNonTerminal eq } {
+          0 assertionParse logicChildCount range { ==i
+            i tokensParse * i assertionParse * recurse
+          } each
+        }
+        { 1 } { 0 =valid { -- -- } =recurse }
+      ] conds
+    } /recurse deffst
 
-      tokensParse assertionParse recurse
-    } ? *
+    tokensParse assertionParse recurse
 
     [ valid { substitution } rep ]
+  } τpossibleSubstitutionsParses /possibleSubstitutionsForParses deffd
+
+  { ==start ==rootNonterminal ==assertionTokens ==tokens ==tokensParse
+    start assertionTokens rootNonterminal logicParsers * * not { [ ] } { ==assertionParse
+      tokensParse tokens assertionParse assertionTokens possibleSubstitutionsForParses
+    } ? *
   } τpossibleSubstitutionsParse /possibleSubstitutionsForParse deffd
 
   { ==start ==rootNonterminal ==assertionTokens ==tokens
