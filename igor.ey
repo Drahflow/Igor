@@ -1253,7 +1253,7 @@ objset ==blocks
                       } {
                         0 parse * logicNonTerminal /cdc neq {
                           goal preparation ==goal
-                          
+
                           goal .isopen {
                             /mpbir goal use
                             goal .isopen not {
@@ -1397,6 +1397,14 @@ objset ==blocks
                         goal .isopen {
                           goal tacSolveArith
                         } rep
+                      } rep
+                    } rep
+
+                    result logicNonTerminal /cneg eq
+                        { 0 result * parseNumber } andif { ==resultNum
+                      goal preparation ==goal
+                      goal .isopen {
+                        goal tacSolveArith
                       } rep
                     } rep
                   } rep
@@ -2138,9 +2146,17 @@ objset ==blocks
                 { 0 parse * logicNonTerminal /wa eq } {
                   [
                     { 0 0 parse * * logicNonTerminal /wa eq } {
-                      /animpass goal use
-                      goal [ |auto ] tacAttemptNext
-                      goal .isopen { 0 =doRewrite } { 4 goal .resolution .hypotheses * =goal } ? *
+                      1 0 0 parse * * * logicNonTerminal /wa eq
+                          { 1 1 0 0 parse * * * * logicNonTerminal /wa eq } andif
+                          { 1 1 1 0 0 parse * * * * * logicNonTerminal /wa eq } andif {
+                        /animpass4 goal use
+                        goal [ |auto ] tacAttemptNext
+                        goal .isopen { 0 =doRewrite } { 7 goal .resolution .hypotheses * =goal } ? *
+                      } {
+                        /animpass goal use
+                        goal [ |auto ] tacAttemptNext
+                        goal .isopen { 0 =doRewrite } { 4 goal .resolution .hypotheses * =goal } ? *
+                      } ? *
                     }
                     { 0 0 parse * * logicNonTerminal /w3a eq } {
                       /3imp1 goal use
@@ -2291,34 +2307,86 @@ objset ==blocks
 
     { ==parse ==tokens
       0 ==M 0 ==N
-      parse logicNonTerminal /co eq
-          { 0 parse * parseNumber _ { -01 =N } rep } andif
-          { 2 parse * parseNumber _ { -01 =M } rep } andif
-          { 1 parse * logicNonTerminal [ /caddc /cmin /cmul /cmo /cexp ] eq any } andif {
-        1 parse * logicNonTerminal ==nt
-        { N printNumber _ len dearray } =*Nt { M printNumber _ len dearray } =*Mt
+      [
+        { parse logicNonTerminal /co eq
+            { 0 parse * parseNumber _ { -01 =N } rep } andif
+            { 2 parse * parseNumber _ { -01 =M } rep } andif
+            { 1 parse * logicNonTerminal [ /caddc /cmin /cmul /cmo /cexp ] eq any } andif } {
+          1 parse * logicNonTerminal ==nt
+          { N printNumber _ len dearray } =*Nt { M printNumber _ len dearray } =*Mt
 
-        [
-          { nt /caddc eq } { [ "(" Nt "+" Mt ")" "=" N M add printNumber _ len dearray ] }
-          { nt /cmin eq } { [ N M ge { "(" Nt "-" Mt ")" "=" N M sub printNumber _ len dearray ] } rep }
-          { nt /cmul eq } { [ "(" Nt "x." Mt ")" "=" N M mul printNumber _ len dearray ] }
-          { nt /cmo eq } { [ "(" Nt "mod" Mt ")" "=" N M mod printNumber _ len dearray ] }
-          { nt /cexp eq } { [ "(" Nt "^" Mt ")" "=" N M exp printNumber _ len dearray ] }
-        ] conds
-      } {
-        0 parse logicChildCount range { tokens -01 parse * extractArithmeticTrivialities } each
-      } ? *
+          [
+            { nt /caddc eq } { [ "(" Nt "+" Mt ")" "=" N M add printNumber _ len dearray ] }
+            { nt /cmin eq } { N M ge {
+                [ "(" Nt "-" Mt ")" "=" N M sub printNumber _ len dearray ]
+              } {
+                [ "(" Nt "-" Mt ")" "=" "-u" N M sub neg printNumber _ len dearray ]
+              } ? *
+            }
+            { nt /cmul eq } { [ "(" Nt "x." Mt ")" "=" N M mul printNumber _ len dearray ] }
+            { nt /cmo eq } { [ "(" Nt "mod" Mt ")" "=" N M mod printNumber _ len dearray ] }
+            { nt /cexp eq } { [ "(" Nt "^" Mt ")" "=" N M exp printNumber _ len dearray ] }
+          ] conds
+        }
+        { parse logicNonTerminal /co eq
+            { 1 parse * logicNonTerminal /caddc eq } andif
+            { 2 parse * logicNonTerminal /cneg eq } andif } {
+          [ parse logicRange tokens * _ len dearray "="
+            "(" 0 parse * logicRange tokens * _ len dearray "-" 0 2 parse * * logicRange tokens * _ len dearray ")" ]
+        }
+        { 1 } {
+          0 parse logicChildCount range { tokens -01 parse * extractArithmeticTrivialities } each
+        }
+      ] conds
     } /extractArithmeticTrivialities deffst
 
     { ==goal
       { "\e[31mnormalize:arith not applicable, expected |- ...\e[0m\n" out } =*notApplicable
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
-        [ tokens parse extractArithmeticTrivialities ] ==equalities
-        equalities len 0 gt {
-          0 equalities * goal tacRewriteFull
-          goal [ |auto |tacNormalizeArith ] tacAttemptNext
-        } rep
+        # the following needs early handling, otherwise infinite recursion
+        # ( ( x reg ; 1 3 ) + -u 9 ) = ( ( x reg ; 1 3 ) - 9 )
+        [
+          { parse logicNonTerminal /wi eq
+              { 1 parse * logicNonTerminal /wceq eq } andif
+              { 0 1 parse * * logicNonTerminal /co eq } andif
+              { 1 1 parse * * logicNonTerminal /co eq } andif
+              { 1 0 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 2 0 1 parse * * * logicNonTerminal /cneg eq } andif
+              { 1 1 1 parse * * * logicNonTerminal /cmin eq } andif
+              { 0 0 1 parse * * * logicRange tokens *
+                0 1 1 parse * * * logicRange tokens * arrEq } andif
+              { 0 2 0 1 parse * * * * logicRange tokens *
+                2 1 1 parse * * * logicRange tokens * arrEq } andif } {
+            /negsub goal tacUse
+          }
+          { parse logicNonTerminal /wceq eq
+              { 0 parse * logicNonTerminal /co eq } andif
+              { 1 parse * logicNonTerminal /co eq } andif
+              { 1 0 parse * * logicNonTerminal /caddc eq } andif
+              { 2 0 parse * * logicNonTerminal /cneg eq } andif
+              { 1 1 parse * * logicNonTerminal /cmin eq } andif
+              { 0 0 parse * * logicRange tokens *
+                0 1 parse * * logicRange tokens * arrEq } andif
+              { 0 2 0 parse * * * logicRange tokens *
+                2 1 parse * * logicRange tokens * arrEq } andif } {
+            /negsubi goal use
+            goal [ |auto |tacNormalizeArith ] tacAttemptNext
+          }
+          { 1 } {
+            [ tokens parse extractArithmeticTrivialities ] ==equalities
+            equalities len 0 gt {
+              0 equalities * ==equality
+              [ equality |isConst each ] all {
+                equality goal tacRewriteFull
+                goal [ |auto |tacNormalizeArith ] tacAttemptNext
+              } {
+                equality goal tacRewrite
+                goal [ |auto |tacNormalizeArith ] tacAttemptNext
+              } ? *
+            } rep
+          }
+        ] conds
       } |notApplicable ? *
     } /tacNormalizeArith deffst
 
@@ -2693,7 +2761,16 @@ objset ==blocks
                     }
                     { 1 } |notApplicable
                   ] conds
-                } |notApplicable ? *
+                } {
+                  [
+                    { result logicNonTerminal /cneg eq
+                        { 0 result * parseNumber } andif } { ==resultNum
+                      /negsubcomi goal use
+                      goal [ |auto |tacSolveArith ] tacAttemptNext
+                    }
+                    { 1 } { notApplicable }
+                  ] conds
+                } ? *
               } |notApplicable ? *
             } {
               [
@@ -3044,6 +3121,32 @@ objset ==blocks
         } { [| "\e[31mGoal is not |- ph\e[0m" |] out } ? *
       } { [| "\e[31mGiven element does not parse as class\e[0m" |] out } ? *
     } /tacNamely deffst
+
+    { ==goal
+      [| goal .thm expandMeta { " " } each |] ==txt
+
+      0 ==removed
+
+      mainGoal openGoals { ==otherGoal
+        otherGoal sys .asm .rawAddress goal sys .asm .rawAddress neq {
+          [| otherGoal .thm expandMeta { " " } each |] txt eq {
+            goal .parents { ==parent
+              parent .resolution .hypotheses _ ==hyps dom { ==i
+                i hyps * sys .asm .rawAddress goal sys .asm .rawAddress eq {
+                  otherGoal i hyps =[]
+                } rep
+              } each
+            } each
+
+            1 =removed
+          } rep
+        } rep
+      } each
+
+      removed {
+        allOpenGoals { sys .asm .rawAddress goal sys .asm .rawAddress neq } grep =allOpenGoals
+      } rep
+    } /tacDeduplicate deffst
 
     # from conclusion to array of earlier solutions to it
     map ==recordedSolutions
@@ -3481,6 +3584,8 @@ objset ==blocks
           goals len { tokens selectedGoal goals * tacNamely } |solved ? * }
         { cmd "nonfree" eq } {
           goals len { selectedGoal goals * tacNonfree } |solved ? * }
+        { cmd "deduplicate" eq } {
+          goals len { selectedGoal goals * tacDeduplicate } |solved ? * }
         { cmd "take" eq { args "note" eq } andif } {
           goals len { selectedGoal goals * recordSolution } |solved ? * }
         { cmd "tree" eq } { 0 tree }
