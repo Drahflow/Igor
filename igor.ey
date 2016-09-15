@@ -1947,6 +1947,54 @@ objset ==blocks
           } ? *
         } |notApplicable ? *
       } |notApplicable ? *
+    } /tacAndSelectAfterDrop deffst
+
+    { ==goal
+      { "\e[31mtacAndSelect not applicable, expected |- ( ... /\\ ... ) -> ( ... /\\ ... )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          1 parse * logicRange tokens * ==target 0 ==existsAsAnte
+
+          goal antecedents ==antes
+          antes { ==ante
+            ante target arrEq { 1 =existsAsAnte } rep
+          } each
+
+          existsAsAnte {
+            goal tacSelect
+          } {
+            { ==parse
+              [
+                { parse logicNonTerminal /wa eq } {
+                  0 parse * collectTerms
+                  1 parse * collectTerms
+                }
+                { parse logicNonTerminal /w3a eq } {
+                  0 parse * collectTerms
+                  1 parse * collectTerms
+                  2 parse * collectTerms
+                }
+                { 1 } { parse logicRange tokens * }
+              ] conds
+            } /collectTerms deffst
+            [ 1 parse * collectTerms ] ==conclusions
+
+            [ conclusions { ==conclusion
+              [ antes { conclusion arrEq } each ] any
+            } each ] _ dump all {
+              [ antes { ==ante
+                [ conclusions { ante arrEq } each ] any not { ante } rep
+              } each ] goal tacDropAll
+
+              goal openGoals ==open
+              open len 1 eq { 0 open * tacAndSelectAfterDrop } rep
+            } {
+              goal tacAndSelectAfterDrop
+            } ? *
+          } ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
     } /tacAndSelect deffst
 
     { ==goal ==tokens
