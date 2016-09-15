@@ -1011,7 +1011,7 @@ objset ==blocks
       } rep
     } τlet /let deffst
 
-    [ ] ==allOpenGoals
+    [ ] ==allOpenGoals 0 ==allOpenGoalsValid
     { # ==goal
       objset ==goals
       {
@@ -1022,10 +1022,10 @@ objset ==blocks
 
     { ==goal
       goal sys .asm .rawAddress mainGoal sys .asm .rawAddress eq {
-        allOpenGoals len 0 eq {
-          mainGoal openGoalsRecursive _ =allOpenGoals
+        allOpenGoalsValid not {
+          mainGoal openGoalsRecursive _ =allOpenGoals 1 =allOpenGoalsValid
         } {
-          [ allOpenGoals { openGoalsRecursive _ len dearray } each ] _ =allOpenGoals
+          [ allOpenGoals { openGoalsRecursive _ len dearray } each ] _ =allOpenGoals 1 =allOpenGoalsValid
         } ? *
       } {
         goal openGoalsRecursive
@@ -1988,7 +1988,10 @@ objset ==blocks
               } each ] goal tacDropAll
 
               goal openGoals ==open
-              open len 1 eq { 0 open * tacAndSelectAfterDrop } rep
+              open len 1 eq {
+                0 open * ==dropped
+                dropped .isopen { dropped tacAndSelectAfterDrop } rep
+              } rep
             } {
               goal tacAndSelectAfterDrop
             } ? *
@@ -2116,23 +2119,66 @@ objset ==blocks
 
         3 goal .resolution .hypotheses * ==conversion
         faketrivialities { conversion .fakeclose } {
-          kept { ==k
-            conversion .isopen {
-              k {
-                /anim2i conversion use
+          { kept len conversion .isopen and } {
+            [
+              { kept len 16 gt { 0 16 range kept * any not } andif } {
+                /adantl16 conversion use
                 conversion .isopen not {
                   conversion [ |auto ] tacAttemptNext
-                  3 conversion .resolution .hypotheses * =conversion
+                  18 conversion .resolution .hypotheses * =conversion
                 } rep
-              } {
+                16 kept len range kept * =kept
+              }
+              { kept len 8 gt { 0 8 range kept * any not } andif } {
+                /adantl8 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  10 conversion .resolution .hypotheses * =conversion
+                } rep
+                8 kept len range kept * =kept
+              }
+              { kept len 4 gt { 0 4 range kept * any not } andif } {
+                /adantl4 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  6 conversion .resolution .hypotheses * =conversion
+                } rep
+                4 kept len range kept * =kept
+              }
+              { kept len 3 gt { 0 3 range kept * any not } andif } {
+                /adantl3 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  5 conversion .resolution .hypotheses * =conversion
+                } rep
+                3 kept len range kept * =kept
+              }
+              { kept len 2 gt { 0 2 range kept * any not } andif } {
+                /adantl2 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  4 conversion .resolution .hypotheses * =conversion
+                } rep
+                2 kept len range kept * =kept
+              }
+              { 0 kept * not } {
                 /adantl conversion use
                 conversion .isopen not {
                   conversion [ |auto ] tacAttemptNext
                   3 conversion .resolution .hypotheses * =conversion
                 } rep
-              } ? *
-            } rep
-          } each
+                1 kept len range kept * =kept
+              }
+              { 1 } {
+                /anim2i conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  3 conversion .resolution .hypotheses * =conversion
+                } rep
+                1 kept len range kept * =kept
+              }
+            ] conds
+          } loop
         } ? *
       } rep
     } /tacDropAll deffst
@@ -3451,7 +3497,7 @@ objset ==blocks
       } /recurse deffst
       mainGoal recurse
 
-      [ ] =allOpenGoals
+      [ ] =allOpenGoals 0 =allOpenGoalsValid
       rebuildClosedGoalIndex
     } /reopen deffst
 
@@ -3465,7 +3511,7 @@ objset ==blocks
       } /recurse deffst
       mainGoal recurse
 
-      [ ] =allOpenGoals
+      [ ] =allOpenGoals 0 =allOpenGoalsValid
       rebuildClosedGoalIndex
     } /reopenParentOf deffst
 
