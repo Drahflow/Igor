@@ -2398,7 +2398,13 @@ objset ==blocks
             }
             { 1 } {
               goal tacNormalizeAntecedent
-              goal .isopen { goal tacNormalizeConsequent } rep
+              goal .isopen {
+                /id tokens canUse {
+                  /id goal use
+                } {
+                  goal tacNormalizeConsequent
+                } ? *
+              } rep
             }
           ] conds
         } rep
