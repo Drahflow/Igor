@@ -1201,6 +1201,18 @@ objset ==blocks
                 } rep
               } rep
 
+              goal .isopen { parse logicNonTerminal /wi eq } andif
+                { 0 parse * logicNonTerminal /wceq eq } andif
+                { 1 parse * logicNonTerminal /wceq eq } andif
+                { 0 0 parse * * logicRange tokens * 1 1 parse * * logicRange tokens * arrEq } andif
+                { 1 0 parse * * logicRange tokens * 0 1 parse * * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
+                goal .isopen {
+                  /eqcomd goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+              } rep
+
               goal .isopen { parse logicNonTerminal /wbr eq } andif
                            { 0 1 parse * logicRange tokens * * "<_" eq } andif
                            { 0 parse * tokens classify [ "NN" "NN0" "RR" ] eq any } andif {
@@ -1428,8 +1440,10 @@ objset ==blocks
                 goal [ |auto ] tacAttemptNext
               } rep
 
+              goal antecedents ==antes
+
               goal .isopen {
-                goal antecedents { ==ante
+                antes { ==ante
                   ante target arrEq {
                     goal tacSelect
                   } rep
@@ -1479,6 +1493,21 @@ objset ==blocks
                       } rep
                     } rep
                   } each
+                } rep
+              } rep
+
+              goal .isopen { 1 parse * logicNonTerminal /wcel eq } andif
+                  { 1 1 parse * * logicNonTerminal [ /cz /cr /cc ] eq any } andif {
+                goal antecedents ==antes
+                [ 0 1 parse * * logicRange tokens * _ len dearray "e." "NN0" ] ==nn0classification
+                [ antes { nn0classification arrEq } each ] any {
+                  1 1 parse * * logicNonTerminal ==class
+                  [
+                    { class /cz eq } { /nn0z goal tacUse }
+                    { class /cr eq } { /nn0re goal tacUse }
+                    { class /cc eq } { /nn0cn goal tacUse }
+                  ] conds
+                  goal .isopen not { goal openGoals |auto each } rep
                 } rep
               } rep
             } rep
@@ -1982,7 +2011,7 @@ objset ==blocks
 
             [ conclusions { ==conclusion
               [ antes { conclusion arrEq } each ] any
-            } each ] _ dump all {
+            } each ] all {
               [ antes { ==ante
                 [ conclusions { ante arrEq } each ] any not { ante } rep
               } each ] goal tacDropAll
