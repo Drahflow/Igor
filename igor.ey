@@ -32,6 +32,12 @@
   }'
 > -- /arrEq deffd
 
+{ "}" | *
+  { ==f 0 ==running
+    { f } { * }" ; { =*f { running not { 1 =running f 0 =running } rep } } ;
+  } *
+}" "}!" defq
+
 map ==constants
 map ==assertions
 objset ==blocks
@@ -1054,6 +1060,9 @@ objset ==blocks
 
         txt closedGoalIndex .has not {
           goal txt closedGoalIndex =[]
+          0 goal .thm * "|-" eq {
+            goal recordSolution
+          } rep
         } rep
       } /addClosedGoal deffst
 
@@ -1218,8 +1227,10 @@ objset ==blocks
                            { 0 parse * tokens classify [ "NN" "NN0" "RR" ] eq any } andif {
                 0 parse * logicRange tokens * 2 parse * logicRange tokens * arrEq {
                   goal preparation ==goal
-                  /leidi goal use
-                  goal [ |auto ] tacAttemptNext
+                  goal .isopen {
+                    /leidi goal use
+                    goal [ |auto ] tacAttemptNext
+                  } rep
                 } rep
 
                 goal .isopen {
@@ -1429,7 +1440,6 @@ objset ==blocks
 
               loadedTrivialities "*" | each
             } /trivialities deffst
-            { } parse trivialities
 
             goal .isopen { parse logicNonTerminal /wi eq } andif {
               1 parse * logicRange tokens * ==target
@@ -1475,26 +1485,43 @@ objset ==blocks
                   map ==anteSet
                   goal antecedents { [| -01 { " " } each |] _ anteSet =[] } each
 
+                  999999999 ==shortestSolutionLength < > ==shortestSolution
                   conclusion recordedSolutions * { ==solution
-                    goal .isopen {
-                      [| solution .thm expandMeta { " " } each |] ==solutionTxt
-                      solutionTxt closedGoalIndex .has {
-                        [
-                          solution antecedents {
-                            [| -01 { " " } each |] anteSet .has
-                          } each
-                        ] all {
-                          solution .thm expandMeta ==solutionToks
-                          0 solutionToks * "|-" eq
-                            { 1 solutionToks /wff metaLogicParsers * * } andif { ==solutionParse
-                            0 solutionParse * logicRange solutionToks * goal tacWithOnly
-                          } rep
+                    [| solution .thm expandMeta { " " } each |] ==solutionTxt
+                    solutionTxt closedGoalIndex .has {
+                      [
+                        solution antecedents {
+                          [| -01 { " " } each |] anteSet .has
+                        } each
+                      ] all {
+                        [| solution .thm expandMeta _ len dearray |] len ==curLen
+                        curLen shortestSolutionLength lt {
+                          solution =shortestSolution curLen =shortestSolutionLength
                         } rep
                       } rep
                     } rep
                   } each
+
+                  shortestSolutionLength 999999999 lt {
+                    shortestSolution .thm expandMeta ==solutionToks
+
+                    /starting_from: dump
+                    [| tokens { " " } each |] dump
+                    /aiming_for: dump
+                    [| solutionToks { " " } each |] dump
+
+                    0 solutionToks * "|-" eq
+                      { 1 solutionToks /wff metaLogicParsers * * } andif { ==solutionParse
+                      solutionParse logicNonTerminal /wi eq {
+                        0 solutionParse * logicRange solutionToks * goal tacWithOnly
+                      } {
+                        /a1i goal use
+                        goal [ |auto ] tacAttemptNext
+                      } ? *
+                    } rep
+                  } rep
                 } rep
-              } rep
+              }! rep # execute only non-recursively
 
               goal .isopen { 1 parse * logicNonTerminal /wcel eq } andif
                   { 1 1 parse * * logicNonTerminal [ /cz /cr /cc ] eq any } andif {
@@ -1511,6 +1538,8 @@ objset ==blocks
                 } rep
               } rep
             } rep
+
+            { } parse trivialities
           } τauto5
           loadedAutomations "*" | each
         ] conds
@@ -3289,16 +3318,26 @@ objset ==blocks
     { ==goal
       goal .thm expandMeta ==tokens
       0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
-        parse logicNonTerminal /wi eq {
-          [| 1 parse * logicRange tokens * { " " } each |]
-        } {
-          [| parse logicRange tokens * { " " } each |]
-        } ? * ==conclusion
-
+        parse logicNonTerminal /wi eq { 1 parse * } { parse } ? * ==conclusionParse
+        [| conclusionParse logicRange tokens * { " " } each |] ==conclusion
         conclusion recordedSolutions .has not { [ ] conclusion recordedSolutions =[] } rep
 
-          conclusion recordedSolutions * [ goal ] cat
-        conclusion recordedSolutions =[]
+        map ==anteSet
+        goal antecedents { [| -01 { " " } each |] _ anteSet =[] } each
+
+        0 ==betterSolutionKnown
+        conclusion recordedSolutions * _ ==solutions dom { ==i
+          [ i solutions * antecedents {
+            [| -01 { " " } each |] anteSet .has
+          } each ] all {
+            1 =betterSolutionKnown
+          } rep
+        } each
+
+        betterSolutionKnown not {
+            conclusion recordedSolutions * [ goal ] cat
+          conclusion recordedSolutions =[]
+        } rep
       } { [| "\e[31mGoal is not |- ph\e[0m\n" |] out } ? *
     } /recordSolution deffst
 
