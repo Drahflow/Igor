@@ -1505,11 +1505,6 @@ objset ==blocks
                   shortestSolutionLength 999999999 lt {
                     shortestSolution .thm expandMeta ==solutionToks
 
-                    /starting_from: dump
-                    [| tokens { " " } each |] dump
-                    /aiming_for: dump
-                    [| solutionToks { " " } each |] dump
-
                     0 solutionToks * "|-" eq
                       { 1 solutionToks /wff metaLogicParsers * * } andif { ==solutionParse
                       solutionParse logicNonTerminal /wi eq {
