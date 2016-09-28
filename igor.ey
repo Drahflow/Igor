@@ -2347,7 +2347,7 @@ objset ==blocks
               ] conds
             } { 0 } ? *
           } { 0 } ? *
-          doRewrite and
+          doRewrite and goal .isopen and
         } { } loop
 
         goal .isopen {
