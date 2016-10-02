@@ -1534,6 +1534,16 @@ objset ==blocks
               } rep
             } rep
 
+            goal .isopen { parse logicNonTerminal /wi eq } andif
+                { 1 parse * logicNonTerminal /wceq eq } andif
+                { 0 1 parse * * logicNonTerminal /co eq } andif
+                { 1 0 1 parse * * * logicNonTerminal /caddc eq } andif
+                { 2 0 1 parse * * * parseNumber } andif { 0 eq } andif
+                { 0 0 1 parse * * * logicRange tokens * 1 1 parse * * logicRange tokens * arrEq } andif {
+              /addid1 goal tacUse
+              goal [ |auto ] tacAttemptNext
+            } rep
+
             { } parse trivialities
           } τauto5
           loadedAutomations "*" | each
