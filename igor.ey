@@ -3803,6 +3803,7 @@ objset ==blocks
         { [ cmd { _ 48 ge -01 57 le and } each ] all } {
           txt .consume .u _ goals len ge { -- goals len 1 sub } rep =selectedGoal
         }
+        { cmd "freeze" eq } { { _ { * }_ args sys .freeze * } !! * }
         loadedCommands "*" | each
       ] conds
     ] _ ==residue len 0 gt {
