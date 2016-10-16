@@ -3570,6 +3570,20 @@ objset ==blocks
       "\n" out
     } /exportDisjuncts deffst
 
+    {
+      [| "=== snip here for " proposition .name " ===\n" |] out
+      [| "${" |] out
+      exportDisjuncts
+      proofContext collectEHyps _ ==hyps dom { ==name
+        [| "  " name " $e " name hyps * { " " } each -- " $.\n" |] out
+      } each
+      [| "\n" |] out
+      [| "  " proposition .name " $p " proposition .thm { " " } each -- " $=" |] out
+      exportCompressed
+      [| "$}\n" |] out
+      [| "=== /snip here for " proposition .name " ===\n" |] out
+    } /exportTheorem deffst
+
     { ==toReopen
       0 ==i
       { ==goal
@@ -3774,6 +3788,7 @@ objset ==blocks
         { cmd "export" eq } { export }
         { cmd "export:compressed" eq } { exportCompressed }
         { cmd "export:disj" eq } { exportDisjuncts }
+        { cmd "export:theorem" eq } { exportTheorem }
         { cmd "reopen" eq { args "^(\\d+)$" regex } andif } { txt .consume .u reopen }
         { cmd "reopen" eq } {
           goals len { selectedGoal goals * reopenParentOf } |solved ? * }
