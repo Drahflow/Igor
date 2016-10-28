@@ -2505,6 +2505,9 @@ objset ==blocks
           [ parse logicRange tokens * _ len dearray "="
             "(" 0 parse * logicRange tokens * _ len dearray "-" 0 2 parse * * logicRange tokens * _ len dearray ")" ]
         }
+        { parse logicNonTerminal /c10 eq } {
+            [ "10" "=" ";" "1" "0" ]
+        }
         { 1 } {
           0 parse logicChildCount range { tokens -01 parse * extractArithmeticTrivialities } each
         }
@@ -2749,7 +2752,6 @@ objset ==blocks
                       [
                         { leftNum rightNum mul resultNum neq } { "\e[31mincorrect multiplication result\e[0m\n" out }
                         { faketrivialities } { goal .fakeclose }
-                        # TODO: WAITS FOR normalize:arith (because some subgoals need complex arith reductions)
                         # { leftNum txt .produce .u len 3 ge { rightNum txt .produce .u len 3 ge } andif } {
                         #   { -0110 == printNumber -01 lastMetaVariables * let }' "=>" deffst
 
@@ -2763,7 +2765,7 @@ objset ==blocks
                         #   A B add C D add mul T sub R sub =>S
                         #   R d mul S add =>W
 
-                        #   goal [ |auto |tacSolveArith ] tacAttemptNext
+                        #   goal [ |auto |tacNormalizeArith ] tacAttemptNext
                         # }
                         { left logicNonTerminal /cdc eq { right logicNonTerminal /cdc eq } andif } {
                           /decmul12c goal use
