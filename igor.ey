@@ -2512,7 +2512,7 @@ objset ==blocks
             { nt /cexp eq } { [ "(" Nt "^" Mt ")" "=" N M exp printNumber _ len dearray ] }
           ] conds
         }
-        # ( ( X - N ) + M )
+        # ( ( X {+,-} N ) + M )
         { parse logicNonTerminal /co eq
             { 0 parse * logicNonTerminal /co eq } andif
             { 2 0 parse * * parseNumber _ { -01 =N } rep } andif
@@ -2522,6 +2522,11 @@ objset ==blocks
           { N printNumber _ len dearray } =*Nt { M printNumber _ len dearray } =*Mt
 
           [
+            { nt /caddc eq } {
+              [ parse logicRange tokens * _ len dearray "="
+                "(" 0 0 parse * * logicRange tokens * _ len dearray "+"
+                "(" Nt "+" Mt ")" ")" ]
+            }
             { nt /cmin eq } {
               [ parse logicRange tokens * _ len dearray "="
                 "(" 0 0 parse * * logicRange tokens * _ len dearray "+"
@@ -2576,6 +2581,43 @@ objset ==blocks
               { 0 2 0 parse * * * logicRange tokens *
                 2 1 parse * * logicRange tokens * arrEq } andif } {
             /negsubi goal use
+            goal [ |auto |tacNormalizeArith ] tacAttemptNext
+          }
+          # ( ( A + B ) + C ) = ( A + ( C + B ) )
+          { parse logicNonTerminal /wi eq
+              { 1 parse * logicNonTerminal /wceq eq } andif
+              { 0 1 parse * * logicNonTerminal /co eq } andif
+              { 1 1 parse * * logicNonTerminal /co eq } andif
+              { 1 0 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 1 1 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 0 0 1 parse * * * logicNonTerminal /co eq } andif
+              { 2 1 1 parse * * * logicNonTerminal /co eq } andif
+              { 1 0 0 1 parse * * * * logicNonTerminal /caddc eq } andif
+              { 1 2 1 1 parse * * * * logicNonTerminal /caddc eq } andif
+              { 0 0 0 1 parse * * * * logicRange tokens *
+                0 1 1 parse * * * logicRange tokens * arrEq } andif
+              { 2 0 0 1 parse * * * * logicRange tokens *
+                2 2 1 1 parse * * * * logicRange tokens * arrEq } andif
+              { 2 0 1 parse * * * logicRange tokens *
+                0 2 1 1 parse * * * * logicRange tokens * arrEq } andif } {
+            /addass goal tacUse
+          }
+          { parse logicNonTerminal /wceq eq
+              { 0 parse * logicNonTerminal /co eq } andif
+              { 1 parse * logicNonTerminal /co eq } andif
+              { 1 0 parse * * logicNonTerminal /caddc eq } andif
+              { 1 1 parse * * logicNonTerminal /caddc eq } andif
+              { 0 0 parse * * logicNonTerminal /co eq } andif
+              { 2 1 parse * * logicNonTerminal /co eq } andif
+              { 1 0 0 parse * * * logicNonTerminal /caddc eq } andif
+              { 1 2 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 0 0 0 parse * * * logicRange tokens *
+                0 1 parse * * logicRange tokens * arrEq } andif
+              { 2 0 0 parse * * * logicRange tokens *
+                2 2 1 parse * * * logicRange tokens * arrEq } andif
+              { 2 0 parse * * logicRange tokens *
+                0 2 1 parse * * * logicRange tokens * arrEq } andif } {
+            /addass goal use
             goal [ |auto |tacNormalizeArith ] tacAttemptNext
           }
           # ( ( A - B ) + C ) = ( A + ( C - B ) )
