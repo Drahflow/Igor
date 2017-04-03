@@ -794,6 +794,7 @@ objset ==blocks
 
                     {
                       [
+                        { goal .isopen not } { 0 } # success already
                         { i logicNonTerminal /wb eq } {
                           relevantGoalParse goalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForParse ==rightChoices
                           relevantGoalParse goalToks 0 i * logicRange a .thm * /wff 0 possibleSubstitutionsForParse ==leftChoices
@@ -2597,9 +2598,9 @@ objset ==blocks
               { 0 0 0 1 parse * * * * logicRange tokens *
                 0 1 1 parse * * * logicRange tokens * arrEq } andif
               { 2 0 0 1 parse * * * * logicRange tokens *
-                2 2 1 1 parse * * * * logicRange tokens * arrEq } andif
+                0 2 1 1 parse * * * * logicRange tokens * arrEq } andif
               { 2 0 1 parse * * * logicRange tokens *
-                0 2 1 1 parse * * * * logicRange tokens * arrEq } andif } {
+                2 2 1 1 parse * * * * logicRange tokens * arrEq } andif } {
             /addass goal tacUse
           }
           { parse logicNonTerminal /wceq eq
@@ -2614,10 +2615,10 @@ objset ==blocks
               { 0 0 0 parse * * * logicRange tokens *
                 0 1 parse * * logicRange tokens * arrEq } andif
               { 2 0 0 parse * * * logicRange tokens *
-                2 2 1 parse * * * logicRange tokens * arrEq } andif
+                0 2 1 parse * * * logicRange tokens * arrEq } andif
               { 2 0 parse * * logicRange tokens *
-                0 2 1 parse * * * logicRange tokens * arrEq } andif } {
-            /addass goal use
+                2 2 1 parse * * * logicRange tokens * arrEq } andif } {
+            /addass goal tacUse
             goal [ |auto |tacNormalizeArith ] tacAttemptNext
           }
           # ( ( A - B ) + C ) = ( A + ( C - B ) )
