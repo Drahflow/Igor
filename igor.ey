@@ -3619,26 +3619,55 @@ objset ==blocks
         "?" wrapOut
       } /encodeOpen deffst
 
-      { ==goal
-        goal .isopen { encodeOpen } {
-          [| goal .thm expandMeta { " " } each |] ==txt
+      <
+        0 128 range ==data
+        0 ==top
 
-          txt theoremMap .has {
-            txt theoremMap * encodeNumber |wrapOut each
-          } {
-            goal .resolution .hypotheses |recurse each
-            goal .resolution .theorem .name nameMap * encodeNumber |wrapOut each
+        { # ==elem
+          top data len ge { data _ cat =data } rep
+          top data =[]
+          top 1 add =top
+        } /push deffst
 
-            txt theoremCount .has { txt theoremCount * 1 gt } andif {
-              encodeTag
-              1 txt theoremCount =[]
-              i txt theoremMap =[]
-              i 1 add =i
-            } rep
+        {
+          top 1 sub _ 0 lt { "export stack underflow" die } rep
+                    _ =top
+                      data *
+        } /pop deffst
+
+        { top } /has deffst
+      > ==exportStack
+
+      mainGoal exportStack .push
+
+      { exportStack .has } {
+        exportStack .pop ==goal
+        goal .?'delayed {
+          goal .delayed
+        } {
+          goal .isopen { encodeOpen } {
+            [| goal .thm expandMeta { " " } each |] ==txt
+
+            txt theoremMap .has {
+              txt theoremMap * encodeNumber |wrapOut each
+            } {
+              < {
+                goal .resolution .theorem .name nameMap * encodeNumber |wrapOut each
+
+                txt theoremCount .has { txt theoremCount * 1 gt } andif {
+                  encodeTag
+                  1 txt theoremCount =[]
+                  i txt theoremMap =[]
+                  i 1 add =i
+                } rep
+              } =*delayed > exportStack .push
+
+              goal .resolution .hypotheses reverse { exportStack .push } each
+            } ? *
           } ? *
         } ? *
-      } /recurse deffst
-      mainGoal recurse
+      } loop
+
       " $." wrapOut
       "\n" out
     } /exportCompressed deffst
@@ -3860,7 +3889,7 @@ objset ==blocks
           goals len { tokens selectedGoal goals * tacWith } |solved ? * }
         { cmd "conclude" eq } { args " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacConclude } |solved ? * }
-        { cmd "and" eq { args "conclude" eq } andif } { args " " str .split { "" neq } grep ==tokens
+        { cmd "and" eq { args "^conclude (.*)" regex } andif } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacAndConclude } |solved ? * }
         { cmd "drop" eq { args "^everything matching (.*)" regex } andif } { " " str .split { "" neq } grep ==tokens
           goals len { tokens selectedGoal goals * tacDropMatching } |solved ? * }
