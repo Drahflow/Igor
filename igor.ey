@@ -3554,14 +3554,38 @@ objset ==blocks
         i 1 add =i
       } each
 
-      { ==goal
+      { <
+        0 128 range ==data
+        0 ==top
+
+        { # ==elem
+          top data len ge { data _ cat =data } rep
+          top data =[]
+          top 1 add =top
+        } /push deffst
+
+        {
+          top 1 sub _ 0 lt { "export stack underflow" die } rep
+                    _ =top
+                      data *
+        } /pop deffst
+
+        { top } /has deffst
+      > } /stack deffst
+
+      stack ==nameStack
+      mainGoal nameStack .push
+
+      { nameStack .has } {
+        nameStack .pop ==goal
+
         goal .isopen not {
-          goal .resolution .hypotheses |recurseNames each
           goal .resolution .theorem .name ==name
           name nameCount .has { name nameCount * 1 add } { 1 } ? * name nameCount =[]
+
+          goal .resolution .hypotheses { nameStack .push } each
         } rep
-      } /recurseNames deffst
-      mainGoal recurseNames
+      } loop
 
       nameCount dom { ==a ==b
         a nameCount * b nameCount * lt
@@ -3573,12 +3597,16 @@ objset ==blocks
       } each
 
       map ==encodedOnce
-      { ==goal
+      stack ==encodeCountStack
+      mainGoal encodeCountStack .push
+      { encodeCountStack .has } {
+        encodeCountStack .pop ==goal
+
         goal .isopen not {
           [| goal .thm expandMeta { " " } each |] ==txt
 
           txt encodedOnce .has not {
-            goal .resolution .hypotheses |recurseTheoremCount each
+            goal .resolution .hypotheses { encodeCountStack .push } each
           } rep
 
           goal .resolution .hypotheses len 0 gt {
@@ -3586,8 +3614,7 @@ objset ==blocks
             txt theoremCount .has { txt theoremCount * 1 add } { 1 } ? * txt theoremCount =[]
           } rep
         } rep
-      } /recurseTheoremCount deffst
-      mainGoal recurseTheoremCount
+      } loop
 
       9999 ==column
       { ==tok
@@ -3619,24 +3646,7 @@ objset ==blocks
         "?" wrapOut
       } /encodeOpen deffst
 
-      <
-        0 128 range ==data
-        0 ==top
-
-        { # ==elem
-          top data len ge { data _ cat =data } rep
-          top data =[]
-          top 1 add =top
-        } /push deffst
-
-        {
-          top 1 sub _ 0 lt { "export stack underflow" die } rep
-                    _ =top
-                      data *
-        } /pop deffst
-
-        { top } /has deffst
-      > ==exportStack
+      stack ==exportStack
 
       mainGoal exportStack .push
 
