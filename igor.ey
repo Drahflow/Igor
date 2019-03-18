@@ -528,7 +528,6 @@ objset ==blocks
   } τapplySubstitution /applySubstitution deffst
 
   { ==proposition
-
     < "a" ==type emptyBlock ==ctx "?" ==thm { "Fake theorem is fake" die }" =*proof "?" ==name
       list _ _ ==hyps ==disj ==allDisj > ==:fakeTheorem
     < fakeTheorem ==theorem [ ] ==hypotheses > ==:fakeResolution
@@ -553,7 +552,7 @@ objset ==blocks
           resolution .theorem .name dump
           [| "\e[31mSome tactics tried to re-close a closed goal\e[0m\n" |] die
         } ? *
-      } /close defmst
+      } τclose /close defmst
       { ==s fakeResolution /resolution s .set 0 /isopen s .set
         s amendClosedGoalIndex
       } /fakeclose defmst
@@ -3840,7 +3839,7 @@ objset ==blocks
       redisplay |display rep
       1 =redisplay
 
-      # perfstats
+      perfstats
       silent 1 le {
         "proof> " sys .out .writeall
       } rep
@@ -3989,6 +3988,201 @@ objset ==blocks
       name show
     } ? *
   } /prove deffd
+
+  { ==proposition
+    { not { "Parsing failed." die } rep } /assertParse deffst
+
+    <
+      { ==goal ==ante
+        goal .antes [ ante ] cat /antes goal .set
+      } /addAnte defmst
+
+      { ==goal /thm goal .set } /setThm defmst
+
+      { 
+        ==thm   # [ "$ch.5" ] theorem to show, no |-
+        ==antes # [ "$ph -> $ch.5" ... ] things we know, no |-
+        "" ==resolution   # gonna be a $p or $a name
+        [ ] ==children
+        { = }' =*set
+        scope
+      }
+    > -- /newGoal deffst
+
+    [ ] ==allOpenGoals 0 ==allOpenGoalsValid
+    { # ==goal
+      objset ==goals
+      {
+        _ .resolution len not { goals .put } { .children |collect each } ? *
+      } /collect deffst
+      collect goals dom
+    } /openGoalsRecursive deffst
+
+    { ==goal
+      goal sys .asm .rawAddress mainGoal sys .asm .rawAddress eq {
+        allOpenGoalsValid not {
+          mainGoal openGoalsRecursive _ =allOpenGoals 1 =allOpenGoalsValid
+        } {
+          [ allOpenGoals { openGoalsRecursive _ len dearray } each ] _ =allOpenGoals 1 =allOpenGoalsValid
+        } ? *
+      } {
+        goal openGoalsRecursive
+      } ? *
+    } τopenGoals /openGoals deffst
+
+    0 ==nextMetaVariable
+    map ==metaSubstitution
+    map ==allMetaVariables
+    map ==lastMetaVariables
+
+    { _ metaSubstitution .has {
+      metaSubstitution * |expandMetaToken each
+    }" rep }' /expandMetaToken deffst
+    <
+      "" ==s
+      { [ -01 { _ =s 0 s * 36 eq { expandMetaToken }" rep }" each ] }'
+    > -- τexpandMeta /expandMeta deffst
+    
+    map ==lastGrammarMatch
+    map ==grammarMatchCache
+    { ==pattern ==subject
+      pattern grammarMatchCache .has not {
+        pattern " " str .split ==patternTokens
+          [
+            { 0 patternTokens   /wff logicParsers * * } { [ -01 patternTokens /wff ] }
+            { 0 patternTokens /class logicParsers * * } { [ -01 patternTokens /class ] }
+            { 1 } { [| "Could not parse '" pattern "' as wff or class" |] die }
+          ] conds
+        pattern grammarMatchCache =[]
+      } rep
+
+      pattern grammarMatchCache * ==cached 
+      subject " " str .split ==tokens 
+      0 tokens 2 cached * metaLogicParsers * * assertParse ==tokensParse
+
+      tokensParse tokens cached 2 dearray possibleSubstitutionsForParses ==substs
+      substs len 1 eq {
+        0 substs * =lastGrammarMatch 1
+      } { 0 } ? *
+    } "//" deffst
+    { lastGrammarMatch * [| -01 { " " } each -- |] } "$" deffst
+
+    { _ ==toks "( ph /\\ ps )" // {
+        $ph splitAntes
+        $ps splitAntes
+      } {
+        toks
+      } ? *
+    } /splitAntes deffst
+
+    { _ ==goal .thm "( ph -> ps )" // {
+        $ps goal .setThm
+        $ph ==antes
+
+        [ antes splitAntes ] { goal .addAnte } each
+
+        goal normalizeGoal
+      } rep
+    } /normalizeGoal deffst
+
+    { ==thmName ==goal
+      thmName assertions .has {
+        thmName assertions * ==a
+
+        map ==substitution
+        a mandatoryVariables dom { ==var
+          [| "$" var "." nextMetaVariable _ 1 add =nextMetaVariable txt .produce .u |] ==newVar
+          newVar var lastMetaVariables =[]
+          1 newVar allMetaVariables =[]
+          [ newVar ] var substitution =[]
+        } each
+
+        [
+          a .ctx collectEHyps _ ==hyps dom {
+            [| -01 hyps substitution applySubstitution { " " } each -- |] 3 -01 str .postfix
+          } each
+
+          a .thm [| -01 substitution applySubstitution { " " } each -- |] 3 -01 str .postfix 
+          ==thm
+
+          { thm "( ph -> ps )" // } {
+            $ps =thm
+            $ph splitAntes
+          } loop
+        ] ==thmAntes
+
+        thmName /resolution goal .set
+        [
+          thmAntes { ==ante goal .antes ante newGoal } each
+          [ goal .antes _ len dearray thm ] goal .thm newGoal
+        ] /children goal .set
+      } {
+        [| "\e[31mNo such theorem: " thmName "\e[0m\n" |] out
+      } ? *
+    } /useTheorem deffst
+
+    1 ==running
+    0 ==selectedGoal
+    proposition .ctx _ =proofContext
+    [
+      proofContext collectEHyps _ ==hyps dom { [| -01 hyps { " " } each -- |] 3 -01 str .postfix } each
+    ] proposition .thm [| -01 { " " } each -- |] 3 -01 str .postfix newGoal ==mainGoal
+
+    mainGoal normalizeGoal
+
+    [ ] ==loadedCommands
+    { include }' /load deffst
+
+    { running } { [
+      mainGoal openGoals ==goals
+
+      { selectedGoal goals len ge selectedGoal 0 gt and } { selectedGoal 1 sub =selectedGoal } loop
+
+      { ==f { goals len f { "\e[32mWe are done here.\e[0m\n" out } ? * } } =*unlessSolved
+
+      {
+        selectedGoal goals * ==goal
+
+        goal .antes { ==ante
+          [| "* " ante " " str .split expandMeta { renderName " " } each "\n" |] out
+        } each
+        [|
+          "\e[1m-------------------------------------------------"
+          " (" selectedGoal 1 add txt .produce .u "/" goals len txt .produce .u ")"
+          # goal .autohint "" neq { " \e[32m(hint: " goal .autohint ")" } rep
+          "\e[0m\n"
+        |] out
+        [| "|- " goal .thm " " str .split expandMeta { renderName " " } each "\n" |] out
+      } unlessSolved *
+
+      perfstats
+      "proof2> " sys .out .writeall
+      inputCmd ==cmd ==args
+
+      [
+        { cmd "quit" eq } { 0 =running }
+        { cmd "todo" eq } { selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep }
+        { cmd "next" eq } { selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep }
+        { cmd "prev" eq } { selectedGoal 0 gt { selectedGoal 1 sub =selectedGoal } rep }
+        { cmd "norm" eq } { selectedGoal goals * normalizeGoal } unlessSolved
+        { cmd "use" eq } { selectedGoal goals * args useTheorem } unlessSolved
+        { cmd "load" eq } { args load }
+        loadedCommands "*" | each
+      ] conds
+    ] _ ==residue len 0 gt {
+      [| "\e[31mSomething left on the stack:\e[0m\n" |] out
+      residue dump
+    } } loop
+  } /prove2Proposition deffd
+
+  { ==name
+    name assertions .has { name assertions * .type "p" eq } { 0 } ? * {
+      name assertions * prove2Proposition
+    } {
+      [| name " is not a provable proposition\n" |] out
+      name show
+    } ? *
+  } /prove2 deffd
 
   { map _ ==variables # returned
     blocks { .f _ =*d dom
@@ -4172,6 +4366,7 @@ objset ==blocks
         { cmd "show" eq } { args show }
         { cmd "parse" eq } { args parseTokens }
         { cmd "prove" eq } { args prove }
+        { cmd "prove2" eq } { args prove2 }
         { cmd "silent" eq } { 2 =silent }
         { cmd "quiet" eq } { 1 =silent }
         { cmd "nosilent" eq } { 0 =silent }
