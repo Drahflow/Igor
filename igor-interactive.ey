@@ -3777,7 +3777,6 @@
       ] conds
     } /joinAntes deffst
 
-    < { =* }' =*deffst > ==strategyNormalizeGoal
     { _ ==goal _ .thm ==thm .antes ==antes
       # meta variable expansion in-place
       [| thm " " str .split expandMeta { " " } each -- |] ==expandedThm
@@ -3849,8 +3848,81 @@
       # } rep
     } /normalizeGoal deffst
 
-    < { =* }' =*deffst > ==strategyUseTheorem
-    < { =* }' =*deffst > ==strategyUseEHyp
+    # takes variable name, either wff, set or class
+    { ==var
+      [
+        { [| "wff " var |] proofFHyps .has } { "wff" }
+        { [| "set " var |] proofFHyps .has } { "set" }
+        { [| "class " var |] proofFHyps .has } { "class" }
+        { 1 } { [| "\e[31mCould not determine type of " var "\e[0m\n" |] out "<unknown>" }
+      ] conds
+    } /typeOfVariable deffst
+
+    { =*wrapOut ==rootNonterminal ==toks
+      0 toks rootNonterminal logicParsers * * not {
+        [| "\e[31mCould not generate parse for syntax-proof.\e[0m\n" |] out
+        toks dump
+      } { ==parse
+        parse logicNonTerminal _ ==builder "" eq {
+          [| rootNonterminal " " toks { " " } each -- |] ==fThm
+          fThm proofFHyps .has {
+            fThm proofFHyps * wrapOut
+          } {
+            [| "\e[31mCould not find theorem for: " fThm "\e[0m\n" |] out
+          } ? *
+        } {
+          builder assertions * ==a
+
+          parse toks a .thm 0 a .thm * 1 possibleSubstitutionsForParse ==substitutions
+          substitutions len 1 neq {
+            [| "\e[31mNo substitution found during syntax proof construction.\e[0m\n" |] out
+          } { 0 substitutions * =*substitution
+            a .hyps { ==h
+              h a .ctx isFHyp {
+                h a .ctx getFHyp 2 dearray ==var ==type
+                var substitution type |wrapOut constructSyntax
+              } rep
+            } each
+          } ? *
+
+          builder wrapOut
+        } ? *
+      } ? *
+    } /constructSyntax deffst
+
+    <
+      { ==goal
+        ""
+      } /usedAntecedent deffst
+
+      { ==goal =*wrapOut
+        goal .resolution assertions * ==a
+
+        a .hyps { ==h
+          h a .ctx isFHyp {
+            h a .ctx getFHyp 2 dearray ==var ==type
+            var goal .substitution * type |wrapOut constructSyntax
+          } rep
+        } each
+
+        goal .children { ==child
+          child _ .strategy .usedAntecedent "" neq {
+            [| "\e[31mTODO: Child rendered with used antecedent.\e[0m\n" |] out
+          } rep
+
+          |wrapOut child _ .strategy .construct
+        } each
+        goal .resolution wrapOut
+      } /construct deffst
+    > ==strategyUseTheorem
+
+    <
+      { ==goal "" } /usedAntecedent deffst
+      { ==goal =*wrapOut
+        goal .resolution wrapOut
+      } /construct deffst
+    > ==strategyUseEHyp
+
     { ==thmName ==goal
       [
         { thmName collectedEHyps .has } {
@@ -3882,7 +3954,6 @@
 
           legit {
             0 possibleSubstitutions * ==substitution
-            nextMetaVariable ==metaVariableStart
 
             a mandatoryVariables dom { substitution .has not } grep { ==var
               [| "$" var "." nextMetaVariable _ 1 add =nextMetaVariable txt .produce .u |] ==newVar
@@ -3938,7 +4009,7 @@
                 thmAntes { ==ante [ ] ante newGoal _ normalizeGoal } each
               ] /children goal .set
               strategyUseTheorem /strategy goal .set
-              metaVariableStart /metaVariableStart goal .setExtra
+              substitution /substitution goal .setExtra
             } rep
           } rep
         }
@@ -4088,37 +4159,6 @@
     } /exportDisjuncts deffst
 
     {
-      map ==nameCount
-      map ==nameMap
-      map ==explicitNameMap
-      map ==theoremCount
-      map ==theoremMap
-      1 ==i
-
-      proposition .hyps { ==name
-        i name nameMap =[]
-        i 1 add =i
-      } each
-
-      { <
-        0 128 range ==data
-        0 ==top
-
-        { # ==elem
-          top data len ge { data _ cat =data } rep
-          top data =[]
-          top 1 add =top
-        } /push deffst
-
-        {
-          top 1 sub _ 0 lt { "export stack underflow" die } rep
-                    _ =top
-                      data *
-        } /pop deffst
-
-        { top } /has deffst
-      > } /stack deffst
-
       9999 ==column
       { ==tok
         column tok len add 78 gt {
@@ -4129,123 +4169,14 @@
         column tok len add =column
       } /wrapOut deffst
 
-      # [ "( " explicitNameMap dom { " " } each ") " ] |wrapOut each
+      _ mainGoal .strategy .usedAntecedent "" neq {
+        [| "\e[31mTODO: Top-level goal rendered with antecedents.\e[0m\n" |] out
+      } rep
 
-      { ==requiredEhyp
-        [| "TODO: Top-level antecedent requested: " requiredEhyp |] die
-      } mainGoal { wrapOut " " wrapOut } mainGoal .strategy .construct
+      { wrapOut " " wrapOut } mainGoal _ .strategy .construct
 
       " $." wrapOut
       "\n" out
-
-      # stack ==nameStack
-      # mainGoal nameStack .push
-
-      # { nameStack .has } {
-      #   nameStack .pop ==goal
-
-      #   goal .isopen not {
-      #     goal .strategy .requiredNames { ==name
-      #       name nameCount .has { name nameCount * 1 add } { 1 } ? * name nameCount =[]
-      #     } each
-
-      #     goal .children { nameStack .push } each
-      #   } rep
-      # } loop
-
-      # nameCount dom { ==a ==b
-      #   a nameCount * b nameCount * lt
-      # } order nameCount dom * { ==name
-      #   name nameMap .has not {
-      #     i name explicitNameMap =[]
-      #     i name nameMap =[] i 1 add =i
-      #   } rep
-      # } each
-
-      # map ==encodedOnce
-      # stack ==encodeCountStack
-      # mainGoal encodeCountStack .push
-      # { encodeCountStack .has } {
-      #   encodeCountStack .pop ==goal
-
-      #   goal .isopen not {
-      #     [| goal .thm expandMeta { " " } each |] ==txt
-
-      #     txt encodedOnce .has not {
-      #       goal .resolution .hypotheses { encodeCountStack .push } each
-      #     } rep
-
-      #     goal .resolution .hypotheses len 0 gt {
-      #       1 txt encodedOnce =[]
-      #       txt theoremCount .has { txt theoremCount * 1 add } { 1 } ? * txt theoremCount =[]
-      #     } rep
-      #   } rep
-      # } loop
-
-      # 9999 ==column
-      # { ==tok
-      #   column tok len add 78 gt {
-      #     "\n      " out 6 =column
-      #     tok "^ *$" regex { "" =tok } rep
-      #   } rep
-      #   tok out
-      #   column tok len add =column
-      # } /wrapOut deffst
-
-      # [ "( " explicitNameMap dom { " " } each ") " ] |wrapOut each
-
-      # { 1 sub ==i
-      #   [ [
-      #     i 20 mod "ABCDEFGHIJKLMNOPQRST" * i 20 div =i
-      #     { i } {
-      #       i 1 sub =i
-      #       i 5 mod "UVWXY" * i 5 div =i
-      #     } loop
-      #   ] reverse { [ -01 ] str .fromArray } each ]
-      # } /encodeNumber deffst
-
-      # {
-      #   "Z" wrapOut
-      # } /encodeTag deffst
-
-      # {
-      #   "?" wrapOut
-      # } /encodeOpen deffst
-
-      # stack ==exportStack
-
-      # mainGoal exportStack .push
-
-      # { exportStack .has } {
-      #   exportStack .pop ==goal
-      #   goal .?'delayed {
-      #     goal .delayed
-      #   } {
-      #     goal .isopen { encodeOpen } {
-      #       [| goal .thm expandMeta { " " } each |] ==txt
-
-      #       txt theoremMap .has {
-      #         txt theoremMap * encodeNumber |wrapOut each
-      #       } {
-      #         < {
-      #           goal .resolution .theorem .name nameMap * encodeNumber |wrapOut each
-
-      #           txt theoremCount .has { txt theoremCount * 1 gt } andif {
-      #             encodeTag
-      #             1 txt theoremCount =[]
-      #             i txt theoremMap =[]
-      #             i 1 add =i
-      #           } rep
-      #         } =*delayed > exportStack .push
-
-      #         goal .resolution .hypotheses reverse { exportStack .push } each
-      #       } ? *
-      #     } ? *
-      #   } ? *
-      # } loop
-
-      # " $." wrapOut
-      # "\n" out
     } /exportCompressed deffst
 
     {
