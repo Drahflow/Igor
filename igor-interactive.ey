@@ -3853,14 +3853,14 @@
     { ==thmName ==goal
       [
         {
-          1 [
+          0 [
             { thmName assertions .has } {
               thmName assertions * _ ==a .thm ==thmToks
             }'
             { thmName collectedEHyps .has } {
               thmName collectedEHyps * _ ==a .thm ==thmToks
             }'
-            { 1 } { -- 0 }
+            { 1 } { -- 1 }
           ] conds
         }' { [| "\e[31mNo such theorem: " thmName "\e[0m\n" |] out }
 
@@ -3872,7 +3872,7 @@
 
         {
             [ "|-" ] goal .thm " " str .split cat thmToks /wff 1 possibleSubstitutionsForToks
-          _ ==possibleSubstitutions len 1 neq
+          _ dump _ ==possibleSubstitutions len 1 neq
         }' {
           possibleSubstitutions len {
             [| "\e[31mPossible substitutions not unique.\e[0m\n" |] out
@@ -4064,12 +4064,12 @@
     proposition .disj { 2 dearray markDisj } each
     proposition .ctx _ =proofContext
     map ==proofEHyps
-    proofContext collectEHyps _ =*collectedEHyps dom {
-      [| -101 collectedEHyps { " " } each -- |] 3 -01 str .postfix proofEHyps =[]
+    proofContext collectEHyps _ ==collectedEHyps dom {
+      [| -101 collectedEHyps * { " " } each -- |] 3 -01 str .postfix proofEHyps =[]
     } each
     map ==proofFHyps
-    proofContext collectFHyps _ =*collectedFHyps dom {
-      [| -101 collectedFHyps { " " } each -- |] proofFHyps =[] # note we keep the type-code in
+    proofContext collectFHyps _ ==collectedFHyps dom {
+      [| -101 collectedFHyps * { " " } each -- |] proofFHyps =[] # note we keep the type-code in
     } each
 
       proofEHyps dom
