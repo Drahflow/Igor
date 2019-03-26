@@ -1,0 +1,4207 @@
+<
+  { [ } "[|" deffd sys .asmroutines .|assemblestr "|]" deffd
+
+  emptyBlock ==renderContext
+  emptyBlock ==userContext
+  emptyBlock ==proofContext
+  0 ==silent
+
+  <
+    map ==:renderNameCache
+    "" ==name
+
+    { =name
+      name renderNameCache .has not {
+        [
+          { name constants .has } {
+            [| "\e[37m" name "\e[0m" |]
+          }
+          { name assertions .has } {
+            name assertions * ==a
+            [
+              { a .type "p" eq } { [| "\e[36m" name "\e[0m" |] }
+              { a .type "a" eq } { [| "\e[31m" name "\e[0m" |] }
+              { 1 } { name }
+            ] conds
+          }
+          { name renderContext isVar } { [| "\e[32m" name "\e[0m" |] }
+          { 0 name * 0 "$" * eq } { [| "\e[33m" name "\e[0m" |] }
+          { 1 } { name }
+        ] conds
+      name renderNameCache =[] } rep
+      name renderNameCache *
+    }'
+  > -- τrenderName /renderName deffd
+
+  "" ==inputBuffer
+  {
+    { ==s
+      s "" neq {
+        0 ==i { i s len lt i s * 10 neq and } { i 1 add =i } loop
+        i s len lt {
+          i 1 add s str .postfix
+          i 1 add s str .prefix
+          1
+        } { 0 } ? *
+      } { 0 } ? *
+    } /extractFirstLine deffst
+
+    0 ==eof
+    { eof not { inputBuffer extractFirstLine not } andif } {
+      65536 sys .in .read _ ==input "" eq =eof
+      inputBuffer input cat =inputBuffer
+    } loop eof { "" } { -01 =inputBuffer } ? *
+  } /inputLine deffd
+
+  [ ] ==loadedInputWrappers
+
+  {
+    "" ==cmd "" ==args
+    inputLine ==input
+    input "" eq {
+      "quit" =cmd
+    } {
+      1 neg input str .prefix =input
+      input len 0 gt {
+        0 { _ _ input len lt -01 input * 32 eq and } { 1 add } loop input str .postfix =input
+        input len 0 gt {
+          0 { _ _ input len lt -01 input * 32 neq and } { 1 add } loop _ input str .prefix =cmd input str .postfix =input
+          input len 0 gt {
+            0 { _ _ input len lt -01 input * 32 eq and } { 1 add } loop input str .postfix =args
+          } rep
+        } rep
+      } rep
+    } ? *
+    args cmd loadedInputWrappers "*" | each
+  } /inputCmd deffd
+
+  sys .out .|writeall /out deffd
+
+  { -- } /showBlock deffd
+
+  { ==a
+    a .ctx _ =renderContext _ =userContext showBlock
+    [| "assuming:\n" |] out
+    a .hyps { ==hyp
+      [
+        { hyp userContext isEHyp } {
+          [| "$e " hyp renderName "\n" |] out
+          [| hyp userContext getEHyp { renderName " " } each "\n" |] out
+        }
+        { hyp userContext isFHyp } {
+          [| "$f " hyp renderName "\n" |] out
+          [| hyp userContext getFHyp { renderName " " } each "\n" |] out
+        }
+        { 1 } {
+          [| "\e[31mcould not resolve hypothesis:\e[0m " hyp "\n" |] out
+        }
+      ] conds
+    } each
+    [| "gives:\n" |] out
+    [| a .thm { renderName " " } each "\n" |] out
+    " " ==sep
+    [| "mandatory disjunct:" a .disj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
+    " " =sep
+    [| "all disjunct:" a .allDisj { =*d sep ", " =sep 0 d renderName " <!> " 1 d renderName } each "\n" |] out
+  } /showAssertion deffd
+
+  { ==p
+    p showAssertion
+  } /showProposition deffd
+
+  { ==name
+    [
+      { name constants .has } {
+        [| "$c " name renderName "\n" |] out
+      }
+      { name assertions .has } {
+        name assertions * ==a
+        [
+          { a .type "p" eq } { [| "$p " name renderName "\n" |] out a showProposition }
+          { a .type "a" eq } { [| "$a " name renderName "\n" |] out a showAssertion }
+          { 1 } { [| name " is an assertion of unknown type (probably a bug)\n" |] out }
+        ] conds
+      }
+      { name userContext isEHyp } {
+        [| "$e " name renderName "\n" |] out
+        [| name userContext getEHyp { renderName " " } each "\n" |] out
+      }
+      { name userContext isFHyp } {
+        [| "$f " name renderName "\n" |] out
+        [| name userContext getFHyp { renderName " " } each "\n" |] out
+      }
+      { name userContext isVar } {
+        [| "$v " name renderName "\n" |] out
+      }
+      { 1 } {
+        [| name " is not known" "\n" |] out
+      }
+    ] conds
+  } /show deffd
+
+  { ==prompt
+    0 ==numberRead
+    { numberRead not } {
+      prompt "> " cat sys .out .writeall
+      inputLine ==input
+      input "^ *(\\d+)\n" regex { 1 =numberRead txt .consume .u } rep
+    } loop
+  } /readNumber deffd
+
+  { ==assertionTokens ==assertionParse ==tokens ==tokensParse map ==substitution
+    1 ==valid
+    0 ==i
+
+    { ==assertionParse ==tokensParse
+      assertionParse logicNonTerminal ==nt
+      [
+        { nt "" eq } { # terminal
+          tokensParse logicRange tokens * ==new
+          assertionParse logicStart assertionTokens * ==var
+
+          var substitution .has {
+            var substitution * ==old
+            old new arrEq valid and =valid
+          } {
+            new var substitution =[]
+          } ? *
+        }
+        { nt tokensParse logicNonTerminal eq } {
+          0 assertionParse logicChildCount range { ==i
+            i tokensParse * i assertionParse * recurse
+          } each
+        }
+        { 1 } { 0 =valid { -- -- } =recurse }
+      ] conds
+    } /recurse deffst
+
+    tokensParse assertionParse recurse
+
+    [ valid { substitution } rep ]
+  } τpossibleSubstitutionsParses /possibleSubstitutionsForParses deffd
+
+  { ==start ==rootNonterminal ==assertionTokens ==tokens ==tokensParse
+    start assertionTokens rootNonterminal logicParsers * * not { [ ] } { ==assertionParse
+      tokensParse tokens assertionParse assertionTokens possibleSubstitutionsForParses
+    } ? *
+  } τpossibleSubstitutionsParse /possibleSubstitutionsForParse deffd
+
+  { ==start ==rootNonterminal ==assertionTokens ==tokens
+    start tokens rootNonterminal logicParsers * * not { [ ] } { # ==tokensParse
+      tokens assertionTokens rootNonterminal start possibleSubstitutionsForParse
+    } ? *
+  } τpossibleSubstitutions /possibleSubstitutionsForToks deffd
+
+  { .thm ==assertionTokens ==tokens
+    0 assertionTokens * 0 tokens * eq {
+      0 tokens * "|-" eq /wff 0 tokens * ? ==rootNonterminal
+      tokens assertionTokens rootNonterminal 1 possibleSubstitutionsForToks
+    } {
+      [ ] # no substitutions
+    } ? *
+  } /possibleSubstitutions deffd
+
+  { ==substitution ==tokens
+    [ tokens { _ substitution .has { substitution * _ len dearray } rep } each ]
+  } τapplySubstitution /applySubstitution deffst
+
+  { ==proposition
+    < "a" ==type emptyBlock ==ctx "?" ==thm { "Fake theorem is fake" die }" =*proof "?" ==name
+      list _ _ ==hyps ==disj ==allDisj > ==:fakeTheorem
+    < fakeTheorem ==theorem [ ] ==hypotheses > ==:fakeResolution
+
+    { < ==theorem ==hypotheses > } /step deffst
+
+    < < > ==s
+
+      { =s [ -01 ] s .parents cat /parents s .set } /addParent defmst
+      { =s < > /resolution s .set 1 /isopen s .set } /open defmst
+      { ==s
+        s .isopen {
+          /resolution s .set
+          0 /isopen s .set
+          s .resolution .hypotheses { s -01 .addParent } each
+          s amendClosedGoalIndex
+        } {
+          ==resolution # we could just ignore the re-close, but it points to a missing abort condition in some automation
+          resolution keys dump
+          resolution .theorem dump
+          resolution .theorem keys dump
+          resolution .theorem .name dump
+          [| "\e[31mSome tactics tried to re-close a closed goal\e[0m\n" |] die
+        } ? *
+      } τclose /close defmst
+      { ==s fakeResolution /resolution s .set 0 /isopen s .set
+        s amendClosedGoalIndex
+      } /fakeclose defmst
+      { =s /autohint s .set } /hint defmst
+
+      {
+        ==thm [ ] ==parents < > ==resolution 1 ==isopen "" ==autohint
+        { = }' =*set scope
+      }
+    > -- /goal deffst
+
+    map ==disj map ==nonDisj
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x disj .has not { map x disj =[] } rep
+      1 y x disj * =[]
+    } /markDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x disj .has {
+        y x disj * .has
+      } { 0 } ? *
+    } /mustDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x nonDisj .has not { map x nonDisj =[] } rep
+      1 y x nonDisj * =[]
+    } /markNonDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x nonDisj .has {
+        y x nonDisj * .has
+      } { 0 } ? *
+    } /mustNotDisj deffst
+
+
+    proposition .ctx _ =proofContext
+    proposition .thm goal ==mainGoal
+    0 ==selectedGoal
+    0 ==nextMetaVariable
+    map ==lastMetaVariables
+    map ==allMetaVariables
+    map ==metaSubstitution
+    1 ==redisplay
+    [ ] ==lastSearch
+    [ ] ==loadedCommands
+    [ ] ==loadedAutomations
+    [ ] ==loadedTrivialities
+    [ ] ==loadedDisplays
+
+    { _ metaSubstitution .has {
+      metaSubstitution * |expandMetaToken each
+    }" rep }' /expandMetaToken deffst
+    <
+      "" ==s
+      { [ -01 { _ =s 0 s * 36 eq { expandMetaToken }" rep }" each ] }'
+    > -- τexpandMeta /expandMeta deffst
+
+    { ==theorem ==substitution
+      theorem mandatoryVariables dom { ==var
+        var constants .has not {
+          var substitution .has not {
+            [| "$" var "." nextMetaVariable _ 1 add =nextMetaVariable txt .produce .u |] ==newVar
+            newVar var lastMetaVariables =[]
+            1 newVar allMetaVariables =[]
+            [ newVar ] var substitution =[]
+          } rep
+        } rep
+      } each
+    } τintroduceMetaVars /introduceMetaVars deffst
+
+    { ==closedGoal ==substitution ==theorem
+      silent not {
+        [| "applying with:\n" |] out
+        substitution dom { ==name
+          [| name " = " name substitution * { renderName " " } each "\n" |] out
+        } τinfo1 each
+      } rep
+
+      substitution theorem introduceMetaVars
+
+      0 ==disjunctionsViolated
+      theorem .disj { 2 dearray ==x ==y
+        x substitution * { ==xTok
+          xTok constants .has not {
+            y substitution * { ==yTok
+              yTok constants .has not {
+                xTok yTok eq {
+                  1 =disjunctionsViolated
+                  [| "\e[31mproposed application would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+                  0 =redisplay
+                } rep
+                xTok yTok mustNotDisj {
+                  1 =disjunctionsViolated
+                  [| "\e[31mproposed application would violate\e[0m " x renderName " <=> " y renderName "\n" |] out
+                  0 =redisplay
+                } rep
+              } rep
+            } each
+          } rep
+        } each
+      } each
+
+      disjunctionsViolated not {
+        theorem .disj { 2 dearray ==x ==y
+          x substitution * { ==xTok
+            xTok constants .has not {
+              y substitution * { ==yTok
+                yTok constants .has not { xTok yTok markDisj } rep
+              } each
+            } rep
+          } each
+        } each
+
+        [
+          theorem .hyps { ==name
+            [
+              { name theorem .ctx isEHyp } { name theorem .ctx getEHyp substitution applySubstitution goal }
+              { name theorem .ctx isFHyp } { name theorem .ctx getFHyp substitution applySubstitution goal }
+              { 1 } {
+                [| "hypothesis " name " cannot be resolved" "\n" |] out
+              }
+            ] conds
+          } each
+        ] ==hypotheses
+
+        hypotheses theorem step closedGoal .close
+      } rep
+    } τapplyTheorem /applyTheorem deffst
+
+    { ==assertion ==substitution
+      silent not {
+        [| "using e-hyp for: " assertion .name "\n" |] out
+        substitution dom { ==v
+          [| v " = " v substitution * { renderName " " } each "\n" |] out
+        } each
+      } rep
+      assertion .hyps { assertion .ctx isEHyp } grep { ==name
+        name assertion .ctx getEHyp ==toks
+        0 toks * "|-" eq { 1 toks /wff logicParsers * * } andif { ==parse
+          parse logicNonTerminal /wi eq
+              { 0 parse * logicNonTerminal /wceq eq } andif
+              { 1 parse * logicNonTerminal /wb eq } andif {
+            0 0 parse * * logicRange toks * ==leftVar
+            1 0 parse * * logicRange toks * ==rightVar
+            0 1 parse * * logicRange toks * ==leftTerm
+            1 1 parse * * logicRange toks * ==rightTerm
+            leftVar len 1 eq
+                { rightVar len 1 eq } andif
+                { 0 leftVar * substitution .has } andif
+                { 0 rightVar * substitution .has } andif {
+              leftTerm len 1 eq
+                  { 0 leftTerm * substitution .has } andif
+                  { 0 rightTerm * substitution .has not } andif {
+                0 leftTerm * substitution * 0 leftVar * substitution * 0 rightVar * substitution * rewriteTokens
+                  0 rightTerm * substitution =[]
+              } rep
+              rightTerm len 1 eq
+                  { 0 rightTerm * substitution .has } andif
+                  { 0 leftTerm * substitution .has not } andif {
+                0 rightTerm * substitution * 0 rightVar * substitution * 0 leftVar * substitution * rewriteTokens
+                  0 leftTerm * substitution =[]
+              } rep
+            } rep
+          } rep
+        } rep
+      } each
+    } τresolveEhypSubstitutions /resolveEhypSubstitutions deffst
+
+    { ==allowIndirectUsage ==goal ==name
+      silent not {
+        [| "using: " name "\n" |] out
+      } rep
+      [
+        { name assertions .has } {
+          name assertions * ==a
+          [
+            { a .type "p" eq a .type "a" eq or } {
+              goal .thm expandMeta ==goalToks
+              goalToks a possibleSubstitutions ==choices
+
+              0 ==indirectUsage
+              allowIndirectUsage
+              { choices len 0 eq } andif
+              { 0 goalToks * "|-" eq } andif
+              { 1 goalToks /wff logicParsers * * } andif { ==goalParse
+                0 a .thm * "|-" eq
+                { 1 a .thm /wff logicParsers * * } andif { ==assertionParse
+                  goalParse logicNonTerminal /wi eq {
+                    [ "|-" ] 1 goalParse * logicRange goalToks * cat a possibleSubstitutions ==implChoices
+                    implChoices len 1 eq {
+                      /a1i goal use
+                      goal .isopen not {
+                        1 =indirectUsage
+
+                        2 goal .resolution .hypotheses * ==g
+                        g .isopen { name g use } rep
+                      } rep
+                    } rep
+                  } rep
+
+                  indirectUsage not {
+                    0 ==hasAntes
+                    goalParse logicNonTerminal /wi eq {
+                      1 goalParse * 1 =hasAntes
+                    } {
+                      goalParse
+                    } ? * ==relevantGoalParse
+
+                    assertionParse ==i [ ] ==path
+                    { ==path ==goal ==substitution
+                      path reverse { ==step
+                        hasAntes {
+                          /syl goal use
+                          goal .isopen not {
+                            step logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                            4 goal .resolution .hypotheses * =goal
+                          } rep
+                        } {
+                          /ax-mp goal use
+                          goal .isopen not {
+                            step logicRange a .thm * substitution applySubstitution /ph lastMetaVariables * let
+                            name 3 goal .resolution .hypotheses * =goal
+                          } rep
+                        } ? *
+                      } each
+                      goal
+                    } /resolvePath deffst
+
+                    { ==goal ==name
+                      goal .isopen {
+                        name goal -1010 .thm expandMeta canUse { use } { .hint } ? *
+                      } rep
+                    } /useOrHint deffst
+
+                    {
+                      [
+                        { goal .isopen not } { 0 } # success already
+                        { i logicNonTerminal /wb eq } {
+                          relevantGoalParse goalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForParse ==rightChoices
+                          relevantGoalParse goalToks 0 i * logicRange a .thm * /wff 0 possibleSubstitutionsForParse ==leftChoices
+
+                          # prefer substitutions with more variables known (i.e. better match)
+                          rightChoices len 1 eq { leftChoices len 1 eq { 0 leftChoices * dom len 0 rightChoices * dom len gt } andif not } andif {
+                            0 rightChoices * ==substitution
+                            substitution a resolveEhypSubstitutions
+                            substitution a introduceMetaVars
+                            1 =indirectUsage
+                            hasAntes {
+                              path len {
+                                /mpbid goal use
+                                goal .isopen not {
+                                  0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  substitution 4 goal .resolution .hypotheses * path resolvePath ==subgoal
+                                  name subgoal useOrHint
+                                } rep
+                              } {
+                                /sylib goal use
+                                goal .isopen not {
+                                  0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  name 4 goal .resolution .hypotheses * useOrHint
+                                } rep
+                              } ? *
+                            } {
+                              /mpbi goal use
+                              goal .isopen not {
+                                0 i * logicRange a .thm * substitution applySubstitution /ph lastMetaVariables * let
+                                name 3 goal .resolution .hypotheses * useOrHint
+                              } rep
+                            } ? *
+                          } {
+                            leftChoices len 1 eq {
+                              0 leftChoices * ==substitution
+                              substitution a resolveEhypSubstitutions
+                              substitution a introduceMetaVars
+                              1 =indirectUsage
+                              hasAntes {
+                                path len {
+                                  /mpbird goal use
+                                  goal .isopen not {
+                                    1 i * logicRange a .thm * substitution applySubstitution /ch lastMetaVariables * let
+                                    substitution 4 goal .resolution .hypotheses * path resolvePath ==subgoal
+                                    name subgoal useOrHint
+                                  } rep
+                                } {
+                                  /sylibr goal use
+                                  goal .isopen not {
+                                    1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                    name 4 goal .resolution .hypotheses * useOrHint
+                                  } rep
+                                } ? *
+                              } {
+                                /mpbir goal use
+                                goal .isopen not {
+                                  1 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  name 3 goal .resolution .hypotheses * useOrHint
+                                } rep
+                              } ? *
+                            } rep
+                          } ? *
+                          0
+                        }
+                        { i logicNonTerminal /wi eq } {
+                          relevantGoalParse goalToks 1 i * logicRange a .thm * /wff 0 possibleSubstitutionsForParse ==rightChoices
+                          rightChoices len 1 eq {
+                            0 rightChoices * ==substitution
+                            substitution a resolveEhypSubstitutions
+                            substitution a introduceMetaVars
+                            1 =indirectUsage
+                            hasAntes {
+                              path len {
+                                /mpd goal use
+                                goal .isopen not {
+                                  0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  name 4 goal .resolution .hypotheses * useOrHint
+                                } rep
+                              } {
+                                /syl goal use
+                                goal .isopen not {
+                                  0 i * logicRange a .thm * substitution applySubstitution /ps lastMetaVariables * let
+                                  name 4 goal .resolution .hypotheses * useOrHint
+                                } rep
+                              } ? *
+                            } {
+                              /ax-mp goal use
+                              goal .isopen not {
+                                0 i * logicRange a .thm * substitution applySubstitution /ph lastMetaVariables * let
+                                name 3 goal .resolution .hypotheses * useOrHint
+                              } rep
+                            } ? *
+                            0
+                          } {
+                            path [ 0 i * ] cat =path
+                            1 i * =i
+                            1
+                          } ? *
+                        }
+                        { 1 } { 0 }
+                      ] conds
+                    } { } loop
+                  } rep
+                } rep
+              } rep
+
+              indirectUsage not {
+                [
+                  { choices len 1 eq } {
+                    a 0 choices * goal applyTheorem
+                  }
+                  { choices len 0 eq } {
+                    [| "\e[31mno possible substitutions\e[0m\n" |] out
+                    0 =redisplay
+                    name show
+                  }
+                  { choices len 1 ge } {
+                    [| "\e[31mmultiple substitutions possible\e[0m\n" |] out
+                    0 =redisplay
+                    name show
+                    0 choices len range { ==i
+                      [| i txt .produce .u ") " a .thm i choices * applySubstitution { renderName " " } each "\n" |] out
+                      [| "(with " i choices * dom { ==v v "=" v i choices * * { " " } each " " } each ")\n" |] out
+                    } each
+
+                    a "choice" readNumber choices * goal applyTheorem
+                  }
+                ] conds
+              } rep
+            }
+            { 1 } { [| name " is an assertion of unknown type (probably a bug)\n" |] out }
+          ] conds
+        }
+        { name userContext isEHyp } {
+          goal .thm expandMeta name userContext getEHyp arrEq {
+            [ ] < "f" ==type userContext ==ctx name userContext getEHyp ==thm { "no proof" die } =*proof name ==name >
+              step goal .close
+          } {
+            [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
+            0 =redisplay
+          } ? *
+        }
+        { name userContext isFHyp } {
+          goal .thm expandMeta name userContext getFHyp arrEq {
+            [ ] < "f" ==type userContext ==ctx name userContext getFHyp ==thm { "no proof" die } =*proof name ==name >
+              step goal .close
+          } {
+            [| "\e[31mnot applicable:\e[0m $f " name renderName "\n" |] out
+            0 =redisplay
+          } ? *
+        }
+        { 1 } {
+          [| name " is not usable" "\n" |] out
+          name show
+        }
+      ] conds
+    } τuseGeneric /useGeneric deffst
+
+    { 0 useGeneric } /use deffst
+    { 1 useGeneric } /tacUse deffst
+
+    { ==tokens ==name
+      0 ==usable
+      [
+        { name assertions .has } {
+          name assertions * ==a
+          a .type "p" eq a .type "a" eq or {
+            tokens a possibleSubstitutions ==choices
+            choices len 1 ge =usable
+          } rep
+        }
+        { name userContext isEHyp } {
+          tokens name userContext getEHyp arrEq =usable
+        }
+        { name userContext isFHyp } {
+          tokens name userContext getFHyp arrEq =usable
+        }
+      ] conds
+      usable
+    } τcanUse /canUse deffst
+
+    { ==metaVar ==tokens
+      0 ==disjunctionsViolated
+      metaVar "^\\$([^.]+)$" regex { ==stem
+        stem lastMetaVariables .has { stem lastMetaVariables * =metaVar } rep
+        metaVar metaSubstitution .has {
+          allMetaVariables dom { ==v
+            v metaSubstitution .has not {
+              v "^\\$([^.]+)\\.[0-9]+$" regex { stem eq {
+                v =metaVar
+              } rep } rep
+            } rep
+          } each
+        } rep
+      } rep
+
+      tokens { ==x metaVar ==y
+        x y gt { x y =x =y } rep
+        x disj .has {
+          y x disj * .has {
+            1 =disjunctionsViolated
+            [| "\e[31mproposed let would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+            0 =redisplay
+          } rep
+        } rep
+        x nonDisj .has {
+          y x nonDisj * .has {
+            1 =disjunctionsViolated
+            [| "\e[31mproposed let would violate\e[0m " x renderName " <=> " y renderName "\n" |] out
+            0 =redisplay
+          } rep
+        } rep
+      } each
+      disjunctionsViolated not {
+        tokens metaVar metaSubstitution =[]
+
+        disj dom { ==x
+          x disj * dom { ==y
+            x metaVar eq { tokens { ==t t constants .has not { t y markDisj } rep } each } rep
+            y metaVar eq { tokens { ==t t constants .has not { t x markDisj } rep } each } rep
+          } each
+        } each
+      } rep
+    } τlet /let deffst
+
+    [ ] ==allOpenGoals 0 ==allOpenGoalsValid
+    { # ==goal
+      objset ==goals
+      {
+        _ .isopen { goals .put } { .resolution .hypotheses |collect each } ? *
+      } /collect deffst
+      collect goals dom
+    } /openGoalsRecursive deffst
+
+    { ==goal
+      goal sys .asm .rawAddress mainGoal sys .asm .rawAddress eq {
+        allOpenGoalsValid not {
+          mainGoal openGoalsRecursive _ =allOpenGoals 1 =allOpenGoalsValid
+        } {
+          [ allOpenGoals { openGoalsRecursive _ len dearray } each ] _ =allOpenGoals 1 =allOpenGoalsValid
+        } ? *
+      } {
+        goal openGoalsRecursive
+      } ? *
+    } τopenGoals /openGoals deffst
+
+    { map _ ==directTheoremIndex # returned
+      [| "Indexing theorems by text...\n" |] out
+
+      assertions dom { ==name
+        name assertions * .ctx collectEHyps dom len not { name proposition .name neq } andif {
+          name [| name assertions * .thm { " " } each |] directTheoremIndex =[]
+        } rep
+      } each
+      [ |collectEHyps |collectFHyps ] { =*collect
+        proofContext collect ==hyps hyps dom { ==name
+          name [| name hyps * { " " } each |] directTheoremIndex =[]
+        } each
+      } each
+    } memoized /directTheoremIndex deffst
+
+    map ==closedGoalIndex
+    { ==newlyClosedGoal
+      { ==goal
+        [| goal .thm expandMeta { " " } each |] ==txt
+
+        txt closedGoalIndex .has not {
+          goal txt closedGoalIndex =[]
+          0 goal .thm * "|-" eq {
+            goal recordSolution
+          } rep
+        } rep
+      } /addClosedGoal deffst
+
+      { ==goal
+        goal .resolution .hypotheses _ =*hyps len 1 sub ==i
+        1 { _ i 0 ge and } {
+          i hyps ==hyp
+          hyp .isopen { -- 0 } {
+            [| hyp .thm expandMeta { " " } each |] ==txt
+            -- txt closedGoalIndex .has
+          } ? *
+          i 1 sub =i
+        } loop {
+          goal addClosedGoal
+          goal .parents |recurse each
+        } rep
+      } /recurse deffst
+
+      newlyClosedGoal recurse
+    } τclosedGoalIndex /amendClosedGoalIndex deffst
+
+    { map =closedGoalIndex
+      { ==goal
+        goal .isopen { 1 } {
+          [| goal .thm expandMeta { " " } each |] ==txt
+          txt closedGoalIndex .has { 0 } {
+            [ goal .resolution .hypotheses |recurse each ] any { 1 } {
+              goal txt closedGoalIndex =[]
+              0
+            } ? *
+          } ? *
+        } ? *
+      } /recurse deffst
+      mainGoal recurse --
+    } τclosedGoalIndex /rebuildClosedGoalIndex deffst
+
+    { ==toTry ==goal
+      goal .isopen not {
+        toTry { =*f
+          goal .resolution .hypotheses { ==g g .isopen { g f } rep } each
+        } each
+      } rep
+    } τtacAttemptNext /tacAttemptNext deffst
+
+    { ==goal ==toTry
+      goal openGoals { ==g
+        toTry { =*f
+          g .isopen {
+            g f
+            g .isopen not {
+              toTry g tacAttemptRecursive
+            } rep
+          } rep
+        } each
+      } each
+    } τtacAttemptRecursive /tacAttemptRecursive deffst
+
+    { ==tokens ==parse
+      parse logicRange tokens * ==thing
+      [
+        [ "NN0" "NN" "RR" "CC" ] { ==numbers
+          { thing len 1 eq { [| [ "|-" 0 thing * "e." numbers ] { " " } each |] directTheoremIndex .has } andif } { numbers }
+        } each
+        { parse logicNonTerminal /cdc eq { 0 parse * tokens classify "NN0" eq } andif { 1 parse * tokens classify "NN0" eq } andif } { "NN0" }
+        { 1 } { "" }
+      ] conds
+    } τclassify /classify deffst
+
+    { ==goal
+      goal .isopen {
+        goal .thm expandMeta ==tokens
+        [| tokens { " " }" each |] ==txt
+        [
+          { txt closedGoalIndex .has } {
+            silent not { [| "re-using earlier proof\n" |] out } rep
+
+            txt closedGoalIndex * .resolution goal .close
+          } τauto1
+          { txt directTheoremIndex .has } {
+            txt directTheoremIndex * goal use
+            goal [ |auto ] tacAttemptNext
+          } τauto2
+          { 0 tokens * logicParsers .has { tokens tokenIsMetaVar any not } andif } {
+            { [| "\e[31mautomatic parser available, but did not parse. probably not satisfiable\e[0m\n" |] out } =*failed
+            1 tokens 0 tokens * logicParsers * * { ==parse
+              faketrivialities { goal .fakeclose } {
+                # parse tree order is by token sequence, but hypothesis order is by set.mm
+                # only apply topmost parse rule and handle rest via big recursion
+                parse logicNonTerminal goal use
+                goal [ |auto ] tacAttemptNext
+              } ? *
+            } |failed ? *
+          } τauto3
+          { goal .autohint "" neq { goal .autohint tokens canUse } andif } {
+            goal .autohint goal use
+            goal [ |auto ] tacAttemptNext
+          } τauto6
+          { 0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif } τauto4 { ==parse
+            { ==parse =*preparation
+              goal .isopen { parse logicNonTerminal /wi eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
+                goal .isopen {
+                  /id goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wb eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
+                goal .isopen {
+                  /biid goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wi eq } andif { 1 parse * logicNonTerminal /wal eq } andif
+                { 0 parse * logicRange tokens * 1 1 parse * * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
+
+                goal .isopen {
+                  /ax-17 assertions * ==theorem
+                  tokens theorem possibleSubstitutions ==substitutions
+
+                  substitutions len 1 eq { 0 substitutions * ==substitution
+                    0 ==disjunctionsViolated
+                    theorem .disj { 2 dearray ==x ==y
+                      x substitution * { ==xTok
+                        xTok constants .has not {
+                          y substitution * { ==yTok
+                            yTok constants .has not {
+                              xTok yTok eq {
+                                1 =disjunctionsViolated
+                              } rep
+                              xTok yTok mustNotDisj {
+                                1 =disjunctionsViolated
+                              } rep
+                            } rep
+                          } each
+                        } rep
+                      } each
+                    } each
+
+                    disjunctionsViolated not {
+                      /ax-17 goal use
+                    } rep
+                    # TODO do something with hb* theorems here
+
+                    goal [ |auto ] tacAttemptNext
+                  } rep
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wceq eq } andif { 0 parse * logicRange tokens * 1 parse * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
+                goal .isopen {
+                  /eqid goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wi eq } andif
+                { 0 parse * logicNonTerminal /wceq eq } andif
+                { 1 parse * logicNonTerminal /wceq eq } andif
+                { 0 0 parse * * logicRange tokens * 1 1 parse * * logicRange tokens * arrEq } andif
+                { 1 0 parse * * logicRange tokens * 0 1 parse * * logicRange tokens * arrEq } andif {
+                goal preparation ==goal
+                goal .isopen {
+                  /eqcomd goal use
+                  goal [ |auto ] tacAttemptNext
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wbr eq } andif
+                           { 0 1 parse * logicRange tokens * * "<_" eq } andif
+                           { 0 parse * tokens classify [ "NN" "NN0" "RR" ] eq any } andif {
+                0 parse * logicRange tokens * 2 parse * logicRange tokens * arrEq {
+                  goal preparation ==goal
+                  goal .isopen {
+                    /leidi goal use
+                    goal [ |auto ] tacAttemptNext
+                  } rep
+                } rep
+
+                goal .isopen {
+                  0 parse * parseNumber { ==left
+                    2 parse * parseNumber { ==right
+                      left right lt {
+                        goal preparation ==goal
+                        goal .isopen {
+                          /ltleii goal use
+                          goal [ |auto ] tacAttemptNext
+                        } rep
+                      } rep
+                    } rep
+                  } rep
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wne eq } andif {
+                0 parse * parseNumber { ==left
+                  1 parse * parseNumber { ==right
+                    left right lt {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /ltneii goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } rep
+
+                    left right gt {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /gtneii goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } rep
+                  } rep
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wbr eq } andif
+                           { 0 1 parse * logicRange tokens * * "<" eq } andif {
+                0 parse * parseNumber { ==left
+                  2 parse * parseNumber { ==right
+                    left right lt {
+                      faketrivialities {
+                        goal .fakeclose
+                      } {
+                        0 parse * logicNonTerminal /cdc neq {
+                          goal preparation ==goal
+
+                          goal .isopen {
+                            /mpbir goal use
+                            goal .isopen not {
+                              [ ";" "0" 0 parse * logicRange tokens * _ len dearray "<"
+                                2 parse * logicRange tokens * _ len dearray ] /ps lastMetaVariables * let
+                              goal [ |auto ] tacAttemptNext
+                              3 goal .resolution .hypotheses * =goal
+
+                              goal .isopen {
+                                /breq1i goal use
+                                goal [ |auto ] tacAttemptNext
+                                4 goal .resolution .hypotheses * =goal
+                                goal .isopen {
+                                  /dec0h goal use
+                                  goal [ |auto ] tacAttemptNext
+                                } rep
+                              } rep
+                            } rep
+                          } rep
+                        } {
+                          goal preparation ==goal
+
+                          goal .isopen {
+                            left 10 div right 10 div lt {
+                              /decltc goal use
+                            } {
+                              /declt goal use
+                            } ? *
+                            goal [ |auto ] tacAttemptNext
+                          } rep
+                        } ? *
+                      } ? *
+                    } rep
+                  } rep
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wcel eq } andif {
+                1 parse * logicRange tokens * ==set
+
+                set len 1 eq { 0 set * ==setName
+                  goal .isopen { 0 parse * logicNonTerminal "cv" eq } andif { setName "_V" eq } andif {
+                    goal preparation ==goal
+                    goal .isopen {
+                      /vex goal use
+                      goal [ |auto ] tacAttemptNext
+                    } rep
+                  } rep
+
+                  goal .isopen { 0 parse * logicNonTerminal "cfv" eq } andif { setName "_V" eq } andif {
+                    goal preparation ==goal
+                    goal .isopen {
+                      /fvex goal use
+                      goal [ |auto ] tacAttemptNext
+                    } rep
+                  } rep
+
+                  goal .isopen { 0 parse * logicNonTerminal "co" eq } andif { setName "_V" eq } andif {
+                    goal preparation ==goal
+                    goal .isopen {
+                      /ovex goal use
+                      goal [ |auto ] tacAttemptNext
+                    } rep
+                  } rep
+
+                  goal .isopen { setName "NN0" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
+                    goal preparation ==goal
+                    goal .isopen {
+                      faketrivialities {
+                        0 parse * tokens classify /NN0 eq {
+                          goal .fakeclose
+                        } rep
+                      } {
+                        /deccl goal use
+                        goal [ |auto ] tacAttemptNext
+                      } ? *
+                    } rep
+                  } rep
+
+                  goal .isopen { setName "NN" eq } andif { 0 parse * logicNonTerminal /cdc eq } andif {
+                    goal preparation ==goal
+                    goal .isopen {
+                      1 0 parse * * logicNonTerminal /cc0 eq /decnnclb /decnncl ? goal use
+                      goal [ |auto ] tacAttemptNext
+                    } rep
+                  } rep
+
+                  0 parse * tokens classify ==type
+
+                  type "" neq {
+                    goal .isopen { setName "_V" eq } andif {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /elexi goal use
+                        goal .isopen not {
+                          [ type ] /B lastMetaVariables * let
+                          goal [ |auto ] tacAttemptNext
+                        } rep
+                      } rep
+                    } rep
+
+                    goal .isopen { setName "CC" eq } andif { type "NN0" eq } andif {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /nn0cni goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } rep
+
+                    goal .isopen { setName "RR" eq } andif { type "NN0" eq } andif {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /nn0rei goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } rep
+
+                    goal .isopen { setName "RR+" eq } andif { type "NN0" eq } andif {
+                      goal preparation ==goal
+                      goal .isopen {
+                        /elrpii goal use
+                        goal [ |auto ] tacAttemptNext
+                      } rep
+                    } rep
+                  } rep
+                } rep
+              } rep
+
+              goal .isopen { parse logicNonTerminal "wceq" eq } andif
+                  { 0 parse * logicNonTerminal /co eq } andif {
+                0 0 parse * * ==left
+                1 0 parse * * ==operation
+                2 0 parse * * ==right
+                1 parse * ==result
+
+                left parseNumber { ==leftNum
+                  right parseNumber { ==rightNum
+                    result parseNumber { ==resultNum
+                      operation logicNonTerminal [ /caddc /cmin /cmul /cexp /cmo ] eq any {
+                        goal preparation ==goal
+                        goal .isopen {
+                          goal tacSolveArith
+                        } rep
+                      } rep
+                    } rep
+
+                    result logicNonTerminal /cneg eq
+                        { 0 result * parseNumber } andif { ==resultNum
+                      goal preparation ==goal
+                      goal .isopen {
+                        goal tacSolveArith
+                      } rep
+                    } rep
+                  } rep
+                } rep
+              } rep
+
+              loadedTrivialities "*" | each
+            } /trivialities deffst
+
+            goal .isopen { parse logicNonTerminal /wi eq } andif {
+              1 parse * logicRange tokens * ==target
+              [| "|- " target { " " } each |] ==targetTxt
+
+              targetTxt directTheoremIndex .has {
+                /a1i goal use
+                goal [ |auto ] tacAttemptNext
+              } rep
+
+              goal antecedents ==antes
+
+              goal .isopen {
+                antes { ==ante
+                  ante target arrEq {
+                    goal tacSelect
+                  } rep
+                } each
+              } rep
+
+              goal .isopen {
+                proofContext collectEHyps _ ==hyps dom { ==name
+                  name hyps * len 1 sub target len eq { 1 name hyps * len range name hyps * * target arrEq } andif {
+                    /a1i goal use
+                    goal .isopen not {
+                      name 2 goal .resolution .hypotheses * use
+                    } rep
+                  } rep
+                } each
+              } rep
+
+              goal .isopen { parse logicNonTerminal /wi eq } andif {
+                { ==goal
+                  /a1i goal use
+                  goal [ |auto ] tacAttemptNext
+                  2 goal .resolution .hypotheses *
+                } 1 parse * trivialities
+              } rep
+
+              goal .isopen {
+                [| 1 parse * logicRange tokens * { " " } each |] ==conclusion
+                conclusion recordedSolutions .has {
+                  map ==anteSet
+                  goal antecedents { [| -01 { " " } each |] _ anteSet =[] } each
+
+                  999999999 ==shortestSolutionLength < > ==shortestSolution
+                  conclusion recordedSolutions * { ==solution
+                    [| solution .thm expandMeta { " " } each |] ==solutionTxt
+                    solutionTxt closedGoalIndex .has {
+                      [
+                        solution antecedents {
+                          [| -01 { " " } each |] anteSet .has
+                        } each
+                      ] all {
+                        [| solution .thm expandMeta _ len dearray |] len ==curLen
+                        curLen shortestSolutionLength lt {
+                          solution =shortestSolution curLen =shortestSolutionLength
+                        } rep
+                      } rep
+                    } rep
+                  } each
+
+                  shortestSolutionLength 999999999 lt {
+                    shortestSolution .thm expandMeta ==solutionToks
+
+                    0 solutionToks * "|-" eq
+                      { 1 solutionToks /wff metaLogicParsers * * } andif { ==solutionParse
+                      solutionParse logicNonTerminal /wi eq {
+                        0 solutionParse * logicRange solutionToks * goal tacWithOnly
+                      } {
+                        /a1i goal use
+                        goal [ |auto ] tacAttemptNext
+                      } ? *
+                    } rep
+                  } rep
+                } rep
+              }! rep # execute only non-recursively
+
+              goal .isopen { 1 parse * logicNonTerminal /wcel eq } andif
+                  { 1 1 parse * * logicNonTerminal [ /cz /cr /cc ] eq any } andif {
+                goal antecedents ==antes
+                [ 0 1 parse * * logicRange tokens * _ len dearray "e." "NN0" ] ==nn0classification
+                [ antes { nn0classification arrEq } each ] any {
+                  1 1 parse * * logicNonTerminal ==class
+                  [
+                    { class /cz eq } { /nn0z goal tacUse }
+                    { class /cr eq } { /nn0re goal tacUse }
+                    { class /cc eq } { /nn0cn goal tacUse }
+                  ] conds
+                  goal .isopen not { goal openGoals |auto each } rep
+                } rep
+              } rep
+            } rep
+
+            goal .isopen { parse logicNonTerminal /wi eq } andif
+                { 1 parse * logicNonTerminal /wceq eq } andif
+                { 0 1 parse * * logicNonTerminal /co eq } andif
+                { 1 0 1 parse * * * logicNonTerminal /caddc eq } andif
+                { 2 0 1 parse * * * parseNumber } andif { 0 eq } andif
+                { 0 0 1 parse * * * logicRange tokens * 1 1 parse * * logicRange tokens * arrEq } andif {
+              /addid1 goal tacUse
+              goal [ |auto ] tacAttemptNext
+            } rep
+
+            { } parse trivialities
+          } τauto5
+          loadedAutomations "*" | each
+        ] conds
+      } rep
+    } τauto /auto deffst
+
+    { ==token 0 token * 0 "$" * eq } '0.0 /tokenIsMetaVar deffst
+
+    { ==tokens
+      tokens len 1 eq { 0 tokens * tokenIsMetaVar } andif
+    } /tokensAreMetaVar deffst
+
+    { ==goal
+      { "\e[31mdistr:ante not applicable, expected |- ( ... -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+
+          < > ==thms "" ==leftNt "" ==rightNt
+          [
+            { 1 parse * logicNonTerminal /wb eq } {
+              0 1 parse * * logicNonTerminal =leftNt
+              1 1 parse * * logicNonTerminal =rightNt
+              leftNt rightNt eq {
+                <
+                  [ /imbi1d /imbi2d /imbi12d ] ==wi
+                  [ /bibi1d /bibi2d /bibi12d ] ==wb
+                  [ /eleq1d /eleq2d /eleq12d ] ==wcel
+                  [ /orbi1d /orbi2d /orbi12d ] ==wo
+                  [ /anbi1d /anbi2d4 /anbi2d /anbi12d ] ==wa
+                  [ /3anbi1d /3anbi2d /3anbi3d /3anbi12d /3anbi13d /3anbi23d /3anbi123d ] ==w3a
+                  [ /3orbi1d /3orbi2d /3orbi3d /3orbi123d ] ==w3o
+                  [ /notbid ] ==wn
+                  [ /eqeq1d /eqeq2d /eqeq12d ] ==wceq
+                  [ /neeq1d /neeq2d /neeq12d ] ==wne
+                  [ /sseq1d /sseq2d /sseq12d ] ==wss
+                  [ /albid ] ==wal
+                  [ /exbid ] ==wex
+                  [ /ralbid /ralbidv2 ] ==wral
+                  [ /rexbid /rexbidv2 ] ==wrex
+                  [ /breq1d /breq2d /breqd /breq12d /breq123d ] ==wbr
+                  [ /releqd ] ==wrel
+                  [ /feq1d /feq2d /feq3d /feq12d /feq23d ] ==wf
+                  [ /sbceq1a /sbceq1b /sbceq1c /sbceq1d /sbceq1e /sbceq1f /sbceq1g /sbceq1h /sbcbid /sbcbi13d /sbcbi123d ] ==wsbc
+                > =thms
+              } |notApplicable ? *
+            }
+            { 0 parse * logicNonTerminal /wceq eq { 1 parse * logicNonTerminal /wceq eq } andif } {
+              0 1 parse * * logicNonTerminal =leftNt
+              1 1 parse * * logicNonTerminal =rightNt
+              leftNt rightNt eq {
+                <
+                  [ /fveq1d /fveq2d /fveq12d ] ==cfv
+                  [ /oveq /oveq1d /oveq2d /oveq12d /oveq123d ] ==co
+                  [ /opeq1d /opeq2d /opeq12d ] ==cop
+                  [ /xpeq1d /xpeq2d /xpeq12d ] ==cxp
+                  [ /inteqd ] ==cint
+                  [ /abbidv /abbid ] ==cab
+                  [ /rabbidv /rabeqbidv ] ==crab
+                  [ /uneq1d /uneq2d /uneq12d ] ==cun
+                  [ /iuneq1d /iuneq2d /iuneq12d ] ==ciun
+                  [ /seqeq1d /seqeq2d /seqeq3d /seqeq123d ] ==cseq
+                  [ /mpteq12dv ] ==cmpt
+                  [ /mpt2eq123dv ] ==cmpt2
+                  [ /coeq1d /coeq2d /coeq12d ] ==ccom
+                  [ /reseq1d /reseq2d /reseq12d ] ==cres
+                  [ /dmeqd ] ==cdm
+                  [ /rneqd ] ==crn
+                  [ /cnveqd ] ==ccnv
+                  [ /unieqd ] ==cuni
+                  [ /relexpeq12d ] ==crelexp
+                  [ /ifeq1d /ifeq2d /ifbid /ifeq12d /ifbieq12d ] ==cif
+                > =thms
+              } |notApplicable ? *
+            }
+          ] conds
+
+          thms leftNt .?' {
+            thms leftNt . { ==thm
+              goal .isopen { thm goal .thm expandMeta canUse } andif {
+                thm goal use
+                goal [ |auto |tacDistrAntecedent ] tacAttemptNext
+              } rep
+            } each
+
+            goal .isopen { [| "\e[31mno theorem succeeded in closing goal, tried: " thms leftNt . { " " } each "\e[0m\n" |] out } rep
+          } { [| "\e[31mno theorem known to process rewrite step, of type " leftNt "\e[0m\n" |] out } ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } τtacDistrAntecedent /tacDistrAntecedent deffst
+
+    { ==goal
+      { "\e[31mdistr:ante (meta-version) not applicable, expected |- ( ... -> ( ... { <-> , = } ... ) )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          [ ] ==leftMeta [ ] ==rightMeta
+          [
+            { 1 parse * logicNonTerminal [ /wb /wceq ] eq any
+              { 0 1 parse * * logicRange tokens * _ =leftMeta tokensAreMetaVar } andif } {
+              1 0 parse * * logicRange tokens * ==from
+              0 0 parse * * logicRange tokens * ==to
+              1 1 parse * * logicRange tokens * from to rewriteTokens 0 leftMeta * let
+            }
+
+            { 1 parse * logicNonTerminal [ /wb /wceq ] eq any
+              { 1 1 parse * * logicRange tokens * _ =rightMeta tokensAreMetaVar } andif } {
+              0 0 parse * * logicRange tokens * ==from
+              1 0 parse * * logicRange tokens * ==to
+              0 1 parse * * logicRange tokens * from to rewriteTokens 0 rightMeta * let
+            }
+          ] conds
+
+          goal tacDistrAntecedent
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacDistrAntecedentMeta deffst
+
+    { ==to ==from ==tokens
+      [
+        0 ==i { i tokens len lt } {
+          i from len add tokens len le { i _ from len add range tokens * from arrEq } andif {
+            to _ len dearray i from len add =i
+          } {
+            i tokens * i 1 add =i
+          } ? *
+        } loop
+      ]
+    } τrewriteTokens /rewriteTokens deffst
+
+    { ==goal
+      { "\e[31mrewrite:ante not applicable, expected |- ( ( ... { = , <-> } ... ) -> ... )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq { 0 parse * logicNonTerminal [ /wceq /wb ] eq any } andif {
+          0 0 parse * * logicRange tokens * ==from
+          1 0 parse * * logicRange tokens * ==to
+
+          /mpbird goal use
+          goal .isopen not {
+            1 parse * logicRange tokens * from to rewriteTokens /ch lastMetaVariables * let
+            goal [ |auto ] tacAttemptNext
+            4 goal .resolution .hypotheses * ==g g .isopen {
+              g tacDistrAntecedent
+            } rep
+          } rep
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacRewriteAntecedent deffst
+
+    { ==goal ==antecedent
+      { "\e[31mrewrite:full not applicable, expected |- ... as goal and ... { = , <-> } ... as argument\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        0 antecedent /wff logicParsers * * { ==antecedentParse
+          antecedentParse logicNonTerminal [ /wceq /wb ] eq any {
+            0 antecedentParse * logicRange antecedent * ==from
+            1 antecedentParse * logicRange antecedent * ==to
+
+            /mpbir goal use
+            goal .isopen not {
+              1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * let
+              goal [ |auto ] tacAttemptNext
+              3 goal .resolution .hypotheses * ==mpbirMaj
+
+              mpbirMaj .isopen {
+                /ax-mp mpbirMaj use
+                mpbirMaj .isopen not {
+                  antecedent /ph lastMetaVariables * let
+                  mpbirMaj [ |auto ] tacAttemptNext
+
+                  3 mpbirMaj .resolution .hypotheses * ==g g .isopen {
+                    g tacDistrAntecedent
+                  } rep
+                } rep
+              } rep
+            } rep
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacRewriteFull deffst
+
+    { ==goal ==antecedent
+      { "\e[31mrewrite not applicable, expected |- ... as goal and ... { = , <-> } ... as argument\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        0 antecedent /wff logicParsers * * { ==antecedentParse
+          antecedentParse logicNonTerminal [ /wceq /wb ] eq any {
+            parse logicNonTerminal /wi eq {
+              /mpcom goal use
+              goal .isopen not {
+                antecedent /ph lastMetaVariables * let
+                3 goal .resolution .hypotheses * _ .isopen { tacAndSelect } { -- } ? *
+                4 goal .resolution .hypotheses * _ .isopen { tacContinueWithRewrite } { -- } ? *
+                goal [ |auto ] tacAttemptNext
+              } rep
+            } {
+              /ax-mp goal use
+              goal .isopen not {
+                antecedent /ph lastMetaVariables * let
+                3 goal .resolution .hypotheses * _ .isopen { tacContinueWithRewrite } { -- } ? *
+                goal [ |auto ] tacAttemptNext
+              } rep
+            } ? *
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacRewrite deffst
+
+    { ==goal
+      { "\e[31mtacReplaceRecursion not applicable, expected |- ( ph -> ( ps -> ch ) ) as goal with identical structure in ps and ch\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          1 parse * logicNonTerminal /wi eq {
+            0 1 parse * * logicNonTerminal ==nt
+            1 1 parse * * logicNonTerminal nt eq {
+              [
+                { nt /wbr eq } {
+                  /biimpd goal use
+                  goal .isopen not {
+                    goal [ |auto ] tacAttemptNext
+                    3 goal .resolution .hypotheses * ==g
+                    g .isopen {
+                      /breq123d g use
+                      g [ |auto ] tacAttemptNext
+                    } rep
+                  } rep
+                }
+                { 1 } {
+                  <
+                    [ /anim1d /anim2d /anim12d ] ==wa
+                    [ /orim1d /orim2d /orim12d ] ==wo
+                    [ /3anim123d ] ==w3a
+                    [ /3orim123d ] ==w3o
+                    [ /imim1d /imim2d /imim12d ] ==wi
+                    [ /ralimdv2 ] ==wral
+                    [ /alimd ] ==wal
+                    [ /reximdv2 ] ==wrex
+                    [ /eximd ] ==wex
+                  > ==thms
+
+                  thms nt .?' {
+                    thms nt . { ==thm
+                      goal .isopen { thm goal .thm expandMeta canUse } andif {
+                        thm goal use
+                        goal [ |auto |tacReplaceRecursion ] tacAttemptNext
+                      } rep
+                    } each
+
+                    goal .isopen { [| "\e[31mno theorem succeeded in closing goal, tried: " thms nt . { " " } each "\e[0m\n" |] out } rep
+                  } { [| "\e[31mno theorem known to process rewrite step, of type " nt "\e[0m\n" |] out } ? *
+                }
+              ] conds
+            } |notApplicable ? *
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacReplaceRecursion deffst
+
+    { ==goal ==changes
+      { "\e[31mreplace not applicable, expected |- ... as goal and ... { = , <-> } ... as argument\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        0 changes /wff logicParsers * * { ==changesParse
+          changesParse logicNonTerminal [ /wceq /wb ] eq any {
+            0 changesParse * logicRange changes * ==from
+            1 changesParse * logicRange changes * ==to
+
+            parse logicNonTerminal /wi eq {
+              /pm2.43i goal use
+              goal .isopen not {
+                goal [ |auto ] tacAttemptNext
+                2 goal .resolution .hypotheses * =goal
+              } rep
+            } rep
+
+            goal .isopen {
+              /mpdr goal use
+              goal .isopen not {
+                1 tokens len range tokens * from to rewriteTokens /ps lastMetaVariables * let
+                3 goal .resolution .hypotheses * ==g g .isopen {
+                  g tacReplaceRecursion
+                } rep
+                4 goal .resolution .hypotheses * ==g g .isopen {
+                  /a1i g use
+                  g [ |auto ] tacAttemptNext
+                } rep
+                goal [ |auto ] tacAttemptNext
+              } rep
+            } rep
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacReplace deffst
+
+    { ==goal ==name
+      name assertions .has {
+        name assertions * ==a
+        1 a .thm len range a .thm * goal tacRewriteFull
+        goal .isopen not {
+          3 goal .resolution .hypotheses * ==mpbirMaj
+          mpbirMaj .isopen not {
+            2 mpbirMaj .resolution .hypotheses * ==g
+            g .isopen {
+              name g use
+            } rep
+          } rep
+        } rep
+      } {
+        [| "\e[31m" name " is not an assertion" "\e[0m\n" |] out
+      } ? *
+    } /tacExpand deffst
+
+    { ==goal
+      goal .thm expandMeta ==tokens
+      [
+        0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+          parse logicNonTerminal /wi eq {
+            0 parse * ==anteConjuct
+            { anteConjuct logicNonTerminal /wa eq } {
+              0 anteConjuct * logicRange tokens * # left in result array
+              1 anteConjuct * =anteConjuct
+            } loop
+            anteConjuct logicRange tokens * # left in result array
+          } rep
+        } rep
+      ]
+    } τantecedents /antecedents deffst
+
+    { ==goal
+      { "\e[31mtacSelect not applicable, expected |- ( ... /\\ ... ) -> ... \e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        goal antecedents ==antes
+        antes len {
+          [ ] ==goalsToAuto
+
+          1 parse * logicRange tokens * ==target
+          0 ==i 1 neg ==success
+          { i antes len lt } {
+            i antes * ==ante
+            ante target arrEq {
+              i =success antes len =i
+            } rep
+            i 1 add =i
+          } loop
+
+          success antes len 1 sub eq ==lastTerm
+
+          success 0 ge {
+            goal .isopen {
+              faketrivialities { goal .fakeclose } {
+                { success 1 ge } {
+                  [
+                    { success 16 ge } {
+                      /adantl16 goal use
+                      goalsToAuto [ goal ] cat =goalsToAuto
+                      goal .isopen {
+                        1 neg =success
+                      } {
+                        18 goal .resolution .hypotheses * =goal
+                        goal .isopen not { 1 neg =success } rep
+                        success 16 sub =success
+                      } ? *
+                    }
+                    { success 8 ge } {
+                      /adantl8 goal use
+                      goalsToAuto [ goal ] cat =goalsToAuto
+                      goal .isopen {
+                        1 neg =success
+                      } {
+                        10 goal .resolution .hypotheses * =goal
+                        goal .isopen not { 1 neg =success } rep
+                        success 8 sub =success
+                      } ? *
+                    }
+                    { success 4 ge } {
+                      /adantl4 goal use
+                      goalsToAuto [ goal ] cat =goalsToAuto
+                      goal .isopen {
+                        1 neg =success
+                      } {
+                        6 goal .resolution .hypotheses * =goal
+                        goal .isopen not { 1 neg =success } rep
+                        success 4 sub =success
+                      } ? *
+                    }
+                    { success 3 ge } {
+                      /adantl3 goal use
+                      goalsToAuto [ goal ] cat =goalsToAuto
+                      goal .isopen {
+                        1 neg =success
+                      } {
+                        5 goal .resolution .hypotheses * =goal
+                        goal .isopen not { 1 neg =success } rep
+                        success 3 sub =success
+                      } ? *
+                    }
+                    { success 2 ge } {
+                      /adantl2 goal use
+                      goalsToAuto [ goal ] cat =goalsToAuto
+                      goal .isopen {
+                        1 neg =success
+                      } {
+                        4 goal .resolution .hypotheses * =goal
+                        goal .isopen not { 1 neg =success } rep
+                        success 2 sub =success
+                      } ? *
+                    }
+                    { success 1 ge } {
+                      /adantl goal use
+                      goalsToAuto [ goal ] cat =goalsToAuto
+                      goal .isopen {
+                        1 neg =success
+                      } {
+                        3 goal .resolution .hypotheses * =goal
+                        goal .isopen not { 1 neg =success } rep
+                        success 1 sub =success
+                      } ? *
+                    }
+                  ] conds
+                } loop
+                goal .isopen {
+                  lastTerm /id /simpl ? goal use
+                  goalsToAuto [ goal ] cat =goalsToAuto
+                } rep
+              } ? *
+            } rep
+          } { "\e[33mtacSelect not applicable, consequent not found in antecedents\e[0m\n" out } ? *
+
+          goalsToAuto { [ |auto ] tacAttemptNext } each
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacSelect deffst
+
+    { ==goal
+      { "\e[31mtacAndSelect not applicable, expected |- ( ... /\\ ... ) -> ( ... /\\ ... )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          1 parse * logicRange tokens * ==target 0 ==existsAsAnte
+
+          goal antecedents ==antes
+          antes { ==ante
+            ante target arrEq { 1 =existsAsAnte } rep
+          } each
+
+          existsAsAnte {
+            goal tacSelect
+          } {
+            1 parse * logicNonTerminal /wa eq {
+                1 1 parse * * logicNonTerminal /wa eq
+                { 1 1 1 parse * * * logicNonTerminal /wa eq } andif
+                { 1 1 1 1 parse * * * * logicNonTerminal /wa eq } andif {
+                /jca4 goal use
+              } {
+                /jca goal use
+              } ? *
+              goal [ |auto |tacAndSelect ] tacAttemptNext
+            } rep
+          } ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacAndSelectAfterDrop deffst
+
+    { ==goal
+      { "\e[31mtacAndSelect not applicable, expected |- ( ... /\\ ... ) -> ( ... /\\ ... )\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          1 parse * logicRange tokens * ==target 0 ==existsAsAnte
+
+          goal antecedents ==antes
+          antes { ==ante
+            ante target arrEq { 1 =existsAsAnte } rep
+          } each
+
+          existsAsAnte {
+            goal tacSelect
+          } {
+            { ==parse
+              [
+                { parse logicNonTerminal /wa eq } {
+                  0 parse * collectTerms
+                  1 parse * collectTerms
+                }
+                { parse logicNonTerminal /w3a eq } {
+                  0 parse * collectTerms
+                  1 parse * collectTerms
+                  2 parse * collectTerms
+                }
+                { 1 } { parse logicRange tokens * }
+              ] conds
+            } /collectTerms deffst
+            [ 1 parse * collectTerms ] ==conclusions
+
+            [ conclusions { ==conclusion
+              [ antes { conclusion arrEq } each ] any
+            } each ] all {
+              [ antes { ==ante
+                [ conclusions { ante arrEq } each ] any not { ante } rep
+              } each ] goal tacDropAll
+
+              goal openGoals ==open
+              open len 1 eq {
+                0 open * ==dropped
+                dropped .isopen { dropped tacAndSelectAfterDrop } rep
+              } rep
+            } {
+              goal tacAndSelectAfterDrop
+            } ? *
+          } ? *
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacAndSelect deffst
+
+    { ==goal ==tokens
+      0 tokens /wff logicParsers * * { --
+        /mpcom goal use
+        goal .isopen not {
+          tokens /ph lastMetaVariables * let
+          goal [ |auto ] tacAttemptNext
+          3 goal .resolution .hypotheses * _ .isopen { tacAndSelect } { -- } ? *
+        } rep
+      } { "\e[31mdesired antecedent did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
+    } /tacUnder deffst
+
+    { ==goal ==tokens
+      { "\e[31mwith not applicable, expected |- ...\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==goalTokens
+      0 goalTokens * "|-" eq { 1 goalTokens /wff logicParsers * * } andif { ==goalParse
+        0 tokens /wff logicParsers * * { --
+          goalParse logicNonTerminal /wi eq {
+            /mpd goal use
+            goal .isopen not {
+              tokens /ps lastMetaVariables * let
+              goal [ |auto ] tacAttemptNext
+              3 goal .resolution .hypotheses * _ .isopen { tacAndSelect } { -- } ? *
+            } rep
+          } {
+            /ax-mp goal use
+            goal .isopen not {
+              tokens /ph lastMetaVariables * let
+              goal [ |auto ] tacAttemptNext
+            } rep
+          } ? *
+        } { "\e[31mdesired antecedent did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
+      } |notApplicable ? *
+    } /tacWith deffst
+
+    { ==goal ==tokens
+      0 tokens /wff logicParsers * * { --
+        /syl goal use
+        goal .isopen not {
+          tokens /ps lastMetaVariables * let
+          goal [ |auto ] tacAttemptNext
+          3 goal .resolution .hypotheses * _ .isopen { tacAndSelect } { -- } ? *
+        } rep
+      } { "\e[31mdesired antecedent did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
+    } /tacWithOnly deffst
+
+    { ==goal ==tokens
+      0 tokens /wff logicParsers * * { ==parse
+        goal .thm expandMeta ==goalToks
+        0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif { ==goalParse
+          goalParse logicNonTerminal /wi eq
+            /mpancom /ax-mp ? goal use
+          goal .isopen not {
+            tokens /ph lastMetaVariables * let
+            goal [ |auto ] tacAttemptNext
+          } rep
+        } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
+      } { "\e[31mdesired conclusion did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
+    } /tacConclude deffst
+
+    { ==goal ==tokens
+      0 tokens /wff logicParsers * * { ==parse
+        goal .thm expandMeta ==goalToks
+        0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif { ==goalParse
+          goalParse logicNonTerminal /wi eq {
+            0 goalParse * logicNonTerminal /wa eq {
+              /sylancom goal use
+              goal .isopen not {
+                tokens /ch lastMetaVariables * let
+              } rep
+            } {
+              /syl goal use
+              goal .isopen not {
+                tokens /ps lastMetaVariables * let
+              } rep
+            } ? *
+            goal [ |auto ] tacAttemptNext
+          } { "\e[31current goal is not |- ( ... -> ... )\e[0m\n" out } ? *
+        } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
+      } { "\e[31mdesired conclusion did not parse as valid wff, would never be satisfiable\e[0m\n" out } ? *
+    } /tacAndConclude deffst
+
+    { ==goal ==tokens # an array of arrays of tokens
+      goal antecedents ==antes
+
+      map ==toRemove
+      tokens { ==toks 1 [| toks { " " } each |] toRemove =[] } each
+      [ ] ==toKeep
+      [ ] ==kept
+
+      antes { ==ante
+        [| ante { " " } each |] toRemove .has {
+          kept [ 0 ] cat =kept
+        } {
+          toKeep [ ante ] cat =toKeep
+          kept [ 1 ] cat =kept
+        } ? *
+      } each
+
+      { ==clauses # array of array of tokens
+        [
+          { clauses len 0 eq } { [ "T." ] }
+          { clauses len 1 eq } { [ 0 clauses * _ len dearray ] }
+          { 1 } {
+            [ "("
+              0 clauses * _ len dearray
+            "/\\"
+              1 clauses len range clauses * conjuction _ len dearray
+            ")" ]
+          }
+        ] conds
+      } /conjuction deffst
+
+      /syl goal use
+      goal .isopen not {
+        toKeep conjuction /ps lastMetaVariables * let
+        goal [ |auto ] tacAttemptNext
+
+        3 goal .resolution .hypotheses * ==conversion
+        faketrivialities { conversion .fakeclose } {
+          { kept len conversion .isopen and } {
+            [
+              { kept len 16 gt { 0 16 range kept * any not } andif } {
+                /adantl16 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  18 conversion .resolution .hypotheses * =conversion
+                } rep
+                16 kept len range kept * =kept
+              }
+              { kept len 8 gt { 0 8 range kept * any not } andif } {
+                /adantl8 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  10 conversion .resolution .hypotheses * =conversion
+                } rep
+                8 kept len range kept * =kept
+              }
+              { kept len 4 gt { 0 4 range kept * any not } andif } {
+                /adantl4 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  6 conversion .resolution .hypotheses * =conversion
+                } rep
+                4 kept len range kept * =kept
+              }
+              { kept len 3 gt { 0 3 range kept * any not } andif } {
+                /adantl3 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  5 conversion .resolution .hypotheses * =conversion
+                } rep
+                3 kept len range kept * =kept
+              }
+              { kept len 2 gt { 0 2 range kept * any not } andif } {
+                /adantl2 conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  4 conversion .resolution .hypotheses * =conversion
+                } rep
+                2 kept len range kept * =kept
+              }
+              { 0 kept * not } {
+                /adantl conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  3 conversion .resolution .hypotheses * =conversion
+                } rep
+                1 kept len range kept * =kept
+              }
+              { 1 } {
+                /anim2i conversion use
+                conversion .isopen not {
+                  conversion [ |auto ] tacAttemptNext
+                  3 conversion .resolution .hypotheses * =conversion
+                } rep
+                1 kept len range kept * =kept
+              }
+            ] conds
+          } loop
+        } ? *
+      } rep
+    } /tacDropAll deffst
+
+    { ==goal ==tokens
+      [ tokens ] goal tacDropAll
+    } /tacDrop deffst
+
+    { ==goal ==tokens # a sequence of tokens to search for
+      goal antecedents ==antes
+      antes len {
+        [ ] ==toRemove # ante indices to drop
+
+        0 antes len range { _ ==i antes * ==ante
+          0 ante len tokens len sub 1 add range { ==start
+            start _ tokens len add range ante * tokens arrEq {
+              toRemove [ i ] cat =toRemove
+            } rep
+          } each
+        } each
+
+        toRemove antes * goal tacDropAll
+      } { "\e[31mtacDropMatching not applicable, expected |- ... -> ... \e[0m\n" out } ? *
+    } /tacDropMatching deffst
+
+    { ==goal
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          goal ==toRewrite
+          0 parse * logicNonTerminal /wa eq {
+            /imp goal use
+            goal .isopen not {
+              3 goal .resolution .hypotheses * =toRewrite
+            } rep
+          } rep
+          toRewrite tacRewriteAntecedent
+          toRewrite .isopen not {
+            3 toRewrite .resolution .hypotheses * ==continuation
+            continuation .isopen {
+              /a1i continuation use
+              continuation [ |auto ] tacAttemptNext
+            } rep
+          } rep
+          goal [ |auto ] tacAttemptNext
+        } { "\e[31mcurrent goal is not |- ( ... -> ... )\e[0m\n" out } ? *
+      } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
+    } /tacContinueWithRewrite deffst
+
+    { ==goal
+      goal antecedents ==antes
+      0 ==doRewrite
+      antes { ==ante
+        0 ante /wff logicParsers * * { ==parse
+          parse logicNonTerminal [ /wa /w3a ] eq any { 1 =doRewrite } rep
+        } rep
+      } each
+
+      doRewrite {
+        {
+          goal .thm expandMeta ==tokens
+          0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+            parse logicNonTerminal /wi eq {
+              [
+                { 0 parse * logicNonTerminal /wa eq } {
+                  [
+                    { 0 0 parse * * logicNonTerminal /wa eq } {
+                      1 0 0 parse * * * logicNonTerminal /wa eq
+                          { 1 1 0 0 parse * * * * logicNonTerminal /wa eq } andif
+                          { 1 1 1 0 0 parse * * * * * logicNonTerminal /wa eq } andif {
+                        /animpass4 goal use
+                        goal [ |auto ] tacAttemptNext
+                        goal .isopen { 0 =doRewrite } { 7 goal .resolution .hypotheses * =goal } ? *
+                      } {
+                        /animpass goal use
+                        goal [ |auto ] tacAttemptNext
+                        goal .isopen { 0 =doRewrite } { 4 goal .resolution .hypotheses * =goal } ? *
+                      } ? *
+                    }
+                    { 0 0 parse * * logicNonTerminal /w3a eq } {
+                      /3imp1 goal use
+                      goal [ |auto ] tacAttemptNext
+                      goal .isopen { 0 =doRewrite } { 5 goal .resolution .hypotheses * =goal } ? *
+                    }
+                    { goal .isopen } {
+                      { ==parse
+                        [
+                          { 0 parse * logicNonTerminal /wa eq } { 1 }
+                          { 1 parse * logicNonTerminal /wa eq } { 1 parse * hasAnyNestedConjucts }
+                          { 1 } { 0 }
+                        ] conds
+                      } /hasAnyNestedConjucts deffst
+
+                      0 parse * hasAnyNestedConjucts {
+                        /impcom goal use
+                        goal [ |auto ] tacAttemptNext
+                        goal .isopen { 0 =doRewrite } { 3 goal .resolution .hypotheses * =goal } ? *
+                      } {
+                        0 =doRewrite
+                      } ? *
+                    }
+                    { 1 } { 0 =doRewrite }
+                  ] conds
+                  1
+                }
+                { 0 parse * logicNonTerminal /w3a eq } {
+                  /3imp goal use
+                  goal [ |auto ] tacAttemptNext
+                  goal .isopen { 0 =doRewrite } { 4 goal .resolution .hypotheses * =goal } ? *
+                  1
+                }
+                { 1 } { 0 }
+              ] conds
+            } { 0 } ? *
+          } { 0 } ? *
+          doRewrite and goal .isopen and
+        } { } loop
+
+        goal .isopen {
+          goal tacNormalizeLogic
+        } rep
+      } rep
+    } /tacNormalizeAntecedent deffst
+
+    { |tacNormalizeConsequent ==tmp
+      { -- } =tacNormalizeConsequent
+      tacNormalizeAntecedent
+      tmp =tacNormalizeConsequent
+    } /tacNormalizeAntecedentOnly deffst
+
+    { ==goal ==from ==to
+      { "\e[31mtacRename not applicable, expected |- ...\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      tokens to neq all {
+        0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+          goal .thm expandMeta ==tokens
+          /vtocl goal use
+          goal .isopen not {
+            [ from ] /A lastMetaVariables * let
+            [ to ] /x lastMetaVariables * let
+            [ parse logicRange tokens * { _ ==t from eq to t ? } each ] /ph lastMetaVariables * let
+
+            5 goal .resolution .hypotheses * tacRewriteAntecedent
+            goal [ |auto ] tacAttemptNext
+          } rep
+        } |notApplicable ? *
+      } { "\e[31mtarget name already in use, cannot rename\e[0m\n" out } ? *
+    } /tacRename deffst
+
+    { ==goal
+      { "\e[31mtacNormalizeConsequent not applicable, expected |- ...\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        [
+          { parse logicNonTerminal /wi eq } {
+            [
+              { 1 parse * logicNonTerminal /wa eq } {
+                  1 1 parse * * logicNonTerminal /wa eq
+                  { 1 1 1 parse * * * logicNonTerminal /wa eq } andif
+                  { 1 1 1 1 parse * * * * logicNonTerminal /wa eq } andif {
+                  /jca4 goal use
+                } {
+                  /jca goal use
+                } ? *
+                goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
+              }
+              { 1 parse * logicNonTerminal /w3a eq } {
+                /3jca goal use
+                goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
+              }
+            ] conds
+          }
+          { parse logicNonTerminal /wa eq } {
+            /pm3.2i goal use
+            goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
+          }
+          { parse logicNonTerminal /w3a eq } {
+            /3pm3.2i goal use
+            goal [ |auto |tacNormalizeLogic |tacNormalizeConsequent ] tacAttemptNext
+          }
+        ] conds
+      } |notApplicable ? *
+    } /tacNormalizeConsequent deffst
+
+    { ==goal
+      { "\e[31mnormalize not applicable, expected |- ...\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          0 ==implicationCount
+          1 parse * ==i
+          { i logicNonTerminal /wi eq } {
+            implicationCount 1 add =implicationCount
+            1 i * =i
+          } loop
+
+          [
+            { implicationCount 16 ge } {
+              /expcom16 goal use
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
+            }
+            { implicationCount 8 ge } {
+              /expcom8 goal use
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
+            }
+            { implicationCount 4 ge } {
+              /expcom4 goal use
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
+            }
+            { implicationCount 2 ge } {
+              /expcom2 goal use
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
+            }
+            { implicationCount 1 ge } {
+              /expcom goal use
+              goal [ |auto |tacNormalizeLogic ] tacAttemptNext
+            }
+            { 1 } {
+              goal tacNormalizeAntecedent
+              goal .isopen {
+                /id tokens canUse {
+                  /id goal use
+                } {
+                  goal tacNormalizeConsequent
+                } ? *
+              } rep
+            }
+          ] conds
+        } rep
+      } |notApplicable ? *
+    } /tacNormalizeLogic deffst
+
+    { ==parse ==tokens
+      0 ==M 0 ==N
+      [
+        { parse logicNonTerminal /co eq
+            { 0 parse * parseNumber _ { -01 =N } rep } andif
+            { 2 parse * parseNumber _ { -01 =M } rep } andif
+            { 1 parse * logicNonTerminal [ /caddc /cmin /cmul /cmo /cexp ] eq any } andif } {
+          1 parse * logicNonTerminal ==nt
+          { N printNumber _ len dearray } =*Nt { M printNumber _ len dearray } =*Mt
+
+          [
+            { nt /caddc eq } { [ "(" Nt "+" Mt ")" "=" N M add printNumber _ len dearray ] }
+            { nt /cmin eq } { N M ge {
+                [ "(" Nt "-" Mt ")" "=" N M sub printNumber _ len dearray ]
+              } {
+                [ "(" Nt "-" Mt ")" "=" "-u" N M sub neg printNumber _ len dearray ]
+              } ? *
+            }
+            { nt /cmul eq } { [ "(" Nt "x." Mt ")" "=" N M mul printNumber _ len dearray ] }
+            { nt /cmo eq } { [ "(" Nt "mod" Mt ")" "=" N M mod printNumber _ len dearray ] }
+            { nt /cexp eq } { [ "(" Nt "^" Mt ")" "=" N M exp printNumber _ len dearray ] }
+          ] conds
+        }
+        # ( ( X {+,-} N ) + M )
+        { parse logicNonTerminal /co eq
+            { 0 parse * logicNonTerminal /co eq } andif
+            { 2 0 parse * * parseNumber _ { -01 =N } rep } andif
+            { 2 parse * parseNumber _ { -01 =M } rep } andif
+            { 1 parse * logicNonTerminal /caddc eq } andif } {
+          1 0 parse * * logicNonTerminal ==nt
+          { N printNumber _ len dearray } =*Nt { M printNumber _ len dearray } =*Mt
+
+          [
+            { nt /caddc eq } {
+              [ parse logicRange tokens * _ len dearray "="
+                "(" 0 0 parse * * logicRange tokens * _ len dearray "+"
+                "(" Nt "+" Mt ")" ")" ]
+            }
+            { nt /cmin eq } {
+              [ parse logicRange tokens * _ len dearray "="
+                "(" 0 0 parse * * logicRange tokens * _ len dearray "+"
+                "(" Mt "-" Nt ")" ")" ]
+            }
+          ] conds
+        }
+        { parse logicNonTerminal /co eq
+            { 1 parse * logicNonTerminal /caddc eq } andif
+            { 2 parse * logicNonTerminal /cneg eq } andif } {
+          [ parse logicRange tokens * _ len dearray "="
+            "(" 0 parse * logicRange tokens * _ len dearray "-" 0 2 parse * * logicRange tokens * _ len dearray ")" ]
+        }
+        { parse logicNonTerminal /c10 eq } {
+            [ "10" "=" ";" "1" "0" ]
+        }
+        { 1 } {
+          0 parse logicChildCount range { tokens -01 parse * extractArithmeticTrivialities } each
+        }
+      ] conds
+    } /extractArithmeticTrivialities deffst
+
+    { ==goal
+      { "\e[31mnormalize:arith not applicable, expected |- ...\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff logicParsers * * } andif { ==parse
+        [
+          # TODO: import and improve the grammar matcher and simplify these comparison tables
+          # the following needs early handling, otherwise infinite recursion
+          # ( ( x reg ; 1 3 ) + -u 9 ) = ( ( x reg ; 1 3 ) - 9 )
+          { parse logicNonTerminal /wi eq
+              { 1 parse * logicNonTerminal /wceq eq } andif
+              { 0 1 parse * * logicNonTerminal /co eq } andif
+              { 1 1 parse * * logicNonTerminal /co eq } andif
+              { 1 0 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 2 0 1 parse * * * logicNonTerminal /cneg eq } andif
+              { 1 1 1 parse * * * logicNonTerminal /cmin eq } andif
+              { 0 0 1 parse * * * logicRange tokens *
+                0 1 1 parse * * * logicRange tokens * arrEq } andif
+              { 0 2 0 1 parse * * * * logicRange tokens *
+                2 1 1 parse * * * logicRange tokens * arrEq } andif } {
+            /negsub goal tacUse
+          }
+          { parse logicNonTerminal /wceq eq
+              { 0 parse * logicNonTerminal /co eq } andif
+              { 1 parse * logicNonTerminal /co eq } andif
+              { 1 0 parse * * logicNonTerminal /caddc eq } andif
+              { 2 0 parse * * logicNonTerminal /cneg eq } andif
+              { 1 1 parse * * logicNonTerminal /cmin eq } andif
+              { 0 0 parse * * logicRange tokens *
+                0 1 parse * * logicRange tokens * arrEq } andif
+              { 0 2 0 parse * * * logicRange tokens *
+                2 1 parse * * logicRange tokens * arrEq } andif } {
+            /negsubi goal use
+            goal [ |auto |tacNormalizeArith ] tacAttemptNext
+          }
+          # ( ( A + B ) + C ) = ( A + ( C + B ) )
+          { parse logicNonTerminal /wi eq
+              { 1 parse * logicNonTerminal /wceq eq } andif
+              { 0 1 parse * * logicNonTerminal /co eq } andif
+              { 1 1 parse * * logicNonTerminal /co eq } andif
+              { 1 0 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 1 1 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 0 0 1 parse * * * logicNonTerminal /co eq } andif
+              { 2 1 1 parse * * * logicNonTerminal /co eq } andif
+              { 1 0 0 1 parse * * * * logicNonTerminal /caddc eq } andif
+              { 1 2 1 1 parse * * * * logicNonTerminal /caddc eq } andif
+              { 0 0 0 1 parse * * * * logicRange tokens *
+                0 1 1 parse * * * logicRange tokens * arrEq } andif
+              { 2 0 0 1 parse * * * * logicRange tokens *
+                0 2 1 1 parse * * * * logicRange tokens * arrEq } andif
+              { 2 0 1 parse * * * logicRange tokens *
+                2 2 1 1 parse * * * * logicRange tokens * arrEq } andif } {
+            /addass goal tacUse
+          }
+          { parse logicNonTerminal /wceq eq
+              { 0 parse * logicNonTerminal /co eq } andif
+              { 1 parse * logicNonTerminal /co eq } andif
+              { 1 0 parse * * logicNonTerminal /caddc eq } andif
+              { 1 1 parse * * logicNonTerminal /caddc eq } andif
+              { 0 0 parse * * logicNonTerminal /co eq } andif
+              { 2 1 parse * * logicNonTerminal /co eq } andif
+              { 1 0 0 parse * * * logicNonTerminal /caddc eq } andif
+              { 1 2 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 0 0 0 parse * * * logicRange tokens *
+                0 1 parse * * logicRange tokens * arrEq } andif
+              { 2 0 0 parse * * * logicRange tokens *
+                0 2 1 parse * * * logicRange tokens * arrEq } andif
+              { 2 0 parse * * logicRange tokens *
+                2 2 1 parse * * * logicRange tokens * arrEq } andif } {
+            /addass goal tacUse
+            goal [ |auto |tacNormalizeArith ] tacAttemptNext
+          }
+          # ( ( A - B ) + C ) = ( A + ( C - B ) )
+          { parse logicNonTerminal /wi eq
+              { 1 parse * logicNonTerminal /wceq eq } andif
+              { 0 1 parse * * logicNonTerminal /co eq } andif
+              { 1 1 parse * * logicNonTerminal /co eq } andif
+              { 1 0 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 1 1 1 parse * * * logicNonTerminal /caddc eq } andif
+              { 0 0 1 parse * * * logicNonTerminal /co eq } andif
+              { 2 1 1 parse * * * logicNonTerminal /co eq } andif
+              { 1 0 0 1 parse * * * * logicNonTerminal /cmin eq } andif
+              { 1 2 1 1 parse * * * * logicNonTerminal /cmin eq } andif
+              { 0 0 0 1 parse * * * * logicRange tokens *
+                0 1 1 parse * * * logicRange tokens * arrEq } andif
+              { 2 0 0 1 parse * * * * logicRange tokens *
+                2 2 1 1 parse * * * * logicRange tokens * arrEq } andif
+              { 2 0 1 parse * * * logicRange tokens *
+                0 2 1 1 parse * * * * logicRange tokens * arrEq } andif } {
+            /subadd23 goal tacUse
+          }
+          { parse logicNonTerminal /wceq eq
+              { 0 parse * logicNonTerminal /co eq } andif
+              { 1 parse * logicNonTerminal /co eq } andif
+              { 1 0 parse * * logicNonTerminal /caddc eq } andif
+              { 1 1 parse * * logicNonTerminal /caddc eq } andif
+              { 0 0 parse * * logicNonTerminal /co eq } andif
+              { 2 1 parse * * logicNonTerminal /co eq } andif
+              { 1 0 0 parse * * * logicNonTerminal /cmin eq } andif
+              { 1 2 1 parse * * * logicNonTerminal /cmin eq } andif
+              { 0 0 0 parse * * * logicRange tokens *
+                0 1 parse * * logicRange tokens * arrEq } andif
+              { 2 0 0 parse * * * logicRange tokens *
+                2 2 1 parse * * * logicRange tokens * arrEq } andif
+              { 2 0 parse * * logicRange tokens *
+                0 2 1 parse * * * logicRange tokens * arrEq } andif } {
+            /subadd23 goal use
+            goal [ |auto |tacNormalizeArith ] tacAttemptNext
+          }
+          { 1 } {
+            [ tokens parse extractArithmeticTrivialities ] ==equalities
+            equalities len 0 gt {
+              0 equalities * ==equality
+              [ equality |isConst each ] all {
+                equality goal tacRewriteFull
+                [ |auto |tacNormalizeArith ] goal tacAttemptRecursive
+              } {
+                equality goal tacRewrite
+                [ |auto |tacNormalizeArith ] goal tacAttemptRecursive
+              } ? *
+            } rep
+          }
+        ] conds
+      } |notApplicable ? *
+    } /tacNormalizeArith deffst
+
+    { ==goal
+      goal tacNormalizeArith
+      goal openGoals { ==g
+        0 g .thm * "|-" eq {
+          g tacNormalizeLogic
+          g .isopen { g auto } rep
+        } rep
+      } each
+    } /tacNormalize deffst
+
+    { ==goals
+      {
+        [ goals { ==goal
+          goal .isopen {
+            goal .thm expandMeta ==tokens
+            0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+              parse logicNonTerminal /wi eq
+                  { 0 parse * logicNonTerminal [ /wb /wceq ] eq any } andif
+                  { 1 parse * logicNonTerminal [ /wb /wceq ] eq any } andif {
+                0 1 parse * * logicRange tokens * ==leftMeta
+                1 1 parse * * logicRange tokens * ==rightMeta
+                [
+                  { leftMeta tokensAreMetaVar rightMeta tokensAreMetaVar not and } {
+                    1 0 parse * * logicRange tokens * ==from
+                    0 0 parse * * logicRange tokens * ==to
+                    1 1 parse * * logicRange tokens * from to rewriteTokens 0 leftMeta * let
+                  }
+
+                  { leftMeta tokensAreMetaVar not rightMeta tokensAreMetaVar and } {
+                    0 0 parse * * logicRange tokens * ==from
+                    1 0 parse * * logicRange tokens * ==to
+                    0 1 parse * * logicRange tokens * from to rewriteTokens 0 rightMeta * let
+                  }
+                ] conds
+
+                goal .thm expandMeta ==tokensSubstituted
+                1 tokensSubstituted /wff logicParsers * * { --
+                  goal tacDistrAntecedent
+                  goal .isopen not { 1 } rep # repeat
+                } rep
+              } rep
+            } rep
+          } rep
+        } each ] len
+      } { } loop
+    } /tacSubstitutions deffst
+
+    { ==parse
+      parse logicNonTerminal ==nt
+      [
+        { nt /cc0 eq } { 0 1 }
+        { nt /c1 eq } { 1 1 }
+        { nt /c2 eq } { 2 1 }
+        { nt /c3 eq } { 3 1 }
+        { nt /c4 eq } { 4 1 }
+        { nt /c5 eq } { 5 1 }
+        { nt /c6 eq } { 6 1 }
+        { nt /c7 eq } { 7 1 }
+        { nt /c8 eq } { 8 1 }
+        { nt /c9 eq } { 9 1 }
+        { nt /cdc eq } {
+          0 parse * parseNumber { ==high
+            1 parse * parseNumber { ==low
+              high 10 mul low add 1
+            } { 0 } ? *
+          } { 0 } ? *
+        }
+        { 1 } { 0 }
+      ] conds
+    } τparseNumber /parseNumber deffst
+
+    # this function does not guarantee a correct parse but assumes it
+    { ==toks
+      0
+      toks { ==t
+        [
+          { t ";" eq } { }
+          { t len 1 eq { 0 t * 48 ge 0 t * 57 le and } andif } { 10 mul 0 t * 48 sub add }
+          { 1 } { "\e[33minvalid number in parseNumberToks\e[0m\n" out -- 1 neg }
+        ] conds
+      } each
+    } τparseNumberToks /parseNumberToks deffst
+
+    { txt .produce .u ==s
+      [
+        s len 1 sub { ";" } rep
+        s { [ -01 ] str .fromArray } each
+      ]
+    } /printNumber deffst
+
+    { ==goal
+      { "\e[31msolve:arith not applicable, expected |- ( <decimal> { + , - , x. , ^ } <decimal> ) = <decimal>\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      [ /dec0h /addid1i /addid2i /mul01i /mul02i /mulid1i /mulid2i /numexp0 /numexp1 ] { ==thm
+        goal .isopen { thm tokens canUse } andif {
+          thm goal use
+          goal [ |auto ] tacAttemptNext
+        } rep
+      } each
+
+      goal .isopen {
+        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+          parse logicNonTerminal "wceq" eq { 0 parse * logicNonTerminal /co eq } andif {
+            0 0 parse * * ==left
+            1 0 parse * * ==operation
+            2 0 parse * * ==right
+            1 parse * ==result
+
+            left parseNumber { ==leftNum
+              right parseNumber { ==rightNum
+                result parseNumber { ==resultNum
+                  [
+                    { operation logicNonTerminal /caddc eq } {
+                      [
+                        { leftNum rightNum add resultNum neq } { "\e[31mincorrect addition result\e[0m\n" out }
+                        { faketrivialities } { goal .fakeclose }
+                        { left logicNonTerminal /cdc eq right logicNonTerminal /cdc eq or } {
+                          leftNum 10 mod rightNum 10 mod add 9 gt {
+                            /decaddc goal use
+                          } {
+                            /decadd goal use
+                          } ? *
+
+                          goal .isopen not {
+                            left logicNonTerminal /cdc eq {
+                              0 left * logicRange tokens * /A lastMetaVariables * let
+                              1 left * logicRange tokens * /B lastMetaVariables * let
+                            } {
+                              [ "0" ] /A lastMetaVariables * let
+                              left logicRange tokens * /B lastMetaVariables * let
+                            } ? *
+                            right logicNonTerminal /cdc eq {
+                              0 right * logicRange tokens * /C lastMetaVariables * let
+                              1 right * logicRange tokens * /D lastMetaVariables * let
+                            } {
+                              [ "0" ] /C lastMetaVariables * let
+                              right logicRange tokens * /D lastMetaVariables * let
+                            } ? *
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { leftNum rightNum lt } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            [
+                              "("
+                              right logicRange tokens * _ len dearray
+                              "+"
+                              left logicRange tokens * _ len dearray
+                              ")"
+                            ] /B lastMetaVariables * let
+                            /addcomi 3 goal .resolution .hypotheses * use
+
+                            3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 parse * logicNonTerminal /cdc eq
+                            { 0 1 parse * * logicNonTerminal /c1 eq } andif
+                            { 1 1 parse * * logicNonTerminal /cc0 eq } andif } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            [ "10" ] /B lastMetaVariables * let
+                            /dec10 4 goal .resolution .hypotheses * use
+
+                            4 goal .resolution .hypotheses * [ |auto ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 parse * logicNonTerminal /cdc eq
+                            { 0 1 parse * * logicNonTerminal /cc0 eq } andif } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            1 1 parse * * logicRange tokens * /B lastMetaVariables * let
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 } { "\e[31msolve:arith does not deal with ( [0-9] + [0-9] )\e[0m\n" out }
+                      ] conds
+                    }
+                    { operation logicNonTerminal /cmin eq } {
+                      /subaddi goal tacUse # TODO: replace with mpbir sequence or similar
+                      goal [ |auto |tacSolveArith ] tacAttemptNext
+                    }
+                    { operation logicNonTerminal /cmul eq } {
+                      [
+                        { leftNum rightNum mul resultNum neq } { "\e[31mincorrect multiplication result\e[0m\n" out }
+                        { faketrivialities } { goal .fakeclose }
+                        # { leftNum txt .produce .u len 3 ge { rightNum txt .produce .u len 3 ge } andif } {
+                        #   { -0110 == printNumber -01 lastMetaVariables * let }' "=>" deffst
+
+                        #   /karatsuba goal use
+                        #   leftNum txt .produce .u len 2 div =>M
+                        #   10 M exp ==d
+                        #   leftNum _ d div =>A d mod =>B
+                        #   rightNum _ d div =>C d mod =>D
+                        #   A C mul =>R
+                        #   B D mul =>T
+                        #   A B add C D add mul T sub R sub =>S
+                        #   R d mul S add =>W
+
+                        #   goal [ |auto |tacNormalizeArith ] tacAttemptNext
+                        # }
+                        { left logicNonTerminal /cdc eq { right logicNonTerminal /cdc eq } andif } {
+                          /decmul12c goal use
+                          goal .isopen not {
+                            leftNum _ 10 div ==A 10 mod ==B
+                            rightNum _ 10 div ==C 10 mod ==D
+                            { -0110 == printNumber -01 lastMetaVariables * let }' "=>" deffst
+
+                            B D mul 10 div =>H
+                            A D mul _ 10 div =>I 10 mod =>J
+                            C B mul _ 10 div =>K 10 mod =>L
+                            I K add =>N
+                            H J add =>O
+                            O L add 10 div =>M
+                            A C mul =>P
+                            N M add =>Q
+
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { left logicNonTerminal /cdc eq } {
+                          /decmul1c goal use
+                          goal .isopen not {
+                            leftNum 10 div printNumber /A lastMetaVariables * let
+                            leftNum 10 mod printNumber /B lastMetaVariables * let
+                            leftNum 10 mod rightNum mul 10 div printNumber /E lastMetaVariables * let
+                          } rep
+                          goal [ |auto |tacSolveArith ] tacAttemptNext
+                        }
+                        { right logicNonTerminal /cdc eq } {
+                          /decmul2c goal use
+                          goal .isopen not {
+                            rightNum 10 div printNumber /A lastMetaVariables * let
+                            rightNum 10 mod printNumber /B lastMetaVariables * let
+                            rightNum 10 mod leftNum mul 10 div printNumber /E lastMetaVariables * let
+                          } rep
+                          goal [ |auto |tacSolveArith ] tacAttemptNext
+                        }
+                        { leftNum rightNum lt } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            [
+                              "("
+                              right logicRange tokens * _ len dearray
+                              "x."
+                              left logicRange tokens * _ len dearray
+                              ")"
+                            ] /B lastMetaVariables * let
+                            /mulcomi 3 goal .resolution .hypotheses * use
+
+                            3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 parse * logicNonTerminal /cdc eq
+                            { 0 1 parse * * logicNonTerminal /c1 eq } andif
+                            { 1 1 parse * * logicNonTerminal /cc0 eq } andif } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            [ "10" ] /B lastMetaVariables * let
+                            /dec10 4 goal .resolution .hypotheses * use
+
+                            4 goal .resolution .hypotheses * [ |auto ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 parse * logicNonTerminal /cdc eq
+                            { 0 1 parse * * logicNonTerminal /cc0 eq } andif } {
+                          /eqtri goal use
+                          goal .isopen not {
+                            1 1 parse * * logicRange tokens * /B lastMetaVariables * let
+                            /dec0h 4 goal .resolution .hypotheses * use
+
+                            4 goal .resolution .hypotheses * [ |auto ] tacAttemptNext
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                        { 1 } { "\e[31msolve:arith does not deal with ( [0-9] x. [0-9] )\e[0m\n" out }
+                      ] conds
+                    }
+                    { operation logicNonTerminal /cexp eq } {
+                      [
+                        { leftNum rightNum exp resultNum neq } { "\e[31mincorrect exponentiation result\e[0m\n" out }
+                        { faketrivialities } { goal .fakeclose }
+                        { 1 } {
+                          rightNum 2 mod 0 eq {
+                            rightNum 2 div _ ==leftPart ==rightPart
+                          }' {
+                            rightNum 1 sub ==leftPart 1 ==rightPart
+                          }' ? *
+                          /eqtr3i goal use
+                          goal .isopen not {
+                            [ "("
+                              left logicRange tokens * _ len dearray "^"
+                                "(" leftPart printNumber _ len dearray
+                                    "+"
+                                    rightPart printNumber _ len dearray ")"
+                            ")" ] /A lastMetaVariables * let
+                            /oveq2i 3 goal .resolution .hypotheses * use
+                            3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+
+                            4 goal .resolution .hypotheses * ==step
+                            /eqtri step use
+                            step .isopen not {
+                              [ "("
+                                "(" left logicRange tokens * _ len dearray "^" leftPart printNumber _ len dearray ")"
+                              "x."
+                                "(" left logicRange tokens * _ len dearray "^" rightPart printNumber _ len dearray ")"
+                              ")" ] /B lastMetaVariables * let
+
+                              3 step .resolution .hypotheses * ==step2
+                              /ax-mp step2 use
+                              step2 .isopen not {
+                                [ "("
+                                  left logicRange tokens * _ len dearray "e." "CC"
+                                "/\\"
+                                  leftPart printNumber _ len dearray "e." "NN0"
+                                "/\\"
+                                  rightPart printNumber _ len dearray "e." "NN0"
+                                ")" ] /ph lastMetaVariables * let
+
+                                /3pm3.2i 2 step2 .resolution .hypotheses * use
+                                2 step2 .resolution .hypotheses * [ |auto ] tacAttemptNext
+
+                                3 step2 .resolution .hypotheses * ==step3
+                                /expadd step3 use
+                                step3 [ |auto ] tacAttemptNext
+
+                                step2 [ |auto ] tacAttemptNext
+                              } rep
+
+                              4 step .resolution .hypotheses * ==step4
+                              /eqtri step4 use
+                              step4 .isopen not {
+                                [ "("
+                                  leftNum leftPart exp printNumber _ len dearray
+                                "x."
+                                  leftNum rightPart exp printNumber _ len dearray
+                                ")" ] /B lastMetaVariables * let
+
+                                /oveq12i 3 step4 .resolution .hypotheses * use
+                                3 step4 .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+
+                                step4 [ |auto |tacSolveArith ] tacAttemptNext
+                              } rep
+
+                              step [ |auto ] tacAttemptNext
+                            } rep
+                            goal [ |auto ] tacAttemptNext
+                          } rep
+                        }
+                      ] conds
+                    }
+                    { operation logicNonTerminal /cmo eq } {
+                      [
+                        { leftNum rightNum mod resultNum neq } { "\e[31mincorrect modulo result\e[0m\n" out }
+                        { faketrivialities } { goal .fakeclose }
+                        { 1 } {
+                          /nnmulmodvali goal use
+                          goal .isopen not {
+                            leftNum rightNum div printNumber /D lastMetaVariables * let
+                            goal [ |auto |tacSolveArith ] tacAttemptNext
+                          } rep
+                        }
+                      ] conds
+                    }
+                    { 1 } |notApplicable
+                  ] conds
+                } {
+                  [
+                    { result logicNonTerminal /cneg eq
+                        { 0 result * parseNumber } andif } { ==resultNum
+                      /negsubcomi goal use
+                      goal [ |auto |tacSolveArith ] tacAttemptNext
+                    }
+                    { 1 } { notApplicable }
+                  ] conds
+                } ? *
+              } |notApplicable ? *
+            } {
+              [
+                { left logicNonTerminal /co eq
+                    { operation logicNonTerminal /caddc eq } andif
+                    { 1 left * logicNonTerminal /caddc eq } andif } {
+                  0 left * parseNumber { ==leftNum
+                    2 left * parseNumber { ==rightNum
+                      /eqtri goal use
+                      goal .isopen not {
+                        [
+                          "("
+                          leftNum rightNum add printNumber _ len dearray
+                          "+"
+                          right logicRange tokens * _ len dearray
+                          ")"
+                        ] /B lastMetaVariables * let
+                        /oveq1i 3 goal .resolution .hypotheses * use
+
+                        3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+                        goal [ |auto |tacSolveArith ] tacAttemptNext
+                      } rep
+                    } |notApplicable ? *
+                  } |notApplicable ? *
+                }
+                { left logicNonTerminal /co eq
+                    { operation logicNonTerminal /caddc eq } andif
+                    { 1 left * logicNonTerminal /cmul eq } andif } {
+                  0 left * parseNumber { ==leftNum
+                    2 left * parseNumber { ==rightNum
+                      /eqtri goal use
+                      goal .isopen not {
+                        [
+                          "("
+                          leftNum rightNum mul printNumber _ len dearray
+                          "+"
+                          right logicRange tokens * _ len dearray
+                          ")"
+                        ] /B lastMetaVariables * let
+                        /oveq1i 3 goal .resolution .hypotheses * use
+
+                        3 goal .resolution .hypotheses * [ |auto |tacSolveArith ] tacAttemptNext
+                        goal [ |auto |tacSolveArith ] tacAttemptNext
+                      } rep
+                    } |notApplicable ? *
+                  } |notApplicable ? *
+                }
+              ] conds
+            } ? *
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } rep
+    } /tacSolveArith deffst
+
+    # TODO: replace this by a more general implementation
+    { ==goal
+      { "\e[31msolve:range not applicable, expected |- ... -> <decimal> { < , <_ } ... (or the other way around)\e[0m\n" out } =*notApplicable
+
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq {
+          [
+            { 1 parse * logicNonTerminal /wbr eq } {
+              /none ==comparison
+              [
+                { 1 1 parse * * logicNonTerminal /cle eq } { /cle =comparison }
+                # { 1 1 parse * * logicNonTerminal /clt eq } { /clt =comparison }
+              ] conds
+
+              /none comparison neq {
+                [
+                  { 0 1 parse * * parseNumber } { ==target
+                    goal antecedents { ==ante
+                      0 ante /wff metaLogicParsers * * { ==anteParse
+                        anteParse logicNonTerminal /wbr eq
+                            { 1 anteParse * logicNonTerminal comparison eq } andif
+                            { 2 anteParse * logicRange ante * ==at
+                              2 1 parse * * logicRange tokens * ==pt
+                              pt at arrEq } andif
+                            { 0 anteParse * parseNumber } andif { ==anteNumber
+                          anteNumber target gt {
+                            /letrd goal use
+                            goal .isopen not {
+                              0 anteParse * logicRange ante * /B lastMetaVariables * let
+                              goal [ |auto ] tacAttemptNext
+                            } rep
+                          } rep
+                        } rep
+                      } rep
+                    } each
+                  }
+                  { 2 1 parse * * parseNumber } { ==target
+                    goal antecedents { ==ante
+                      0 ante /wff metaLogicParsers * * { ==anteParse
+                        anteParse logicNonTerminal /wbr eq
+                            { 1 anteParse * logicNonTerminal comparison eq } andif
+                            { 0 anteParse * logicRange ante * ==at
+                              0 1 parse * * logicRange tokens * ==pt
+                              pt at arrEq } andif
+                            { 2 anteParse * parseNumber } andif { ==anteNumber
+                          anteNumber target lt {
+                            /letrd goal use
+                            goal .isopen not {
+                              2 anteParse * logicRange ante * /B lastMetaVariables * let
+                              goal [ |auto ] tacAttemptNext
+                            } rep
+                          } rep
+                        } rep
+                      } rep
+                    } each
+                  }
+                  { 1 } |notApplicable
+                ] conds
+              } |notApplicable ? *
+            }
+            { 1 parse * logicNonTerminal /wa eq } {
+              /jca goal use
+              goal [ |auto |tacSolveRange ] tacAttemptNext
+            }
+            { 1 } |notApplicable
+          ] conds
+        } |notApplicable ? *
+      } |notApplicable ? *
+    } /tacSolveRange deffst
+
+    { ==goal
+      { "\e[31msolve:function not applicable, expected |- [ ph -> ] ( F ` A ) = B or |- [ ph -> ] ( A F B ) = C\e[0m\n" out } =*notApplicable
+      goal .thm expandMeta ==tokens
+      # [ /dec0h /addid1i /addid2i /mul01i /mul02i /mulid1i /mulid2i /numexp0 /numexp1 ] { ==thm
+      #   goal .isopen { thm tokens canUse } andif {
+      #     thm goal use
+      #     goal [ |auto ] tacAttemptNext
+      #   } rep
+      # } each
+
+      goal .isopen {
+        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+          0 ==hasAntes parse ==relevant
+          parse logicNonTerminal /wi eq { 1 =hasAntes 1 parse * =relevant } rep
+
+          relevant logicNonTerminal /wceq eq {
+            [
+              { 0 relevant * logicNonTerminal /cfv eq } {
+                0 0 relevant * * ==function
+                1 0 relevant * * ==argument
+                hasAntes {
+                  /fvmptd goal use
+                  goal .isopen not {
+                    0 function * logicRange tokens * /x lastMetaVariables * let
+                    1 function * logicRange tokens * /D lastMetaVariables * let
+                    2 function * logicRange tokens * /B lastMetaVariables * let
+                    [ "_V" ] /V lastMetaVariables * let
+
+                    9 goal .resolution .hypotheses * ==equality
+                    /adantl equality use
+                    equality .isopen not {
+                      3 equality .resolution .hypotheses * tacDistrAntecedent
+                      equality [ |auto ] tacAttemptNext
+                    } rep
+
+                    goal [ |auto ] tacAttemptNext
+                  } rep
+                } {
+                  /ax-mp goal use
+                  goal .isopen not {
+                    [ "T." ] /ph lastMetaVariables * let
+                    3 goal .resolution .hypotheses * tacSolveFunction
+                    goal [ |auto ] tacAttemptNext
+                  } rep
+                } ? *
+              }
+              { 1 } |notApplicable
+            ] conds
+          } |notApplicable ? *
+        } |notApplicable ? *
+      } rep
+    } /tacSolveFunction deffst
+
+    { ==goal
+      goal .thm expandMeta ==goalToks
+      0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif { ==goalParse
+        goalParse logicNonTerminal /wi eq {
+          0 goalParse * logicNonTerminal /wcel eq {
+            1 0 goalParse * * logicNonTerminal /cun eq {
+              /syl goal use
+              goal .isopen not {
+                0 0 goalParse * * logicRange goalToks * { _ len dearray }_ =*elemToks
+                [ "("
+                  elemToks "e." 0 1 0 goalParse * * * logicRange goalToks * _ len dearray
+                  "\\/"
+                  elemToks "e." 1 1 0 goalParse * * * logicRange goalToks * _ len dearray
+                ")" ] /ps lastMetaVariables * let
+                3 goal .resolution .hypotheses * ==elementwise
+                /biimpi elementwise use
+
+                elementwise .isopen not {
+                  2 elementwise .resolution .hypotheses * ==equivalence
+                  /elun equivalence use
+                  equivalence [ |auto ] tacAttemptNext
+                } rep
+                elementwise [ |auto ] tacAttemptNext
+
+                4 goal .resolution .hypotheses * ==cases
+                /jaoi cases use
+                cases [ |tacCasesUnion |auto ] tacAttemptNext
+              } rep
+
+              goal [ |auto ] tacAttemptNext
+            } { "\e[31mcurrent goal is not |- ( ... e. ( ... u. ... ) -> ... ) \e[0m\n" out } ? *
+          } { "\e[31mcurrent goal is not |- ( ... e. ... -> ... )\e[0m\n" out } ? *
+        } { "\e[31mcurrent goal is not |- ( ... -> ... )\e[0m\n" out } ? *
+      } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
+    } /tacCasesUnion deffst
+
+    { ==goal
+      goal .thm expandMeta ==goalToks
+      0 goalToks * "|-" eq { 1 goalToks /wff logicParsers * * } andif { ==goalParse
+        goalParse logicNonTerminal /wi eq {
+          0 goalParse * logicNonTerminal /wcel eq {
+            1 0 goalParse * * logicNonTerminal /csn eq {
+              /syl goal use
+              goal .isopen not {
+                0 0 goalParse * * logicRange goalToks * { _ len dearray }_ =*elemToks
+                [
+                  elemToks "=" 0 1 0 goalParse * * * logicRange goalToks * _ len dearray
+                ] /ps lastMetaVariables * let
+
+                3 goal .resolution .hypotheses * ==equivalence
+                /elsni equivalence use
+                equivalence [ |auto ] tacAttemptNext
+              } rep
+
+              goal [ |auto ] tacAttemptNext
+            } { "\e[31mcurrent goal is not |- ( ... e. { ... } -> ... ) \e[0m\n" out } ? *
+          } { "\e[31mcurrent goal is not |- ( ... e. ... -> ... )\e[0m\n" out } ? *
+        } { "\e[31mcurrent goal is not |- ( ... -> ... )\e[0m\n" out } ? *
+      } { "\e[31mcurrent goal is not |- ...\e[0m\n" out } ? *
+    } /tacCasesExplicit deffst
+
+    { ==goal
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+          parse tokens
+          "|- ( ph -> A. x ph )" " " str .split
+        /wff 1 possibleSubstitutionsForParse ==substs
+        substs len 0 gt {
+          0 parse * logicNonTerminal ==nt
+          [
+            { nt /wi eq } { /hbim goal use }
+            { nt /wb eq } { /hbbi goal use }
+            { nt /wa eq } { /hban goal use }
+            { nt /w3a eq } { /hb3an goal use }
+            { nt /wo eq } { /hbor goal use }
+            { nt /w3o eq } { /hb3or goal use }
+            { nt /wbr eq } { /hbbr goal use }
+            { nt /wal eq } {
+              1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
+                /hba1 goal use
+              } {
+                /hbal goal use
+              } ? *
+            }
+            { nt /wral eq } {
+              1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
+                /hbra1 goal use
+              } {
+                /hbral goal use
+              } ? *
+            }
+            { nt /wex eq } {
+              1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
+                /hbe1 goal use
+              } {
+                /hbex goal use
+              } ? *
+            }
+            { nt /wrex eq } {
+              1 /ph 0 substs * * * 0 /x 0 substs * * * eq {
+                /hbre1 goal use
+              } {
+                /hbrex goal use
+              } ? *
+            }
+            { nt /wsbc eq } {
+              0 1 0 parse * * logicRange * tokens * 0 /x 0 substs * * * eq {
+                /hbsbc1f goal use
+                [ "a\"" ] /y lastMetaVariables * let
+              } {
+                /hbsbc goal use
+                goal .isopen not {
+                  [ "a\"" ] /z lastMetaVariables * let
+                } rep
+              } ? *
+            }
+            { 1 } { [| "\e[31mNo rewrite rule known for connective: " nt "\e[0m\n" |] out }
+          ] conds
+
+          goal [ |auto |tacNonfree ] tacAttemptNext
+        } { "\e[31mNot in fact a trivial non-free variable proof.\e[0m\n" out } ? *
+      } { "\e[31mCurrent goal did not parse as wff.\e[0m\n" out } ? *
+    } /tacNonfree deffst
+
+    # TODO: Make it respect nondisj directives and create substitutions over variables where neccessary
+    { ==goal ==elementToks
+      0 elementToks /class metaLogicParsers * * { --
+        goal .thm expandMeta ==tokens
+        0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+          parse logicNonTerminal /wi eq {
+            [
+              { 1 parse * logicNonTerminal /wrex eq } {
+                /syl goal use
+                goal .isopen not {
+                  [ "("
+                    elementToks _ len dearray "e." 1 1 parse * * logicRange tokens * _ len dearray
+                    "/\\"
+                    0 1 parse * * logicRange tokens * ==from
+                    2 1 parse * * logicRange tokens * from elementToks rewriteTokens _ len dearray
+                    ")"
+                  ] /ps lastMetaVariables * let
+                  goal [ |auto ] tacAttemptNext
+                  4 goal .resolution .hypotheses * ==existence
+                  existence .isopen {
+                    /rcla4e existence use
+                    existence [ |auto ] tacAttemptNext
+                  } rep
+                } rep
+              }
+              { 1 parse * logicNonTerminal /wex eq } {
+                /sylc goal use
+                goal .isopen not {
+                  [ elementToks _ len dearray "e." "_V" ] /ps lastMetaVariables * let
+                    0 1 parse * * logicRange tokens * ==from
+                    1 1 parse * * logicRange tokens * from elementToks rewriteTokens
+                  /ch lastMetaVariables * let
+                  goal [ |auto ] tacAttemptNext
+                  6 goal .resolution .hypotheses * ==existence
+                  existence .isopen {
+                    /cla4egf existence use
+                    existence [ |auto ] tacAttemptNext
+                  } rep
+                } rep
+              }
+              { 1 } { "\e[31mNot an existential goal\e[0m" |] out }
+            ] conds
+          } {
+            [| "\e[31mTODO: tacNamely does not support |- ( ph -> ps ) goals yet\e[0m" |] out
+          } ? *
+        } { [| "\e[31mGoal is not |- ph\e[0m" |] out } ? *
+      } { [| "\e[31mGiven element does not parse as class\e[0m" |] out } ? *
+    } /tacNamely deffst
+
+    { ==goal
+      [| goal .thm expandMeta { " " } each |] ==txt
+
+      0 ==removed
+
+      mainGoal openGoals { ==otherGoal
+        otherGoal sys .asm .rawAddress goal sys .asm .rawAddress neq {
+          [| otherGoal .thm expandMeta { " " } each |] txt eq {
+            goal .parents { ==parent
+              parent .resolution .hypotheses _ ==hyps dom { ==i
+                i hyps * sys .asm .rawAddress goal sys .asm .rawAddress eq {
+                  otherGoal i hyps =[]
+                } rep
+              } each
+            } each
+
+            1 =removed
+          } rep
+        } rep
+      } each
+
+      removed {
+        allOpenGoals { sys .asm .rawAddress goal sys .asm .rawAddress neq } grep =allOpenGoals
+      } rep
+    } /tacDeduplicate deffst
+
+    # from conclusion to array of earlier solutions to it
+    map ==recordedSolutions
+
+    { ==goal
+      goal .thm expandMeta ==tokens
+      0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+        parse logicNonTerminal /wi eq { 1 parse * } { parse } ? * ==conclusionParse
+        [| conclusionParse logicRange tokens * { " " } each |] ==conclusion
+        conclusion recordedSolutions .has not { [ ] conclusion recordedSolutions =[] } rep
+
+        map ==anteSet
+        goal antecedents { [| -01 { " " } each |] _ anteSet =[] } each
+
+        0 ==betterSolutionKnown
+        conclusion recordedSolutions * _ ==solutions dom { ==i
+          [ i solutions * antecedents {
+            [| -01 { " " } each |] anteSet .has
+          } each ] all {
+            1 =betterSolutionKnown
+          } rep
+        } each
+
+        betterSolutionKnown not {
+            conclusion recordedSolutions * [ goal ] cat
+          conclusion recordedSolutions =[]
+        } rep
+      } { [| "\e[31mGoal is not |- ph\e[0m\n" |] out } ? *
+    } /recordSolution deffst
+
+    # Models all known truths as an accepting FSM. Theorem variables become
+    # self-loops, theorem tokens become transitions.
+    { < map ==transitions objset ==theorems > } /tokenNode deffst
+
+    { tokenNode _ ==theoremTokenIndex # returned
+      [| "Indexing theorems by tokens...\n" |] out
+
+      { ==name ==tokens
+        objset ==i theoremTokenIndex i .put
+
+        tokens { ==tok
+          tok constants .has {
+            objset ==newI
+            i { ==n
+              tok n .transitions .has not { tokenNode tok n .transitions =[] } rep
+              tok n .transitions * newI .put
+            } each
+            newI =i
+          } rep
+        } each
+
+        i { ==n
+          name n .theorems .put
+        } each
+      } /index deffst
+
+      assertions dom { ==name name assertions * .thm name index } each
+      [ |collectEHyps |collectFHyps ] { =*collect
+        proofContext collect ==hyps hyps dom { ==name
+          name hyps * name index
+        } each
+      } each
+    } memoized /theoremTokenIndex deffst
+
+    { ==tokens
+      objset ==i
+      theoremTokenIndex i .put
+      tokens { ==tok
+        i { ==n
+          tok n .transitions .has {
+            tok n .transitions * i .put
+          } rep
+        } each
+      } each
+
+      [| "Possible theorems:\n" |] out
+      i { .theorems 0 ==some { ==thm
+        # thm tokens canUse { thm " " cat out 1 =some } rep
+        thm " " cat out 1 =some
+      } each some { "\n" out } rep } each
+    } /search deffst
+
+    { .thm expandMeta search } /suggest deffst
+
+    { ==includeTypes
+      0 ==i
+      { ==indent ==goal
+        includeTypes 0 goal .thm expandMeta * "|-" eq or {
+          [|
+            i txt .produce .u _ out ")" out len
+            indent -01 sub { " " } rep
+            goal .isopen { "\e[31m???\e[0m " } { goal .resolution .theorem .name " " } ? *
+            goal .thm expandMeta { renderName " " } each "\n"
+          |] out
+        } rep
+        i 1 add =i
+        goal .isopen not { goal .resolution .hypotheses { indent 2 add recurse } each } rep
+      } /recurse deffst
+      mainGoal 4 recurse
+    } /tree deffst
+
+    {
+      { ==goal
+        goal .isopen not { goal .resolution .hypotheses |recurse each } rep
+        [| goal .isopen { "? " } { goal .resolution .theorem .name " " } ? * |] out
+      } /recurse deffst
+      mainGoal recurse
+      "$.\n" out
+    } /export deffst
+
+    {
+      map ==nameCount
+      map ==nameMap
+      map ==explicitNameMap
+      map ==theoremCount
+      map ==theoremMap
+      1 ==i
+
+      proposition .hyps { ==name
+        i name nameMap =[]
+        i 1 add =i
+      } each
+
+      { <
+        0 128 range ==data
+        0 ==top
+
+        { # ==elem
+          top data len ge { data _ cat =data } rep
+          top data =[]
+          top 1 add =top
+        } /push deffst
+
+        {
+          top 1 sub _ 0 lt { "export stack underflow" die } rep
+                    _ =top
+                      data *
+        } /pop deffst
+
+        { top } /has deffst
+      > } /stack deffst
+
+      stack ==nameStack
+      mainGoal nameStack .push
+
+      { nameStack .has } {
+        nameStack .pop ==goal
+
+        goal .isopen not {
+          goal .resolution .theorem .name ==name
+          name nameCount .has { name nameCount * 1 add } { 1 } ? * name nameCount =[]
+
+          goal .resolution .hypotheses { nameStack .push } each
+        } rep
+      } loop
+
+      nameCount dom { ==a ==b
+        a nameCount * b nameCount * lt
+      } order nameCount dom * { ==name
+        name nameMap .has not {
+          i name explicitNameMap =[]
+          i name nameMap =[] i 1 add =i
+        } rep
+      } each
+
+      map ==encodedOnce
+      stack ==encodeCountStack
+      mainGoal encodeCountStack .push
+      { encodeCountStack .has } {
+        encodeCountStack .pop ==goal
+
+        goal .isopen not {
+          [| goal .thm expandMeta { " " } each |] ==txt
+
+          txt encodedOnce .has not {
+            goal .resolution .hypotheses { encodeCountStack .push } each
+          } rep
+
+          goal .resolution .hypotheses len 0 gt {
+            1 txt encodedOnce =[]
+            txt theoremCount .has { txt theoremCount * 1 add } { 1 } ? * txt theoremCount =[]
+          } rep
+        } rep
+      } loop
+
+      9999 ==column
+      { ==tok
+        column tok len add 78 gt {
+          "\n      " out 6 =column
+          tok "^ *$" regex { "" =tok } rep
+        } rep
+        tok out
+        column tok len add =column
+      } /wrapOut deffst
+
+      [ "( " explicitNameMap dom { " " } each ") " ] |wrapOut each
+
+      { 1 sub ==i
+        [ [
+          i 20 mod "ABCDEFGHIJKLMNOPQRST" * i 20 div =i
+          { i } {
+            i 1 sub =i
+            i 5 mod "UVWXY" * i 5 div =i
+          } loop
+        ] reverse { [ -01 ] str .fromArray } each ]
+      } /encodeNumber deffst
+
+      {
+        "Z" wrapOut
+      } /encodeTag deffst
+
+      {
+        "?" wrapOut
+      } /encodeOpen deffst
+
+      stack ==exportStack
+
+      mainGoal exportStack .push
+
+      { exportStack .has } {
+        exportStack .pop ==goal
+        goal .?'delayed {
+          goal .delayed
+        } {
+          goal .isopen { encodeOpen } {
+            [| goal .thm expandMeta { " " } each |] ==txt
+
+            txt theoremMap .has {
+              txt theoremMap * encodeNumber |wrapOut each
+            } {
+              < {
+                goal .resolution .theorem .name nameMap * encodeNumber |wrapOut each
+
+                txt theoremCount .has { txt theoremCount * 1 gt } andif {
+                  encodeTag
+                  1 txt theoremCount =[]
+                  i txt theoremMap =[]
+                  i 1 add =i
+                } rep
+              } =*delayed > exportStack .push
+
+              goal .resolution .hypotheses reverse { exportStack .push } each
+            } ? *
+          } ? *
+        } ? *
+      } loop
+
+      " $." wrapOut
+      "\n" out
+    } /exportCompressed deffst
+
+    {
+      map ==allVars
+      disj dom { tokenIsMetaVar not } grep { ==x
+        1 x allVars =[]
+        x disj * dom { tokenIsMetaVar not } grep { ==y
+          1 y allVars =[]
+        } each
+      } each
+
+      9999 ==column
+      { ==tok
+        column tok len add 78 gt {
+          "\n    " out 4 =column
+          tok "^ *$" regex { "" =tok } rep
+        } rep
+        tok out
+        column tok len add =column
+      } /wrapOut deffst
+
+      { ==X ==P ==R
+        P len 0 eq { X len 0 eq } andif {
+          R len 1 gt {
+            [| "$d " R { " " } each "$." |] wrapOut "  " wrapOut
+          } rep
+        } {
+          0 P X cat * ==u # any can be chosen
+
+          P { u mustDisj not } grep { ==v
+            R [ v ] cat P { v mustDisj } grep X { v mustDisj } grep findMaximalCliques
+            P { v eq not } grep =P
+            X [ v ] cat =X
+          } each
+        } ? *
+      } /findMaximalCliques deffst
+
+      [ ] allVars dom [ ] findMaximalCliques
+
+      "\n" out
+    } /exportDisjuncts deffst
+
+    {
+      [| "=== snip here for " proposition .name " ===\n" |] out
+      [| "${" |] out
+      exportDisjuncts
+      proofContext collectEHyps _ ==hyps dom { ==name
+        [| "  " name " $e " name hyps * { " " } each -- " $.\n" |] out
+      } each
+      [| "\n" |] out
+      [| "  " proposition .name " $p " proposition .thm { " " } each -- " $=" |] out
+      exportCompressed
+      [| "$}\n" |] out
+      [| "=== /snip here for " proposition .name " ===\n" |] out
+    } /exportTheorem deffst
+
+    { ==toReopen
+      0 ==i
+      { ==goal
+        i _ 1 add =i toReopen eq { goal .open } rep
+        goal .isopen not { goal .resolution .hypotheses |recurse each } rep
+      } /recurse deffst
+      mainGoal recurse
+
+      [ ] =allOpenGoals 0 =allOpenGoalsValid
+      rebuildClosedGoalIndex
+    } /reopen deffst
+
+    { objset _ ==children .put
+      { ==goal
+        goal .isopen not {
+          goal .resolution .hypotheses { ==hyp
+            hyp children .has { goal .open } { hyp recurse } ? *
+          } each
+        } rep
+      } /recurse deffst
+      mainGoal recurse
+
+      [ ] =allOpenGoals 0 =allOpenGoalsValid
+      rebuildClosedGoalIndex
+    } /reopenParentOf deffst
+
+    1 ==running
+    0 ==autoall
+    0 ==antedisp
+    0 ==faketrivialities
+
+    { include }' /load deffst
+
+    { running } { [
+      proofContext _ =userContext =renderContext
+      mainGoal openGoals ==goals
+
+      autoall { lastMetaVariables map =lastMetaVariables goals |auto each =lastMetaVariables mainGoal openGoals =goals } rep
+
+      { selectedGoal goals len ge selectedGoal 0 gt and } { selectedGoal 1 sub =selectedGoal } loop
+
+      {
+        silent not {
+          " " ==sep
+          [| nonDisj dom sort { ==x
+            x nonDisj * dom sort { ==y
+              sep ", " =sep x renderName " <=> " y renderName
+            } each
+          } each "\n" |] out
+          [| disj dom sort { ==x
+            x disj * dom sort { ==y
+              sep ", " =sep x renderName " <!> " y renderName
+            } each
+          } each "\n" |] out
+        } rep
+
+        silent 1 le {
+          goals dom { ==i
+            i selectedGoal eq "\e[1m" "" ? ==hl
+            [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
+          } each
+
+          loadedDisplays "*" | each
+
+          {
+            goals dom len 1 gt {
+              [| "\n" |] out
+              selectedGoal ==i
+              i selectedGoal eq "\e[1m" "" ? ==hl
+              [| hl i txt .produce .u ") " i goals * .thm expandMeta { hl -01 renderName " " } each "\e[0m\n" |] out
+            } rep
+          } /displayCurrentGoal deffst
+
+          antedisp { goals len } andif {
+            selectedGoal goals * ==goal
+            goal .thm expandMeta ==tokens
+            0 tokens * "|-" eq { 1 tokens /wff metaLogicParsers * * } andif { ==parse
+              [| "\n" |] out
+              proofContext collectEHyps _ ==hyps dom { ==name
+                [| "+ " name hyps * _ len 1 -01 range -01* { renderName " " } each "\n" |] out
+              } each
+              goal antecedents ==antes
+              [| "\n" |] out
+              antes { ==toks
+                [| "* " toks { renderName " " } each "\n" |] out
+              } each
+              [|
+                "\e[1m-------------------------------------------------"
+                goal .autohint "" neq { " \e[32m(hint: " goal .autohint ")" } rep
+                "\e[0m\n"
+              |] out
+              [| "  "
+                 parse logicNonTerminal /wi eq { 1 parse * } { parse } ? * logicRange tokens *
+                   { renderName " " } each
+             "\n" |] out
+            } |displayCurrentGoal ? *
+          } |displayCurrentGoal ? *
+        } {
+          "." out
+        } ? *
+      } τdisplay /display deffst
+      redisplay |display rep
+      1 =redisplay
+
+      perfstats
+      silent 1 le {
+        "proof> " sys .out .writeall
+      } rep
+      inputCmd ==cmd ==args
+
+      { "\e[32mWe are done here.\e[0m\n" out } =*solved
+      [
+        { cmd "quit" eq } { 0 =running }
+        { cmd "what" eq } { display 0 =redisplay }
+        { cmd "show" eq } { args show 0 =redisplay }
+        { cmd "todo" eq } {
+          selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep
+        }
+        { cmd "next" eq } {
+          selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep
+        }
+        { cmd "prev" eq } {
+          selectedGoal 0 gt { selectedGoal 1 sub =selectedGoal } rep
+        }
+        { cmd "use" eq } { args selectedGoal goals * tacUse }
+        { cmd "let" eq { args "^(\\$[^=]+) = (.*)" regex } andif } { ==metaVar " " str .split { "" neq } grep ==tokens
+          tokens metaVar let
+        }
+        { cmd "unlet" eq { args "^(\\$[^=]+)$" regex } andif } { ==v [ v ] v metaSubstitution =[] }
+        { cmd "lets" eq } {
+          metaSubstitution dom { ==v
+            [| v " = " v metaSubstitution * { renderName " " } each "\n" |] out
+          } each
+          0 =redisplay
+        }
+        { cmd "nondisj" eq { args "^(.*) <=> (.*)" regex } andif } { markNonDisj }
+        { cmd "/" eq } { args ==search 0 ==success
+          goals dom { ==i
+            1 neg [ [| i goals * .thm expandMeta { " " } each |] search regex ] * { success not } andif {
+              i =selectedGoal 1 =success
+            } rep
+          } each
+          success not { "\e[31mno such goal found\e[0m\n" out } rep
+        }
+        { cmd "" eq cmd "auto" eq or } { goals len { selectedGoal goals * auto } |solved ? * }
+        { cmd "distr:ante" eq } { goals len { selectedGoal goals * tacDistrAntecedentMeta } |solved ? * }
+        { cmd "rewrite:ante" eq } { goals len { selectedGoal goals * tacRewriteAntecedent } |solved ? * }
+        { cmd "and" eq { args "rewrite" eq } andif } { goals len { selectedGoal goals * tacContinueWithRewrite } |solved ? * }
+        { cmd "rewrite:full" eq } { args " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacRewriteFull } |solved ? * }
+        { cmd "rewrite" eq } { args " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacRewrite } |solved ? * }
+        { cmd "replace" eq } { args " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacReplace } |solved ? * }
+        { cmd "substitutions" eq } { goals tacSubstitutions }
+        { cmd "under" eq } { args " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacUnder } |solved ? * }
+        { cmd "with" eq { args "^only (.*)" regex } andif } {  " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacWithOnly } |solved ? * }
+        { cmd "with" eq } { args " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacWith } |solved ? * }
+        { cmd "conclude" eq } { args " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacConclude } |solved ? * }
+        { cmd "and" eq { args "^conclude (.*)" regex } andif } { " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacAndConclude } |solved ? * }
+        { cmd "drop" eq { args "^everything matching (.*)" regex } andif } { " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacDropMatching } |solved ? * }
+        { cmd "drop" eq } { args " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacDrop } |solved ? * }
+        { cmd "normalize" eq } {
+          goals len { selectedGoal goals * tacNormalize } |solved ? * }
+        { cmd "normalize:logic" eq } {
+          goals len { selectedGoal goals * tacNormalizeLogic } |solved ? * }
+        { cmd "normalize:arith" eq } {
+          goals len { selectedGoal goals * tacNormalizeArith } |solved ? * }
+        { cmd "normalize:ante" eq } {
+          goals len { selectedGoal goals * tacNormalizeAntecedentOnly } |solved ? * }
+        { cmd "rename" eq { args "^([^ ]+) to ([^ ]+)$" regex } andif } {
+          goals len { selectedGoal goals * tacRename } |solved ? * }
+        { cmd "expand" eq } { args ==name
+          goals len { name selectedGoal goals * tacExpand } |solved ? * }
+        { cmd "solve:arith" eq } {
+          goals len { selectedGoal goals * tacSolveArith } |solved ? * }
+        { cmd "solve:range" eq } {
+          goals len { selectedGoal goals * tacSolveRange } |solved ? * }
+        { cmd "solve:function" eq } {
+          goals len { selectedGoal goals * tacSolveFunction } |solved ? * }
+        { cmd "cases:union" eq } {
+          goals len { selectedGoal goals * tacCasesUnion } |solved ? * }
+        { cmd "cases:explicit" eq } {
+          goals len { selectedGoal goals * tacCasesExplicit } |solved ? * }
+        { cmd "namely" eq } { args " " str .split { "" neq } grep ==tokens
+          goals len { tokens selectedGoal goals * tacNamely } |solved ? * }
+        { cmd "nonfree" eq } {
+          goals len { selectedGoal goals * tacNonfree } |solved ? * }
+        { cmd "deduplicate" eq } {
+          goals len { selectedGoal goals * tacDeduplicate } |solved ? * }
+        { cmd "take" eq { args "note" eq } andif } {
+          goals len { selectedGoal goals * recordSolution } |solved ? * }
+        { cmd "tree" eq } { 0 tree }
+        { cmd "tree:full" eq } { 1 tree }
+        { cmd "export" eq } { export }
+        { cmd "export:compressed" eq } { exportCompressed }
+        { cmd "export:disj" eq } { exportDisjuncts }
+        { cmd "export:theorem" eq } { exportTheorem }
+        { cmd "reopen" eq { args "^(\\d+)$" regex } andif } { txt .consume .u reopen }
+        { cmd "reopen" eq } {
+          goals len { selectedGoal goals * reopenParentOf } |solved ? * }
+        { cmd "sug" eq } {
+          goals len { selectedGoal goals * suggest } |solved ? * }
+        { cmd "search" eq args "" neq and } { args " " str .split _ =lastSearch search }
+        { cmd "search" eq } { lastSearch search }
+        { cmd "parse" eq } {
+          goals len {
+            0 selectedGoal goals * .thm * ==head
+
+            [
+              { head "|-" eq }           { [ 1 selectedGoal goals * .thm expandMeta /wff logicParsers * * ] dump }
+              { head logicParsers .has } { [ 1 selectedGoal goals * .thm expandMeta head logicParsers * * ] dump }
+              { 1 } { [| "\e[31mno parser available\e[0m\n" |] out }
+            ] conds
+          } |solved ? *
+        }
+        { cmd "autoall" eq } { 1 =autoall }
+        { cmd "noautoall" eq } { 0 =autoall }
+        { cmd "faketrivialities" eq } { 1 =faketrivialities }
+        { cmd "nofaketrivialities" eq } { 0 =faketrivialities }
+        { cmd "antedisp" eq } { 1 =antedisp }
+        { cmd "noantedisp" eq } { 0 =antedisp }
+        { cmd "silent" eq } { 2 =silent }
+        { cmd "quiet" eq } { 1 =silent }
+        { cmd "nosilent" eq } { 0 =silent }
+        { cmd "load" eq } { args load }
+        { cmd "freeze" eq } { { _ { * }_ args sys .freeze * } !! * }
+        { [ cmd { _ 48 ge -01 57 le and } each ] all } {
+          txt .consume .u _ goals len ge { -- goals len 1 sub } rep =selectedGoal
+        }
+        loadedCommands "*" | each
+      ] conds
+    ] _ ==residue len 0 gt {
+      [| "\e[31mSomething left on the stack:\e[0m\n" |] out
+      residue dump
+    } } loop
+  } /proveProposition deffd
+
+  { ==name
+    name assertions .has { name assertions * .type "p" eq } { 0 } ? * {
+      name assertions * proveProposition
+    } {
+      [| name " is not a provable proposition\n" |] out
+      name show
+    } ? *
+  } /prove deffd
+
+  { ==proposition
+    { not { "Parsing failed." die } rep } /assertParse deffst
+
+    <
+      { =*wrapOut ==goal =*anteCreator # function from antecedents to stack manipulators creating them
+        [| "Unresolved proof goal, cannot construct proof for " goal .thm "\n" |] out
+      } /construct deffst
+    > ==unresolved
+
+    <
+      { .resolution "" eq } /isopen defmst
+
+      { ==goal ==ante
+        goal .antes [ ante ] cat /antes goal .set
+      } /addAnte defmst
+
+      { ==goal /thm goal .set } /setThm defmst
+
+      {
+        ==thm   # [ "$ch.5" ] theorem to show, no |-
+        ==antes # [ "$ph -> $ch.5" ... ] things we know, no |-
+        "" ==resolution   # gonna be a $p or $a name (or any other indicator on it was solved)
+        [ ] ==children
+        unresolved ==strategy  # the proof construction strategy
+        { = }' =*set
+        { ==? }' =*setExtra
+        scope
+      }
+    > -- /newGoal deffst
+
+    [ ] ==allOpenGoals 0 ==allOpenGoalsValid
+    { # ==goal
+      objset ==goals
+      {
+        _ .resolution len not { goals .put } { .children |collect each } ? *
+      } /collect deffst
+      collect goals dom
+    } /openGoalsRecursive deffst
+
+    { ==goal
+      goal sys .asm .rawAddress mainGoal sys .asm .rawAddress eq {
+        allOpenGoalsValid not {
+          mainGoal openGoalsRecursive _ =allOpenGoals 1 =allOpenGoalsValid
+        } {
+          [ allOpenGoals { openGoalsRecursive _ len dearray } each ] _ =allOpenGoals 1 =allOpenGoalsValid
+        } ? *
+      } {
+        goal openGoalsRecursive
+      } ? *
+    } τopenGoals /openGoals deffst
+
+    0 ==nextMetaVariable
+    map ==metaSubstitution
+    map ==allMetaVariables
+    map ==lastMetaVariables
+
+    { _ metaSubstitution .has {
+      metaSubstitution * |expandMetaToken each
+    }" rep }' /expandMetaToken deffst
+    <
+      "" ==s
+      { [ -01 { _ =s 0 s * 36 eq { expandMetaToken }" rep }" each ] }'
+    > -- τexpandMeta /expandMeta deffst
+
+    map ==lastGrammarMatch
+    map ==grammarMatchCache
+    { ==pattern ==subject
+      pattern grammarMatchCache .has not {
+        pattern " " str .split ==patternTokens
+          [
+            { 0 patternTokens   /wff logicParsers * * } { [ -01 patternTokens /wff ] }
+            { 0 patternTokens /class logicParsers * * } { [ -01 patternTokens /class ] }
+            { 1 } { [| "Could not parse '" pattern "' as wff or class" |] die }
+          ] conds
+        pattern grammarMatchCache =[]
+      } rep
+
+      pattern grammarMatchCache * ==cached
+      subject " " str .split ==tokens
+      0 tokens 2 cached * metaLogicParsers * * assertParse ==tokensParse
+
+      tokensParse tokens cached 2 dearray possibleSubstitutionsForParses ==substs
+      substs len 1 eq {
+        0 substs * =lastGrammarMatch 1
+      } { 0 } ? *
+    } "//" deffst
+    { lastGrammarMatch * [| -01 { " " } each -- |] } "$" deffst
+
+    { _ ==toks "( ph /\\ ps )" // {
+        $ph splitAntes
+        $ps splitAntes
+      } {
+        toks
+      } ? *
+    } /splitAntes deffst
+
+    { ==conclusion ==antes
+      [
+        { antes len 0 eq } {
+          conclusion
+        }
+        { antes len 1 eq } {
+          [| "( " 0 antes * " -> " conclusion " )" |]
+        }
+        { 1 } {
+          [ antes _ len dearray [| "( " "/\\" " )" -24130 |] ] conclusion joinAntes
+        }
+      ] conds
+    } /joinAntes deffst
+
+    < { =* }' =*deffst > ==strategyNormalizeGoal
+    { _ ==goal _ .thm ==thm .antes ==antes
+      # meta variable expansion in-place
+      [| thm " " str .split expandMeta { " " } each -- |] ==expandedThm
+      thm expandedThm neq { expandedThm _ =thm /thm goal .set } rep
+
+      antes dom { _ ==i antes * ==ante
+        [| ante " " str .split expandMeta { " " } each -- |] ==expandedAnte
+        ante expandedAnte neq { expandedAnte i -1010 goal .antes =[] antes =[] } rep
+      } each
+
+      # [
+      #   thm "$" str .split len 1 eq
+      #   antes { "$" str .split len 1 eq } each
+      # ] all {
+      #   thm proofEHyps .has {
+      #     thm proofEHyps * /resolution goal .set
+      #     strategyNormalizeGoal /strategy goal .set
+      #   } {
+      #     0 ==changes
+
+      #     antes [
+      #       { thm "( ph -> ps )" // } {
+      #         1 =changes
+      #         $ps =thm
+      #         $ph splitAntes
+      #       } loop
+      #     ] cat =antes
+
+      #     map ==known
+      #     antes { 1 -01 known =[] } each
+
+      #     { 0 ==redo
+      #       [
+      #         antes { ==ante
+      #           ante "( ps -> ph )" // {
+      #             $ps ==needed
+      #             $ph ==shown
+
+      #             [ needed splitAntes ] { known .has not } grep shown joinAntes ==new
+
+      #             new ante eq {
+      #               ante
+      #             } {
+      #               1 new known =[]
+      #               1 _ =changes =redo
+      #               new
+      #             } ? *
+      #           } {
+      #             ante
+      #           } ? *
+      #         } each
+      #       ] =antes
+
+      #       redo
+      #     } { } loop
+
+      #     [
+      #       { changes } {
+      #         [ antes thm newGoal _ normalizeGoal ] /children goal .set
+      #         "..." /resolution goal .set
+      #         strategyNormalizeGoal /strategy goal .set
+      #       }
+      #       { thm known .has } {
+      #         "." /resolution goal .set
+      #         strategyNormalizeGoal /strategy goal .set
+      #       }
+      #     ] conds
+      #   } ? *
+      # } rep
+    } /normalizeGoal deffst
+
+    < { =* }' =*deffst > ==strategyUseTheorem
+    { ==thmName ==goal
+      [
+        {
+          1 [
+            { thmName assertions .has } {
+              thmName assertions * _ ==a .thm ==thmToks
+            }'
+            { thmName collectedEHyps .has } {
+              thmName collectedEHyps * _ ==a .thm ==thmToks
+            }'
+            { 1 } { -- 0 }
+          ] conds
+        }' { [| "\e[31mNo such theorem: " thmName "\e[0m\n" |] out }
+
+        { 
+          0 thmToks * "|-" neq
+        }' {
+          [| "\e[31mTheorem would not produce a logic statement: " thmName "\e[0m\n" |] out
+        }
+
+        {
+            [ "|-" ] goal .thm " " str .split cat thmToks /wff 1 possibleSubstitutionsForToks
+          _ ==possibleSubstitutions len 1 neq
+        }' {
+          possibleSubstitutions len {
+            [| "\e[31mPossible substitutions not unique.\e[0m\n" |] out
+          } {
+            [| "\e[31mNo possible substitution found.\e[0m\n" |] out
+          } ? *
+        }
+
+        { 1 } {
+          0 possibleSubstitutions * ==substitution
+          nextMetaVariable ==metaVariableStart
+
+          a mandatoryVariables dom { substitution .has not } grep { ==var
+            [| "$" var "." nextMetaVariable _ 1 add =nextMetaVariable txt .produce .u |] ==newVar
+            newVar var lastMetaVariables =[]
+            1 newVar allMetaVariables =[]
+            [ newVar ] var substitution =[]
+          } each
+
+          [
+            a .ctx collectEHyps _ =*hyps dom {
+              [| -01 hyps substitution applySubstitution { " " } each -- |] 3 -01 str .postfix
+            } each
+          ] ==thmAntes
+
+          a .thm [| -01 substitution applySubstitution { " " } each -- |] 3 -01 str .postfix
+          ==thm
+
+          0 ==disjunctionsViolated
+          a .disj { 2 dearray ==x ==y
+            x substitution * { ==xTok
+              xTok constants .has not {
+                y substitution * { ==yTok
+                  yTok constants .has not {
+                    xTok yTok eq {
+                      1 =disjunctionsViolated
+                      [| "\e[31mproposed application would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+                    } rep
+                    xTok yTok mustNotDisj {
+                      1 =disjunctionsViolated
+                      [| "\e[31mproposed application would violate\e[0m " x renderName " <=> " y renderName "\n" |] out
+                    } rep
+                  } rep
+                } each
+              } rep
+            } each
+          } each
+
+          disjunctionsViolated not {
+            a .disj { 2 dearray ==x ==y
+              x substitution * { ==xTok
+                xTok constants .has not {
+                  y substitution * { ==yTok
+                    yTok constants .has not { xTok yTok markDisj } rep
+                  } each
+                } rep
+              } each
+            } each
+
+            thmName /resolution goal .set
+            [
+              # TODO: For the special case of ( ph -> ... ) in front of the theorem,
+              #       we should allow automatic forwarding
+              thmAntes { ==ante [ ] ante newGoal _ normalizeGoal } each
+            ] /children goal .set
+            strategyUseTheorem /strategy goal .set
+            metaVariableStart /metaVariableStart goal .setExtra
+          } rep
+        }
+      ] conds
+    } /useTheorem deffst
+
+    { ==metaVar ==tokens
+      0 ==disjunctionsViolated
+      metaVar "^\\$([^.]+)$" regex { ==stem
+        stem lastMetaVariables .has { stem lastMetaVariables * =metaVar } rep
+        metaVar metaSubstitution .has {
+          allMetaVariables dom { ==v
+            v metaSubstitution .has not {
+              v "^\\$([^.]+)\\.[0-9]+$" regex { stem eq {
+                v =metaVar
+              } rep } rep
+            } rep
+          } each
+        } rep
+      } rep
+
+      tokens { ==x metaVar ==y
+        x y gt { x y =x =y } rep
+        x disj .has {
+          y x disj * .has {
+            1 =disjunctionsViolated
+            [| "\e[31mproposed let would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
+            0 =redisplay
+          } rep
+        } rep
+        x nonDisj .has {
+          y x nonDisj * .has {
+            1 =disjunctionsViolated
+            [| "\e[31mproposed let would violate\e[0m " x renderName " <=> " y renderName "\n" |] out
+            0 =redisplay
+          } rep
+        } rep
+      } each
+
+      disjunctionsViolated not {
+        tokens metaVar metaSubstitution =[]
+
+        disj dom { ==x
+          x disj * dom { ==y
+            x metaVar eq { tokens { ==t t constants .has not { t y markDisj } rep } each } rep
+            y metaVar eq { tokens { ==t t constants .has not { t x markDisj } rep } each } rep
+          } each
+        } each
+      } rep
+    } τlet /let deffst
+
+    { ==token 0 token * 0 "$" * eq } '0.0 /tokenIsMetaVar deffst
+
+    {
+      map ==allVars
+      disj dom { tokenIsMetaVar not } grep { ==x
+        1 x allVars =[]
+        x disj * dom { tokenIsMetaVar not } grep { ==y
+          1 y allVars =[]
+        } each
+      } each
+
+      9999 ==column
+      { ==tok
+        column tok len add 78 gt {
+          "\n    " out 4 =column
+          tok "^ *$" regex { "" =tok } rep
+        } rep
+        tok out
+        column tok len add =column
+      } /wrapOut deffst
+
+      { ==X ==P ==R
+        P len 0 eq { X len 0 eq } andif {
+          R len 1 gt {
+            [| "$d " R { " " } each "$." |] wrapOut "  " wrapOut
+          } rep
+        } {
+          0 P X cat * ==u # any can be chosen
+
+          P { u mustDisj not } grep { ==v
+            R [ v ] cat P { v mustDisj } grep X { v mustDisj } grep findMaximalCliques
+            P { v eq not } grep =P
+            X [ v ] cat =X
+          } each
+        } ? *
+      } /findMaximalCliques deffst
+
+      [ ] allVars dom [ ] findMaximalCliques
+
+      "\n" out
+    } /exportDisjuncts deffst
+
+    map ==disj map ==nonDisj
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x disj .has not { map x disj =[] } rep
+      1 y x disj * =[]
+    } /markDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x disj .has {
+        y x disj * .has
+      } { 0 } ? *
+    } /mustDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x nonDisj .has not { map x nonDisj =[] } rep
+      1 y x nonDisj * =[]
+    } /markNonDisj deffst
+
+    { ==x ==y
+      x y gt { x y =x =y } rep
+      x nonDisj .has {
+        y x nonDisj * .has
+      } { 0 } ? *
+    } /mustNotDisj deffst
+
+    1 ==running
+    0 ==selectedGoal
+    proposition .disj { 2 dearray markDisj } each
+    proposition .ctx _ =proofContext
+    map ==proofEHyps
+    proofContext collectEHyps _ =*collectedEHyps dom {
+      [| -101 collectedEHyps { " " } each -- |] 3 -01 str .postfix proofEHyps =[]
+    } each
+    map ==proofFHyps
+    proofContext collectFHyps _ =*collectedFHyps dom {
+      [| -101 collectedFHyps { " " } each -- |] proofFHyps =[] # note we keep the type-code in
+    } each
+
+      proofEHyps dom
+      proposition .thm [| -01 { " " } each -- |] 3 -01 str .postfix
+    newGoal _ normalizeGoal ==mainGoal
+
+    [ ] ==loadedCommands
+    { include }' /load deffst
+
+    { running } { [
+      {
+        mainGoal openGoals ==goals
+        { selectedGoal goals len ge selectedGoal 0 gt and } { selectedGoal 1 sub =selectedGoal } loop
+
+        goals len {
+          selectedGoal goals * _ normalizeGoal .isopen not
+        } { 0 } ? *
+      }' { } loop
+
+
+      { ==f { goals len f { "\e[32mWe are done here.\e[0m\n" out } ? * } } =*unlessSolved
+
+      {
+        " " ==sep
+        [| nonDisj dom sort { ==x
+          x nonDisj * dom sort { ==y
+            sep ", " =sep x renderName " <=> " y renderName
+          } each
+        } each "\n" |] out
+        [| disj dom sort { ==x
+          x disj * dom sort { ==y
+            sep ", " =sep x renderName " <!> " y renderName
+          } each
+        } each "\n" |] out
+
+        selectedGoal goals * ==goal
+
+        goal .antes { ==ante
+          [| "* " ante " " str .split { renderName " " } each "\n" |] out
+        } each
+        [|
+          "\e[1m-------------------------------------------------"
+          " (" selectedGoal 1 add txt .produce .u "/" goals len txt .produce .u ")"
+          # goal .autohint "" neq { " \e[32m(hint: " goal .autohint ")" } rep
+          "\e[0m\n"
+        |] out
+        [| "|- " goal .thm " " str .split { renderName " " } each "\n" |] out
+      } unlessSolved *
+
+      perfstats
+      "proof2> " sys .out .writeall
+      inputCmd ==cmd ==args
+
+      [
+        { cmd "quit" eq } { 0 =running }
+        { cmd "todo" eq } { selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep }
+        { cmd "next" eq } { selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep }
+        { cmd "prev" eq } { selectedGoal 0 gt { selectedGoal 1 sub =selectedGoal } rep }
+        { cmd "norm" eq } { selectedGoal goals * normalizeGoal } unlessSolved
+        { cmd "use" eq } { selectedGoal goals * args useTheorem } unlessSolved
+        { cmd "let" eq { args "^(\\$[^=]+) = (.*)" regex } andif } { ==metaVar " " str .split { "" neq } grep ==tokens
+          tokens metaVar let
+          selectedGoal goals * normalizeGoal
+        } unlessSolved
+        { cmd "nondisj" eq { args "^(.*) <=> (.*)" regex } andif } { markNonDisj }
+        { cmd "load" eq } { args load }
+        { cmd "export:disj" eq } { exportDisjuncts }
+        { cmd "freeze" eq } { { _ { * }_ args sys .freeze * } !! * }
+        loadedCommands "*" | each
+      ] conds
+    ] _ ==residue len 0 gt {
+      [| "\e[31mSomething left on the stack:\e[0m\n" |] out
+      residue dump
+    } } loop
+  } /prove2Proposition deffd
+
+  { ==name
+    name assertions .has { name assertions * .type "p" eq } { 0 } ? * {
+      name assertions * prove2Proposition
+    } {
+      [| name " is not a provable proposition\n" |] out
+      name show
+    } ? *
+  } /prove2 deffd
+
+  { ==name
+    [
+      { name assertions .has } {
+        name assertions * ==a
+        a .hyps { ==hyp
+          /hypothesis: hyp cat dump
+          [
+            { hyp a .ctx isEHyp } {
+              hyp a .ctx getEHyp ==hypToks
+              [| hypToks { renderName " " } each "\n" |] out
+              [ 1 hypToks /wff logicParsers * * ] dump
+            }
+            { hyp a .ctx isFHyp } {
+              hyp a .ctx getFHyp ==hypToks
+              [| hypToks { renderName " " } each "\n" |] out
+            }
+            { 1 } { "\e[31mHypothesis is neither e- nor f-hyp. Probably a bug.\e[0m" dump }
+          ] conds
+        } each
+        /theorem: dump
+        [ 1 a .thm /wff logicParsers * * ] dump
+      }
+      { 1 } { [| "\e[31m" name " is not a proposition\e[0m" |] dump }
+    ] conds
+  } /parseTokens deffd
+
+  {
+    1 ==running
+    { running } {
+      "> " sys .out .writeall
+      inputCmd ==cmd ==args
+
+      [
+        { cmd "" eq } { 0 =running }
+        { cmd "quit" eq } { 0 =running }
+        { cmd "show" eq } { args show }
+        { cmd "parse" eq } { args parseTokens }
+        { cmd "prove" eq } { args prove }
+        { cmd "prove2" eq } { args prove2 }
+        { cmd "silent" eq } { 2 =silent }
+        { cmd "quiet" eq } { 1 =silent }
+        { cmd "nosilent" eq } { 0 =silent }
+      ] conds
+    } loop
+  }
+> -- /interactive deffd
+
+interactive
+
+# vim: syn=elymas
