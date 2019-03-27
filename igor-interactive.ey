@@ -3803,6 +3803,24 @@
       } rep
     } /extractAntes deffst
 
+    <
+      { ==goal
+        0 goal .children * _ .strategy .usedAntecedent ==childAnte
+        /childAnte dump
+        childAnte dump
+        /TODO3 die
+      } /usedAntecedent deffst
+      { ==goal =*wrapOut
+        /TODO4 die
+      } /construct deffst
+    > ==strategyFromAntes
+    { ==goal
+      goal .thm goal .antes eq any {
+        "... (fromAntes)" /resolution goal .set
+        strategyFromAntes /strategy goal .set
+      } rep
+    } /fromAntes deffst
+
     { _ ==goal _ .thm ==thm .antes ==antes
       # meta variable expansion in-place
       [| thm " " str .split expandMeta { " " } each -- |] ==expandedThm
@@ -3820,7 +3838,8 @@
           thm "$" str .split len 1 eq
           antes { "$" str .split len 1 eq } each
         ] all {
-          goal extractAntes
+          goal .isopen { goal extractAntes } rep
+          goal .isopen { goal fromAntes } rep
         } rep
       } ? *
     } /normalizeGoal deffst
@@ -4024,10 +4043,29 @@
     { ==thmName ==goal
       [
         { thmName collectedEHyps .has } {
-          /TODO5 die
-          [ "|-" ] goal .thm " " str .split cat thmName collectedEHyps * arrEq {
-            thmName /resolution goal .set
-            strategyUseEHyp /strategy goal .set
+          [| thmName collectedEHyps * { " " } each -- |] 3 -01 str .postfix _ ==thm ==rawThm
+
+          [ { thm "( ph -> ps )" // } { $ps =thm $ph splitAntes } loop ] ==allAntes
+
+          goal .thm thm eq {
+            1 ==allAntesAvailable
+            allAntes { ==ante
+              goal .antes ante eq any not {
+                0 =allAntesAvailable
+                [| "\e31m$e-hypothesis antecedent not available in current goal: " ante "\e[0m\n" |] out
+              } rep
+            } each
+
+            allAntesAvailable {
+              thmName "++" cat /resolution goal .set
+              [
+                [ ] rawThm newGoal
+              ] /children goal .set
+
+              strategyUseEHyp /strategy goal .set
+
+              0 goal .children * thmName useTheoremLiterally
+            } rep
           } {
             [| "\e[31m$e-hypothesis does not match current goal: " thmName "\e[0m\n" |] out
           } ? *
@@ -4058,7 +4096,7 @@
                 # TODO: For the special case of ( ph -> ... ) in front of the theorem,
                 #       we should allow automatic forwarding
                   [ ] rawThm " " str .split [| -01 substitution applySubstitution { " " } each -- |]
-                newGoal _ normalizeGoal
+                newGoal
 
                 allAntes { ==ante
                     goal .antes ante " " str .split [| -01 substitution applySubstitution { " " } each -- |]
