@@ -4442,23 +4442,116 @@
         ] conds
       } loop
 
+      # Flattening
+      stack ==flatProof
+      { proofTree .has } {
+        proofTree .pop ==top
+        top sys .typed .type 1 eq {
+          top flatProof .push
+        } {
+          top reverse { proofTree .push } each
+        } ? *
+      } loop
+
+      # Just an array of metamath names
+      0 flatProof .top range flatProof .data * =flatProof
+
+      # Checking, duplication detection + tagging
+      # Elements: [ "|- ph" <min proof step used> <final proof step> ]
+      stack ==proofState
+      # From "|- ph" to proof step which first produced it
+      map ==seenThms
+
+      flatProof dom { ==i
+        i flatProof * ==step
+        # 0 proofState .top range proofState .data * dump
+        # step dump
+        [
+          { step collectedEHyps .has } {
+            [ [| step collectedEHyps * { " " } each -- |] i i ] proofState .push
+          }
+          { step collectedFHyps .has } {
+            [ [| step collectedFHyps * { " " } each -- |] i i ] proofState .push
+          }
+          { step assertions .has } {
+            i ==blockStart
+            map ==substitution
+            map ==assignments
+            step assertions * ==a
+            [ a .hyps { } each ] reverse { ==hyp
+              proofState .pop 3 dearray -- =blockStart hyp assignments =[]
+            } each
+
+            [ a .hyps { } each ] { ==hyp
+              [
+                { hyp a .ctx isFHyp } {
+                  hyp a .ctx getFHyp ==expected
+                  hyp assignments * " " str .split ==toks
+
+                  0 toks * 0 expected * neq {
+                    [| "\e[1mBroken proof: Could not unify $f-hyp of: " step "\e[0m\n" |] out
+                  } rep
+
+                  1 toks len range toks * 1 hyp a .ctx getFHyp * substitution =[]
+                }
+                { hyp a .ctx isEHyp } {
+                  [| hyp a .ctx getEHyp substitution applySubstitution { " " } each -- |] ==expected
+                  hyp assignments * expected neq {
+                    [| "\e[1mBroken proof: Could not unify $e-hyp: " step "\e[0m\n" |] out
+                    [| "On the stack: " hyp assignments * "\n" |] out
+                    [| "Expected: " expected "\n" |] out
+                  } rep
+                }
+              ] conds
+            } each
+
+            [| a .thm substitution applySubstitution { " " } each -- |] ==newThm
+            newThm seenThms .has {
+              newThm seenThms * blockStart lt { blockStart i lt } andif {
+                [| "*" newThm |] i flatProof =[]
+                blockStart i range { ==j
+                  [| "~" j flatProof * |] j flatProof =[]
+                } each
+                newThm seenThms * ==k
+                1 k flatProof * str .prefix "!" neq {
+                  [| "!" k flatProof * "!" newThm |] k flatProof =[]
+                } rep
+              } rep
+            } {
+              i newThm seenThms =[]
+            } ? *
+
+            [ newThm blockStart i ] proofState .push
+          }
+          { 1 } {
+            "\e[31mUnresolved name during proof checking: " step "\e[0m\n" |] out
+          }
+        ] conds
+      } each
+
+      # 0 proofState .top range proofState .data * dump
+      # flatProof dump
+      flatProof { 1 -01 str .prefix "~" neq } grep =flatProof
+      # flatProof dump
+
       # Creating name map
       map ==nameMap
       map ==explicitNameMap
       map ==nameCount
 
-      stack ==nameStack
-      proofTree .pop _ proofTree .push
-                       nameStack .push
-
-      { nameStack .has } {
-        nameStack .pop ==top
-        top sys .typed .type 1 eq {
-          top nameCount .has { top nameCount * } { 0 } ? * 1 add top nameCount =[]
-        } {
-          top { nameStack .push } each
-        } ? *
-      } loop
+      flatProof { ==step
+        1 step str .prefix ==t
+        [
+          { t "*" eq } { }
+          { t "!" eq } {
+            1 step str .postfix "!" str .split 2 dearray ==thm ==name
+            name nameCount .has { name nameCount * } { 0 } ? * 1 add name nameCount =[]
+          }
+          { 1 } {
+            step nameCount .has { step nameCount * } { 0 } ? * 1 add step nameCount =[]
+          }
+        ] conds
+      } each
 
       1 ==i
       proposition .hyps { ==name
@@ -4474,6 +4567,10 @@
           i name nameMap =[] i 1 add =i
         } rep
       } each
+
+      i ==totalMappedNames
+
+      map ==taggedThms
 
       # Final output
       9999 ==column
@@ -4502,14 +4599,23 @@
 
       [ "( " explicitNameMap dom { " " } each ") " ] |wrapOut each
 
-      { proofTree .has } {
-        proofTree .pop ==top
-        top sys .typed .type 1 eq {
-          top nameMap * encodeNumber |wrapOut each
-        } {
-          top reverse { proofTree .push } each
-        } ? *
-      } loop
+      flatProof { ==step
+        1 step str .prefix ==t
+        [
+          { t "*" eq } {
+            1 step str .postfix taggedThms * encodeNumber |wrapOut each
+          }
+          { t "!" eq } {
+            1 step str .postfix "!" str .split 2 dearray ==thm ==name
+            name nameMap * encodeNumber |wrapOut each
+            encodeTag
+            totalMappedNames _ 1 add =totalMappedNames thm taggedThms =[]
+          }
+          { 1 } {
+            step nameMap * encodeNumber |wrapOut each
+          }
+        ] conds
+      } each
 
       " $." wrapOut
       "\n" out
