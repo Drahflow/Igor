@@ -6,6 +6,25 @@
   emptyBlock ==proofContext
   0 ==silent
 
+  { <
+    0 128 range ==data
+    0 ==top
+
+    { # ==elem
+      top data len ge { data _ cat =data } rep
+      top data =[]
+      top 1 add =top
+    } /push deffst
+
+    {
+      top 1 sub _ 0 lt { "export stack underflow" die } rep
+                _ =top
+                  data *
+    } /pop deffst
+
+    { top } /has deffst
+  > } /stack deffst
+
   <
     map ==:renderNameCache
     "" ==name
@@ -3231,25 +3250,6 @@
         i 1 add =i
       } each
 
-      { <
-        0 128 range ==data
-        0 ==top
-
-        { # ==elem
-          top data len ge { data _ cat =data } rep
-          top data =[]
-          top 1 add =top
-        } /push deffst
-
-        {
-          top 1 sub _ 0 lt { "export stack underflow" die } rep
-                    _ =top
-                      data *
-        } /pop deffst
-
-        { top } /has deffst
-      > } /stack deffst
-
       stack ==nameStack
       mainGoal nameStack .push
 
@@ -3674,7 +3674,8 @@
       { ==goal
         ""
       } /usedAntecedent deffst
-      { =*wrapOut ==goal
+      { ==goal =*pushStep
+        /TODOA die
         "?" wrapOut
       } /construct deffst
     > ==unresolved
@@ -3749,50 +3750,106 @@
 
       pattern grammarMatchCache * ==cached
       subject " " str .split ==tokens
-      0 tokens 2 cached * metaLogicParsers * * assertParse ==tokensParse
+      0 tokens 2 cached * metaLogicParsers * * not {
+        [| "Could not parse: '" subject "' against '" pattern "'" |] die
+      } rep ==tokensParse
 
       tokensParse tokens cached 2 dearray possibleSubstitutionsForParses ==substs
       substs len 1 eq {
         0 substs * =lastGrammarMatch 1
       } { 0 } ? *
     } "//" deffst
-    { lastGrammarMatch * [| -01 { " " } each -- |] } "$" deffst
 
-    { _ ==toks "( ph /\\ ps )" // {
-        $ph splitAntes
-        $ps splitAntes
-      } {
-        toks
-      } ? *
+    { lastGrammarMatch * [| -01 { " " } each -- |] } "$" deffst
+    { -01 " " str .split -01 lastGrammarMatch =[] } "$=" deffst
+    { lastGrammarMatch } "$$" deffst
+
+    { lastGrammarMatch .clone < ==lastGrammarMatch
+      { lastGrammarMatch * [| -01 { " " } each -- |] } "$"
+      { -01 " " str .split -01 lastGrammarMatch =[] } "$="
+      { lastGrammarMatch } "$$"
+    > -- } { 3 |deffst rep }" ; "$_" deffst
+
+    { ==ante
+      [
+        { ante "" eq } { }
+        { ante "( ph /\\ ps )" // } {
+          $ph splitAntes
+          $ps splitAntes
+        }
+        { 1 } { ante }
+      ] conds
     } /splitAntes deffst
 
-    { ==conclusion ==antes
+    { ==antes
+      antes
       [
         { antes len 0 eq } {
-          conclusion
+          ""
         }
         { antes len 1 eq } {
-          [| "( " 0 antes * " -> " conclusion " )" |]
+          0 antes *
         }
         { 1 } {
-          [ antes _ len dearray [| "( " "/\\" " )" -24130 |] ] conclusion joinAntes
+          [ antes _ len dearray [| "( " " /\\ " " )" -325140 |] ] joinAntes
         }
       ] conds
     } /joinAntes deffst
 
+    { ==to ==from =*pushStep
+      from len { [| from " " str .split expandMeta { " " } each -- |] } { "" } ? * ==from
+      to len { [| to " " str .split expandMeta { " " } each -- |] } { "" } ? * ==to
+      to from eq {
+        $_ to $=ph
+        [ /id $$ ] pushStep
+      } {
+        /from: dump from dump
+        /to: dump to dump
+        /TODO.transformConjunct die
+      } ? *
+    } /transformConjunct deffst
+
     <
       { ==goal
         0 goal .children * _ .strategy .usedAntecedent ==childAnte
-        /childAnte dump
-        childAnte dump
-        /TODO1 die
+
+        map ==newAntesSet
+        goal .newAntes { 1 -01 newAntesSet =[] } each
+
+        [ childAnte splitAntes ] { newAntesSet .has not } grep joinAntes
       } /usedAntecedent deffst
-      { ==goal =*wrapOut
-        /TODO2 die
+
+      { ==goal =*pushStep
+        goal .thm ==thm
+
+        { thm "( ph -> ( ps -> ch ) )" // } {
+          [ /ex $$ ] pushStep
+          [| "( ( " $ph " /\\ " $ps " ) -> " $ch " )" |] =thm
+        } loop
+
+        0 goal .children * _ .strategy .usedAntecedent ==childAnte
+
+        childAnte len {
+          thm "( ph -> ch )" // { $_
+            childAnte $=ps
+            [ /syl $$ ] pushStep
+            |pushStep 0 goal .children * _ .strategy .construct
+            |pushStep $ph $ps transformConjunct
+          } {
+            [| "TODO: Theorem became " thm " without antecedents." |] die
+          } ? *
+        } {
+          thm "( ps -> ph )" // { $_
+            [ /a1i $$ ] pushStep
+            |pushStep 0 goal .children * _ .strategy .construct
+          } {
+            [| "TODO: Theorem became " thm " without antecedents." |] die
+          } ? *
+        } ? *
       } /construct deffst
     > ==strategyExtractAntes
     { _ ==goal .thm ==thm
-      [ { thm "( ph -> ps )" // } { $ph $ps =thm } loop ] ==newAntes
+      [ { thm "( ph -> ps )" // } { $ps =thm $ph splitAntes } loop ] ==newAntes
 
       newAntes len 0 neq {
         "... (extractAntes)" /resolution goal .set
@@ -3805,12 +3862,9 @@
 
     <
       { ==goal
-        0 goal .children * _ .strategy .usedAntecedent ==childAnte
-        /childAnte dump
-        childAnte dump
-        /TODO3 die
+        goal .thm
       } /usedAntecedent deffst
-      { ==goal =*wrapOut
+      { ==goal =*pushStep
         /TODO4 die
       } /construct deffst
     > ==strategyFromAntes
@@ -3935,31 +3989,23 @@
         ""
       } /usedAntecedent deffst
 
-      { ==goal =*wrapOut
-        goal .resolution assertions * ==a
-
-        a .hyps { ==h
-          h a .ctx isFHyp {
-            h a .ctx getFHyp 2 dearray ==var ==type
-            var goal .substitution * type |wrapOut constructSyntax
-          } rep
-        } each
+      { ==goal =*pushStep
+        [ goal .resolution goal .substitution ] pushStep
 
         goal .children { ==child
           child _ .strategy .usedAntecedent "" neq {
             [| "\e[31mTODO: Child rendered with used antecedent.\e[0m\n" |] out
           } rep
 
-          |wrapOut child _ .strategy .construct
+          |pushStep child _ .strategy .construct
         } each
-        goal .resolution wrapOut
       } /construct deffst
     > ==strategyUseTheoremLiterally
 
     <
       { ==goal "" } /usedAntecedent deffst
-      { ==goal =*wrapOut
-        goal .resolution wrapOut
+      { ==goal =*pushStep
+        [ goal .resolution map ] pushStep
       } /construct deffst
     > ==strategyUseEHypLiterally
 
@@ -4022,21 +4068,92 @@
 
     <
       { ==goal
-        /TODO1 dump
+        [| 2 neg goal .resolution str .prefix collectedEHyps * { " " } each -- |] 3 -01 str .postfix ==thm
+
+        [ { thm "( ph -> ps )" // } { $ps =thm $ph } loop ] joinAntes
       } /usedAntecedent deffst
 
-      {
-        /TODO2 dump
+      { ==goal =*pushStep
+        [| 2 neg goal .resolution str .prefix collectedEHyps * { " " } each -- |] 3 -01 str .postfix ==thm
+        goal _ .strategy .usedAntecedent ==availableAntes
+        goal .thm ==builtupThm
+
+        stack ==anteTransforms
+
+        [ { thm "( ph -> ps )" // } { $ps =thm $ph } loop ] ==antesToGenerate
+        availableAntes "" eq {
+          antesToGenerate reverse { ==ante
+            $_
+            ante $=ps builtupThm $=ph
+            [ /a1i $$ ] pushStep
+            [| "( " $ps " -> " $ph " )" |] =builtupThm
+          } each
+        } {
+          antesToGenerate reverse { ==ante
+            $_
+            availableAntes $=ph ante $=ps builtupThm $=ch
+            [ /mpd $$ ] pushStep
+            [| "( " $ps " -> " $ch " )" |] =builtupThm
+          } each
+
+          $_
+          availableAntes $=ps builtupThm $=ph
+          [ /a1i $$ ] pushStep
+        } ? *
+
+        |pushStep 0 goal .children * _ .strategy .construct
+
+        antesToGenerate { ==ante |pushStep availableAntes ante transformConjunct } each
       } /construct deffst
     > ==strategyUseEHyp
 
     <
       { ==goal
-        /TODO1 dump
+        map ==usedAntes
+        1 goal .children len range goal .children * { ==child
+          [ child _ .strategy .usedAntecedent splitAntes ] { ==ante
+            1 ante usedAntes =[]
+          } each
+        } each
+
+        usedAntes dom joinAntes
       } /usedAntecedent deffst
 
-      {
-        /TODO2 dump
+      { ==goal =*pushStep
+        [|
+          2 neg goal .resolution str .prefix assertions * .thm
+          goal .substitution applySubstitution
+          { " " } each --
+        |] 3 -01 str .postfix ==thm
+        goal _ .strategy .usedAntecedent ==availableAntes
+        goal .thm ==builtupThm
+
+        stack ==anteTransforms
+
+        [ { thm "( ph -> ps )" // } { $ps =thm $ph } loop ] ==antesToGenerate
+        availableAntes "" eq {
+          antesToGenerate reverse { ==ante
+            $_
+            ante $=ps builtupThm $=ph
+            [ /a1i $$ ] pushStep
+            [| "( " $ps " -> " $ph " )" |] =builtupThm
+          } each
+        } {
+          antesToGenerate reverse { ==ante
+            $_
+            availableAntes $=ph ante $=ps builtupThm $=ch
+            [ /mpd $$ ] pushStep
+            [| "( " $ps " -> " $ch " )" |] =builtupThm
+          } each
+
+          $_
+          availableAntes $=ps builtupThm $=ph
+          [ /a1i $$ ] pushStep
+        } ? *
+
+        |pushStep 0 goal .children * _ .strategy .construct
+
+        antesToGenerate { ==ante |pushStep availableAntes ante transformConjunct } each
       } /construct deffst
     > ==strategyUseTheorem
 
@@ -4275,7 +4392,61 @@
         [| "\e[31mTODO: Top-level goal rendered with antecedents.\e[0m\n" |] out
       } rep
 
-      { wrapOut " " wrapOut } mainGoal _ .strategy .construct
+      # Non-syntax proof steps in reverse, elements: [ /thmName substitution ]
+      stack ==proofSteps
+      { proofSteps .push } mainGoal _ .strategy .construct
+
+      stack ==proofTree
+      { proofSteps .has } {
+        proofSteps .pop ==step
+        step 2 dearray ==substitution ==resolution
+        [
+          { resolution collectedEHyps .has } {
+            [ resolution ] proofTree .push
+          }
+          { resolution assertions .has } {
+            resolution assertions * ==a
+            [
+              [
+                a .hyps { ==hyp
+                  hyp a .ctx isFHyp {
+                    hyp a .ctx getFHyp 2 dearray ==var ==type
+                    [ var substitution * expandMeta type { } constructSyntax ]
+                  } rep
+                } each
+              ]
+
+              [
+                a .hyps { ==hyp
+                  hyp a .ctx isEHyp {
+                    proofTree .has {
+                      proofTree .pop
+                    } {
+                      step dump
+                      [| "\e[31mStack underflow while creating proof.\e[0m\n" |] out
+                    } ? *
+                  } rep
+                } each
+              ] reverse
+
+              resolution
+            ] proofTree .push
+          }
+          { 1 } {
+            step dump
+            [| "\e[31mUnknown resolution.\e[0m\n" |] out
+          }
+        ] conds
+      } loop
+
+      { proofTree .has } {
+        proofTree .pop ==top
+        top sys .typed .type 1 eq {
+          top wrapOut " " wrapOut
+        } {
+          top reverse { proofTree .push } each
+        } ? *
+      } loop
 
       " $." wrapOut
       "\n" out
