@@ -4378,24 +4378,28 @@
     } /exportDisjuncts deffst
 
     {
-      9999 ==column
-      { ==tok
-        column tok len add 78 gt {
-          "\n      " out 6 =column
-          tok "^ *$" regex { "" =tok } rep
-        } rep
-        tok out
-        column tok len add =column
-      } /wrapOut deffst
-
       mainGoal _ .strategy .usedAntecedent "" neq {
         [| "\e[31mTODO: Top-level goal rendered with antecedents.\e[0m\n" |] out
       } rep
 
-      # Non-syntax proof steps in reverse, elements: [ /thmName substitution ]
+      # Non-syntax proof steps in easy to generate order, elements: [ /thmName substitution ]
+      # Example:
+      # [ /syl <ph => ph, ch => ch> ]
+      # [ ... (steps for syl.1) ... ]
+      # [ ... (steps for syl.2) ... ]
       stack ==proofSteps
       { proofSteps .push } mainGoal _ .strategy .construct
 
+      # All proof steps in nested arrays and final order
+      # Example:
+      # [
+      #   [ /wph ]
+      #   [ /wps ]
+      #   [ /wch ]
+      #   [ ... proving ph -> ps ]
+      #   [ ... proving ps -> ch ]
+      #   /syl
+      # ]
       stack ==proofTree
       { proofSteps .has } {
         proofSteps .pop ==step
@@ -4406,6 +4410,7 @@
           }
           { resolution assertions .has } {
             resolution assertions * ==a
+
             [
               a .hyps { ==hyp [
                 { hyp a .ctx isFHyp } {
@@ -4437,10 +4442,70 @@
         ] conds
       } loop
 
+      # Creating name map
+      map ==nameMap
+      map ==explicitNameMap
+      map ==nameCount
+
+      stack ==nameStack
+      proofTree .pop _ proofTree .push
+                       nameStack .push
+
+      { nameStack .has } {
+        nameStack .pop ==top
+        top sys .typed .type 1 eq {
+          top nameCount .has { top nameCount * } { 0 } ? * 1 add top nameCount =[]
+        } {
+          top { nameStack .push } each
+        } ? *
+      } loop
+
+      1 ==i
+      proposition .hyps { ==name
+        i name nameMap =[]
+        i 1 add =i
+      } each
+
+      nameCount dom { ==a ==b
+        a nameCount * b nameCount * lt
+      } order nameCount dom * { ==name
+        name nameMap .has not {
+          i name explicitNameMap =[]
+          i name nameMap =[] i 1 add =i
+        } rep
+      } each
+
+      # Final output
+      9999 ==column
+      { ==tok
+        column tok len add 78 gt {
+          "\n      " out 6 =column
+          tok "^ *$" regex { "" =tok } rep
+        } rep
+        tok out
+        column tok len add =column
+      } /wrapOut deffst
+
+      { 1 sub ==i
+        [ [
+          i 20 mod "ABCDEFGHIJKLMNOPQRST" * i 20 div =i
+          { i } {
+            i 1 sub =i
+            i 5 mod "UVWXY" * i 5 div =i
+          } loop
+        ] reverse { [ -01 ] str .fromArray } each ]
+      } /encodeNumber deffst
+
+      {
+        "Z" wrapOut
+      } /encodeTag deffst
+
+      [ "( " explicitNameMap dom { " " } each ") " ] |wrapOut each
+
       { proofTree .has } {
         proofTree .pop ==top
         top sys .typed .type 1 eq {
-          top wrapOut " " wrapOut
+          top nameMap * encodeNumber |wrapOut each
         } {
           top reverse { proofTree .push } each
         } ? *
