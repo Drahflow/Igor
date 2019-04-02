@@ -3833,8 +3833,8 @@
           thm "( ph -> ch )" // { $_
             childAnte $=ps
             [ /syl $$ ] pushStep
-            |pushStep 0 goal .children * _ .strategy .construct
             |pushStep $ph $ps transformConjunct
+            |pushStep 0 goal .children * _ .strategy .construct
           } {
             [| "TODO: Theorem became " thm " without antecedents." |] die
           } ? *
@@ -4094,6 +4094,8 @@
             availableAntes $=ph ante $=ps builtupThm $=ch
             [ /mpd $$ ] pushStep
             [| "( " $ps " -> " $ch " )" |] =builtupThm
+
+            |pushStep availableAntes ante transformConjunct
           } each
 
           $_
@@ -4102,8 +4104,6 @@
         } ? *
 
         |pushStep 0 goal .children * _ .strategy .construct
-
-        antesToGenerate { ==ante |pushStep availableAntes ante transformConjunct } each
       } /construct deffst
     > ==strategyUseEHyp
 
@@ -4144,6 +4144,8 @@
             availableAntes $=ph ante $=ps builtupThm $=ch
             [ /mpd $$ ] pushStep
             [| "( " $ps " -> " $ch " )" |] =builtupThm
+
+            |pushStep availableAntes ante transformConjunct
           } each
 
           $_
@@ -4152,8 +4154,6 @@
         } ? *
 
         |pushStep 0 goal .children * _ .strategy .construct
-
-        antesToGenerate { ==ante |pushStep availableAntes ante transformConjunct } each
       } /construct deffst
     > ==strategyUseTheorem
 
@@ -4407,27 +4407,25 @@
           { resolution assertions .has } {
             resolution assertions * ==a
             [
-              [
-                a .hyps { ==hyp
-                  hyp a .ctx isFHyp {
-                    hyp a .ctx getFHyp 2 dearray ==var ==type
-                    [ var substitution * expandMeta type { } constructSyntax ]
-                  } rep
-                } each
-              ]
+              a .hyps { ==hyp [
+                { hyp a .ctx isFHyp } {
+                  hyp a .ctx getFHyp 2 dearray ==var ==type
+                  [ var substitution * expandMeta type { } constructSyntax ]
+                }
 
-              [
-                a .hyps { ==hyp
-                  hyp a .ctx isEHyp {
-                    proofTree .has {
-                      proofTree .pop
-                    } {
-                      step dump
-                      [| "\e[31mStack underflow while creating proof.\e[0m\n" |] out
-                    } ? *
-                  } rep
-                } each
-              ] reverse
+                { hyp a .ctx isEHyp } {
+                  proofTree .has {
+                    proofTree .pop
+                  } {
+                    step dump
+                    [| "\e[31mStack underflow while creating proof.\e[0m\n" |] out
+                  } ? *
+                }
+
+                { 1 } {
+                  [| "\e[31mUnknown theorem hypothesis during proof construction: " resolution "\e[0m\n" |] out
+                }
+              ] conds } each
 
               resolution
             ] proofTree .push
