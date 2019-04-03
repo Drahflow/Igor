@@ -167,6 +167,7 @@
     } loop
   } /readNumber deffd
 
+  0 ==debuggingPossibleSubstitutions
   { ==assertionTokens ==assertionParse ==tokens ==tokensParse map ==substitution
     1 ==valid
     0 ==i
@@ -180,7 +181,13 @@
 
           var substitution .has {
             var substitution * ==old
-            old new arrEq valid and =valid
+            old new arrEq _ valid and =valid not {
+              debuggingPossibleSubstitutions {
+                [| "Failed to unify (later variable usage):\n" |] out
+                [| old { " " } each "\n" |] out
+                [| new { " " } each "\n" |] out
+              } rep
+            } rep
           } {
             new var substitution =[]
           } ? *
@@ -190,7 +197,15 @@
             i tokensParse * i assertionParse * recurse
           } each
         }
-        { 1 } { 0 =valid { -- -- } =recurse }
+        { 1 } {
+          0 =valid
+          debuggingPossibleSubstitutions {
+            [| "Failed to unify (parse):\n" |] out
+            [| tokensParse logicRange tokens * { " " } each "\n" |] out
+            [| assertionParse logicRange assertionTokens * { " " } each "\n" |] out
+          } rep
+          { -- -- } =recurse
+        }
       ] conds
     } /recurse deffst
 
@@ -200,16 +215,34 @@
   } τpossibleSubstitutionsParses /possibleSubstitutionsForParses deffd
 
   { ==start ==rootNonterminal ==assertionTokens ==tokens ==tokensParse
-    start assertionTokens rootNonterminal logicParsers * * not { [ ] } { ==assertionParse
+    start assertionTokens rootNonterminal logicParsers * * not {
+      [ ]
+      debuggingPossibleSubstitutions {
+        [| "Failed to parse as: " rootNonterminal "\n" |] out
+        [| start assertionTokens len range assertionTokens * { " " } each "\n" |] out
+      } rep
+    } { ==assertionParse
       tokensParse tokens assertionParse assertionTokens possibleSubstitutionsForParses
     } ? *
   } τpossibleSubstitutionsParse /possibleSubstitutionsForParse deffd
 
   { ==start ==rootNonterminal ==assertionTokens ==tokens
-    start tokens rootNonterminal logicParsers * * not { [ ] } { # ==tokensParse
+    start tokens rootNonterminal logicParsers * * not {
+      [ ]
+      debuggingPossibleSubstitutions {
+        [| "Failed to parse as: " rootNonterminal "\n" |] out
+        [| start tokens len range tokens * { " " } each "\n" |] out
+      } rep
+    } { # ==tokensParse
       tokens assertionTokens rootNonterminal start possibleSubstitutionsForParse
     } ? *
   } τpossibleSubstitutions /possibleSubstitutionsForToks deffd
+
+  {
+    1 =debuggingPossibleSubstitutions
+    possibleSubstitutionsForToks --
+    0 =debuggingPossibleSubstitutions
+  } /debugPossibleSubstitutionsForToks deffd
 
   { .thm ==assertionTokens ==tokens
     0 assertionTokens * 0 tokens * eq {
@@ -3770,10 +3803,31 @@
       { lastGrammarMatch } "$$"
     > -- } { 3 |deffst rep }" ; "$_" deffst
 
+    { " " str .split =*toks 0 ==i 1 ==digits 0 ==result
+      { i toks ";" eq } { digits 1 add =digits i 1 add =i } loop
+      1 ==success
+
+      digits {
+        i |toks len lt {
+          i toks [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 ] eq any {
+            result 10 mul i toks txt .consume .u add =result
+          } {
+            0 =success
+          } ? *
+        } {
+          0 =success
+        } ? *
+        i 1 add =i
+      } rep
+
+      success { result 1 } { 0 } ? *
+    } /parseNumber deffst
+
     { ==ante
       [
         { ante "" eq } { }
         { ante "( ph /\\ ps )" // } {
+          $_
           $ph splitAntes
           $ps splitAntes
         }
@@ -3808,6 +3862,83 @@
         /TODO.transformConjunct die
       } ? *
     } /transformConjunct deffst
+
+    <
+      { ==goal
+        ""
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        goal .thm "( ph -> A. x ph )" // --
+        [ /ax-17 $$ ] pushStep
+      } /construct deffst
+    > ==strategyTriviallyUnused
+    { _ ==goal .thm ==thm
+      thm "( ph -> A. x ph )" // {
+        $ph " " str .split $x eq any not {
+          "... (triviallyUnused)" /resolution goal .set
+          strategyTriviallyUnused /strategy goal .set
+        } rep
+      } rep
+    } /triviallyUnused deffst
+
+    { ==term ==var
+      [
+        { term " " str .split var eq any not } { 1 }
+        { term "( ph /\\ ps )" // } { $_
+          var $ph isNontriviallyUnusedIn
+          var $ps isNontriviallyUnusedIn and
+        }
+        { term "( ph -> ps )" // } { $_
+          var $ph isNontriviallyUnusedIn
+          var $ps isNontriviallyUnusedIn and
+        }
+        { term "A. x ph" // } { $_
+          $x var eq {
+            1
+          } {
+            var $ph isNontriviallyUnusedIn
+          } ? *
+        }
+        { 1 } { 0 }
+      ] conds
+    } /isNontriviallyUnusedIn deffst
+
+    <
+      { ==goal
+        ""
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        /TODO:strategyNonTriviallyUnused die
+      } /construct deffst
+    > ==strategyNonTriviallyUnused
+    { _ ==goal .thm ==thm
+      thm "( ph -> A. x ph )" // {
+        $x $ph isNontriviallyUnusedIn {
+          "... (nonTriviallyUnused)" /resolution goal .set
+          strategyNonTriviallyUnused /strategy goal .set
+        } rep
+      } rep
+    } /nonTriviallyUnused deffst
+
+    <
+      { ==goal
+        ""
+      } /usedAntecedent deffs
+
+      { ==goal =*pushStep
+        /TODO:strategyDecimalIsNN die
+      } /construct deffst
+    > ==strategyDecimalIsNN
+    { _ ==goal .thm ==thm
+      thm "A e. NN" // {
+        $A parseNumber { --
+          "... (e. NN)" /resolution goal .set
+          strategyDecimalIsNN /strategy goal .set
+        } rep
+      } rep
+    } /decimalIsNN deffst
 
     <
       { ==goal
@@ -3892,8 +4023,15 @@
           thm "$" str .split len 1 eq
           antes { "$" str .split len 1 eq } each
         ] all {
-          goal .isopen { goal extractAntes } rep
-          goal .isopen { goal fromAntes } rep
+          [
+            |triviallyUnused
+            |nonTriviallyUnused
+            |decimalIsNN
+            |extractAntes
+            |fromAntes
+          ] { =*resolution
+            goal .isopen { goal resolution } rep
+          } each
         } rep
       } ? *
     } /normalizeGoal deffst
@@ -4032,6 +4170,11 @@
           [ "|-" ] goal .thm " " str .split cat thmToks /wff 1 possibleSubstitutionsForToks ==possibleSubstitutions
           possibleSubstitutions len 1 neq { 0 =legit
             [| "\e[31mNo possible substitution found.\e[0m\n" |] out
+
+              [ "|-" ] goal .thm " " str .split cat
+              thmToks
+              /wff 1
+            debugPossibleSubstitutionsForToks
           } rep
 
           legit {
@@ -4053,8 +4196,6 @@
 
               thmName /resolution goal .set
               [
-                # TODO: For the special case of ( ph -> ... ) in front of the theorem,
-                #       we should allow automatic forwarding
                 thmAntes { ==ante [ ] ante newGoal _ normalizeGoal } each
               ] /children goal .set
               strategyUseTheoremLiterally /strategy goal .set
@@ -4196,9 +4337,14 @@
 
           1 ==legit
 
-          goal .thm " " str .split thm " " str .split /wff 1 possibleSubstitutionsForToks ==possibleSubstitutions
+          goal .thm " " str .split thm " " str .split /wff 0 possibleSubstitutionsForToks ==possibleSubstitutions
           possibleSubstitutions len 1 neq { 0 =legit
             [| "\e[31mNo possible substitution found.\e[0m\n" |] out
+
+              goal .thm " " str .split
+              thm " " str .split
+              /wff 0
+            debugPossibleSubstitutionsForToks
           } rep
 
           legit {
@@ -4210,8 +4356,6 @@
 
               thmName "++" cat /resolution goal .set
               [
-                # TODO: For the special case of ( ph -> ... ) in front of the theorem,
-                #       we should allow automatic forwarding
                   [ ] rawThm " " str .split [| -01 substitution applySubstitution { " " } each -- |]
                 newGoal
 
@@ -4311,14 +4455,12 @@
           y x disj * .has {
             1 =disjunctionsViolated
             [| "\e[31mproposed let would violate\e[0m " x renderName " <!> " y renderName "\n" |] out
-            0 =redisplay
           } rep
         } rep
         x nonDisj .has {
           y x nonDisj * .has {
             1 =disjunctionsViolated
             [| "\e[31mproposed let would violate\e[0m " x renderName " <=> " y renderName "\n" |] out
-            0 =redisplay
           } rep
         } rep
       } each
@@ -4334,6 +4476,22 @@
         } each
       } rep
     } τlet /let deffst
+
+    { 1 -01 str .postfix ==metaVar
+      metaVar lastMetaVariables * =metaVar
+
+      0 ==success
+      mainGoal openGoals { ==goal
+        goal .thm metaVar eq {
+          goal .antes joinAntes " " str .split metaVar let
+          1 =success
+        } rep
+      } each
+
+      success not {
+        [| "\e[31mFailed to auto-deduce.\e[0m\n" |] out
+      } rep
+    } /autoDeduce deffst
 
     { ==token 0 token * 0 "$" * eq } '0.0 /tokenIsMetaVar deffst
 
@@ -4635,6 +4793,34 @@
       [| "=== /snip here for " proposition .name " ===\n" |] out
     } /exportTheorem deffst
 
+    { ==thing ==indent
+      thing len 70 lt {
+        thing " " str .split { renderName " " } each --
+      } {
+        [
+          { thing "A. x ph" // } {
+            "A. " $x renderName " "
+            indent 5 add $ph renderNicely
+          }
+          { thing "( ph /\\ ps )" // } { $_
+            "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
+            "/\\ " indent 3 add $ps renderNicely " )"
+          }
+          { thing "( ph -> ps )" // } { $_
+            "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
+            "-> " indent 3 add $ps renderNicely " )"
+          }
+          { thing "A. x e. A ph" // } { $_
+            "A. " $x renderName " e. " indent 8 add $A renderNicely "\n" indent 3 add { " " } rep
+            indent 3 add $ph renderNicely
+          }
+          { 1 } {
+            thing " " str .split { renderName " " } each --
+          }
+        ] conds
+      } ? *
+    } /renderNicely deffst
+
     map ==disj map ==nonDisj
     { ==x ==y
       x y gt { x y =x =y } rep
@@ -4709,6 +4895,9 @@
 
         selectedGoal goals * ==goal
 
+        collectedEHyps dom { ==name
+          [| "+ " name collectedEHyps * _ len 1 -01 range -01* { renderName " " } each "\n" |] out
+        } each
         goal .antes { ==ante
           [| "* " ante " " str .split { renderName " " } each "\n" |] out
         } each
@@ -4718,7 +4907,7 @@
           # goal .autohint "" neq { " \e[32m(hint: " goal .autohint ")" } rep
           "\e[0m\n"
         |] out
-        [| "|- " goal .thm " " str .split { renderName " " } each "\n" |] out
+        [| "|- " 3 goal .thm renderNicely "\n" |] out
       } unlessSolved *
 
       perfstats
@@ -4734,6 +4923,10 @@
         { cmd "use" eq } { selectedGoal goals * args useTheorem } unlessSolved
         { cmd "let" eq { args "^(\\$[^=]+) = (.*)" regex } andif } { ==metaVar " " str .split { "" neq } grep ==tokens
           tokens metaVar let
+          selectedGoal goals * normalizeGoal
+        } unlessSolved
+        { cmd "auto-deduce" eq { args "^(\\$.+)" regex } andif } { ==metaVar
+          metaVar autoDeduce
           selectedGoal goals * normalizeGoal
         } unlessSolved
         { cmd "nondisj" eq { args "^(.*) <=> (.*)" regex } andif } { markNonDisj }
