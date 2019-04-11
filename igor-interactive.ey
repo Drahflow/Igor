@@ -331,7 +331,6 @@
       } { 0 } ? *
     } /mustNotDisj deffst
 
-
     proposition .ctx _ =proofContext
     proposition .thm goal ==mainGoal
     0 ==selectedGoal
@@ -3704,13 +3703,54 @@
   } /prove deffd
 
   { ==proposition
+    # DEBUGGING ONLY
+    <
+      0 ==debugIndent
+
+      {
+        _ /usedAntecedent eq { ==name =*f
+          { ==goal
+            goal f ==result
+            map ==antes goal .antes { 1 -01 antes =[] } each
+            [ result splitConjunction ] { antes .has not } grep _ ==error len 0 neq {
+              [| "--- goal requested invalid ante ---" |] err
+              goal .resolution dump
+              [| "proving:\n" |] out
+              [| 0 goal .thm renderNicely "\n" |] out
+              [| "from:\n" |] out
+              goal .antes { ==ante
+                [| 0 ante renderNicely "\n" |] out
+              } each
+              [| "... but actual request was also for ...\n" |] out
+              error { ==ante
+                [| 0 ante renderNicely "\n" |] out
+              } each
+              /aborting die
+            } rep
+
+            result
+          } name
+        } rep
+
+        _ /construct eq { ==name =*f
+          { ==goal =*pushStep
+            [| debugIndent { " " } rep goal .resolution "\n" |] out
+            { 2 add } |=debugIndent
+            |pushStep goal f
+            { 2 sub } |=debugIndent
+            [| debugIndent { " " } rep "/" goal .resolution "\n" |] out
+          } name
+        } rep
+      }
+    > -- |deffst ; =*?deffst
+    # END OF DEBUGGING
+
     <
       { ==goal
         ""
       } /usedAntecedent deffst
       { ==goal =*pushStep
-        /TODOA die
-        "?" wrapOut
+        [ "?" map ] pushStep
       } /construct deffst
     > ==unresolved
 
@@ -3800,13 +3840,17 @@
       } { 0 } ? *
     } "//" deffst
 
+    { # ==map ==key ==value
+      -102 " " str .split -021 =[]
+    } "$=[]" deffst
+
     { lastGrammarMatch * [| -01 { " " } each -- |] } "$" deffst
-    { -01 " " str .split -01 lastGrammarMatch =[] } "$=" deffst
+    { lastGrammarMatch $=[] } "$=" deffst
     { lastGrammarMatch } "$$" deffst
 
     { lastGrammarMatch .clone < ==lastGrammarMatch
       { lastGrammarMatch * [| -01 { " " } each -- |] } "$"
-      { -01 " " str .split -01 lastGrammarMatch =[] } "$="
+      { lastGrammarMatch $=[] } "$="
       { lastGrammarMatch } "$$"
     > -- } { 3 |deffst rep }" ; "$_" deffst
 
@@ -3826,6 +3870,8 @@
         } ? *
         i 1 add =i
       } rep
+
+      i |toks len neq { 0 =success } rep
 
       success { result 1 } { 0 } ? *
     } /parseNumber deffst
@@ -3851,22 +3897,70 @@
           0 antes *
         }
         { 1 } {
-          antes _ len _ ==l dearray
-          l 1 sub { [| "( " " /\\ " " )" -325140 |] } rep
+          antes len 2 div ==split
+          [| "( "
+            0 split range antes * makeConjunction
+            " /\\ "
+            split antes len range antes * makeConjunction
+          " )" |]
+
+          # Linear construction:
+          # antes _ len _ ==l dearray
+          # l 1 sub { [| "( " " /\\ " " )" -325140 |] } rep
         }
       ] conds
     } /makeConjunction deffst
 
     { ==to ==from =*pushStep
+      {
+        [| "Could not transform conjuction." |] err
+        /from: dump [| 0 from renderNicely "\n" |] out
+        /to: dump [| 0 to renderNicely "\n" |] out
+      } ==failed
+
       from len { [| from " " str .split expandMeta { " " } each -- |] } { "" } ? * ==from
       to len { [| to " " str .split expandMeta { " " } each -- |] } { "" } ? * ==to
+
       to from eq {
         $_ to $=ph
         [ /id $$ ] pushStep
       } {
-        /from: dump from dump
-        /to: dump to dump
-        /TODO.transformConjunct die
+        from "( ph /\\ ps )" // { $_
+          map ==onLeft map ==onRight
+          [ $ph _ ==left splitConjunction ] { 1 -01 onLeft =[] } each
+          [ $ps _ ==right splitConjunction ] { 1 -01 onRight =[] } each
+
+          0 ==missingLeft 0 ==missingRight
+          [ to splitConjunction ] {
+            _ onLeft .has not { 1 =missingLeft } rep
+              onRight .has not { 1 =missingRight } rep
+          } each
+
+          [
+            { missingLeft not } {
+              $_ left $=ph right $=ch to $=ps
+              [ /adantr $$ ] pushStep
+              |pushStep left to transformConjunct
+            }
+            { missingRight not } {
+              $_ right $=ph left $=ch to $=ps
+              [ /adantl $$ ] pushStep
+              |pushStep right to transformConjunct
+            } 
+            { 1 } {
+              to "( ps /\\ ch )" // {
+                $_ from $=ph
+                [ /jca $$ ] pushStep
+
+                $ps ==toLeft
+                $ch ==toRight
+
+                |pushStep from toLeft transformConjunct
+                |pushStep from toRight transformConjunct
+              } failed ? *
+            }
+          ] conds
+        } failed ? *
       } ? *
     } /transformConjunct deffst
 
@@ -3898,7 +3992,46 @@
       } /usedAntecedent deffst
 
       { ==goal =*pushStep
-        /TODO:strategyUnusedVariable die
+        { ==thm
+          [
+            { thm "( ph -> A. x ph )" // {
+              1 ==unused
+              $ph " " str .split { ==tok
+                [ 
+                  { tok $x eq } { 0 =unused }
+                  { tok variables .has } {
+                    $x ==x tok ==y
+                    x y gt { x y =x =y } rep
+                    x nonDisj .has {
+                      y x nonDisj * .has {
+                        0 =unused
+                      } rep
+                    } rep
+                  }
+                ] conds
+              } each
+
+              unused
+            } andif } {
+              [ /ax-17 $$ ] pushStep
+            }
+            { thm "( ( ph /\\ ps ) -> A. x ( ph /\\ ps ) )" // } { $_
+              [ /hban $$ ] pushStep
+              [| "( " $ph " -> A. " $x " " $ph " )" |] constructUnused
+              [| "( " $ps " -> A. " $x " " $ps " )" |] constructUnused
+            }
+            { thm "( A. x ph -> A. x A. x ph )" // } {
+              [ /hba1 $$ ] pushStep
+            }
+            { 1 } {
+              [| "No construction step known to show non-usage for:" |] err
+              [| 0 thm renderNicely "\n" |] out
+              /TODO:strategyUnusedVariable die
+            }
+          ] conds
+        } /constructUnused deffst
+
+        goal .thm constructUnused
       } /construct deffst
     > ==strategyUnusedVariable
     { _ ==goal .thm ==thm
@@ -3912,11 +4045,70 @@
 
     <
       { ==goal
-        /TODO:strategyKnownAntes die
+        map ==known
+        goal .antes { 1 -01 known =[] } each
+        goal .children len {
+          0 goal .children * _ .strategy .usedAntecedent ==childAnte
+          [ goal .thm splitConjunction ] { known .has } grep makeConjunction ==knownAntes
+          childAnte "" neq {
+            [| "( " childAnte " /\\ " knownAntes " )" |]
+          } {
+            knownAntes
+          } ? *
+        } {
+          # All clauses of goal are already known, request well-sorted antecedent
+          goal .thm
+        } ? *
       } /usedAntecedent deffst
 
       { ==goal =*pushStep
-        /TODO:strategyKnownAntes die
+        goal .children len {
+          map ==known
+          goal .antes { 1 -01 known =[] } each
+          [ goal .thm splitConjunction ] { known .has } grep makeConjunction ==knownAntes
+          0 goal .children * _ ==child _ .strategy .usedAntecedent ==childAnte
+          goal _ .strategy .usedAntecedent ==usedAnte
+          
+          childAnte "" neq {
+            # knownAntes -> goal .thm
+
+            map ==lastGrammarMatch $_
+            knownAntes $=ph
+            child .thm $=ps
+            knownAntes $=ch
+            goal .thm $=th
+            [ /syl2anc $$ ] pushStep
+
+            map ==lastGrammarMatch $_
+            child .thm $=ph
+            [ /id $$ ] pushStep
+
+            |pushStep child _ .strategy .construct
+
+            map ==lastGrammarMatch $_
+            knownAntes $=ph
+            [ /id $$ ] pushStep
+          } {
+            # ( childAnte /\ knownAntes ) -> goal .thm
+            map ==lastGrammarMatch $_
+            childAnte $=ph
+            child .thm $=ps
+            knownAntes _ $=ta $=ch
+            goal .thm $=th
+            [ /syl2anr $$ ] pushStep
+
+            |pushStep child _ .strategy .construct
+
+            map ==lastGrammarMatch $_
+            knownAntes $=ph
+            [ /id $$ ] pushStep
+          } ? *
+
+          |pushStep [| "( " child .thm " /\\ " knownAntes " )" |] goal .thm transformConjunct
+        } {
+          $_ goal .thm $=ph
+          [ /id $$ ] pushStep
+        } ? *
       } /construct deffst
     > ==strategyKnownAntes
     { _ ==goal .thm ==thm
@@ -3935,23 +4127,72 @@
       } rep
     } /knownAntes deffst
 
+    { ==thm =*pushStep
+      [
+        { thm "A e. CC" // { $A parseNumber } andif } { ==A
+          [ /nn0cni $$ ] pushStep
+          |pushStep [| $A " e. NN0" |] constructDecimal
+        }
+        { thm "; A B e. NN" // } { $_
+          $B parseNumber { 0 eq } andif {
+            [ /decnnclb $$ ] pushStep
+            |pushStep [| $A " e. NN" |] constructDecimal
+            |pushStep [| $B " e. NN0" |] constructDecimal
+          } {
+            [ /decnncl $$ ] pushStep
+            |pushStep [| $A " e. NN0" |] constructDecimal
+            |pushStep [| $B " e. NN" |] constructDecimal
+          } ? *
+        }
+        { thm "; A B e. NN0" // } { $_
+          [ /deccl $$ ] pushStep
+          |pushStep [| $A " e. NN0" |] constructDecimal
+          |pushStep [| $B " e. NN0" |] constructDecimal
+        }
+        { thm "0 e. NN0" // } { [ /0nn0 map ] pushStep }
+        { thm "1 e. NN0" // } { [ /1nn0 map ] pushStep }
+        { thm "2 e. NN0" // } { [ /2nn0 map ] pushStep }
+        { thm "3 e. NN0" // } { [ /3nn0 map ] pushStep }
+        { thm "4 e. NN0" // } { [ /4nn0 map ] pushStep }
+        { thm "5 e. NN0" // } { [ /5nn0 map ] pushStep }
+        { thm "6 e. NN0" // } { [ /6nn0 map ] pushStep }
+        { thm "7 e. NN0" // } { [ /7nn0 map ] pushStep }
+        { thm "8 e. NN0" // } { [ /8nn0 map ] pushStep }
+        { thm "9 e. NN0" // } { [ /9nn0 map ] pushStep }
+        { thm "10 e. NN0" // } { [ /10nn0 map ] pushStep }
+        { thm "1 e. NN" // } { [ /1nn map ] pushStep }
+        { thm "2 e. NN" // } { [ /2nn map ] pushStep }
+        { thm "3 e. NN" // } { [ /3nn map ] pushStep }
+        { thm "4 e. NN" // } { [ /4nn map ] pushStep }
+        { thm "5 e. NN" // } { [ /5nn map ] pushStep }
+        { thm "6 e. NN" // } { [ /6nn map ] pushStep }
+        { thm "7 e. NN" // } { [ /7nn map ] pushStep }
+        { thm "8 e. NN" // } { [ /8nn map ] pushStep }
+        { thm "9 e. NN" // } { [ /9nn map ] pushStep }
+        { thm "10 e. NN" // } { [ /10nn map ] pushStep }
+        { 1 } {
+          [| "Could not deduce decimal class membership for:" |] err
+          [| 0 thm renderNicely "\n" |] out
+          /TODO:strategyDecimal die
+        }
+      ] conds
+    } /constructDecimal deffst
+
     <
       { ==goal
         ""
       } /usedAntecedent deffs
 
-      { ==goal =*pushStep
-        /TODO:strategyDecimalIsNN die
-      } /construct deffst
-    > ==strategyDecimalIsNN
+      { .thm constructDecimal } /construct deffst
+    > ==strategyDecimal
     { _ ==goal .thm ==thm
       thm "A e. NN" // {
         $A parseNumber { --
           "... (e. NN)" /resolution goal .set
-          strategyDecimalIsNN /strategy goal .set
+          strategyDecimal /strategy goal .set
         } rep
       } rep
-    } /decimalIsNN deffst
+    } /decimal deffst
 
     { ==expr
       [
@@ -3962,6 +4203,28 @@
           $A evaluateArithmetics {
             10 mul $B evaluateArithmetics {
               add 1
+            } {
+              -- 0
+            } ? *
+          } {
+            0
+          } ? *
+        }
+        { expr "( A + B )" // } { $_
+          $A evaluateArithmetics {
+            $B evaluateArithmetics {
+              add 1
+            } {
+              -- 0
+            } ? *
+          } {
+            0
+          } ? *
+        }
+        { expr "( A x. B )" // } { $_
+          $A evaluateArithmetics {
+            $B evaluateArithmetics {
+              mul 1
             } {
               -- 0
             } ? *
@@ -3984,14 +4247,195 @@
       ] conds
     } /evaluateArithmetics deffst
 
+    { ==thm =*pushStep
+      {
+        [| "Failed to construct arithmetic proof." |] err
+        [| 0 thm renderNicely "\n" |] out
+      } /failed defvst
+
+      [
+        { thm "( ( A F B ) G C ) = D" // } { $_
+          [| "( " $A " " $F " " $B " )" |] evaluateArithmetics {
+            [| -01 printNumber { " " } each -- |] ==innerResult
+
+            map ==eqtriNames
+            [| "( ( " $A " " $F " " $B " ) " $G " " $C " )" |] /A eqtriNames $=[]
+            [| "( " innerResult " " $G " " $C " )" |] /B eqtriNames $=[]
+            $D /C eqtriNames $=[]
+            [ /eqtri eqtriNames ] pushStep
+
+            # |- ( ( A F B ) G C ) = ( <eval> G C )
+            map ==oveq1iNames
+            [| "( " $A " " $F " " $B " )" |] /A oveq1iNames $=[]
+            innerResult /B oveq1iNames $=[]
+            $G /F oveq1iNames $=[]
+            $C /C oveq1iNames $=[]
+            [ /oveq1 oveq1iNames ] pushStep
+
+            |pushStep [| /A oveq1iNames * { " " } each -- " = " innerResult |] constructArithmetics
+
+            # |- ( <eval> G C ) = D
+            |pushStep [| "( " innerResult " " $G " " $C " ) = " $D |] constructArithmetics
+          } failed ? *
+        }
+        { thm "A = A" // } {
+          [ /eqid $$ ] pushStep
+        }
+        { thm "( A mod B ) = C" // } { $_
+          $A evaluateArithmetics { ==A
+            $B evaluateArithmetics { ==B
+              [| A B div printNumber { " " } each -- |] $=D
+              [ /nnmulmodvali $$ ] pushStep
+
+              |pushStep [| $A " e. NN0" |] constructDecimal
+              |pushStep [| $B " e. NN" |] constructDecimal
+              |pushStep [| $C " e. NN0" |] constructDecimal
+              |pushStep [| $D " e. NN0" |] constructDecimal
+              |pushStep [| $C " < " $B |] constructArithmetics
+              |pushStep [| "( ( " $D " x. " $B " ) + " $C " ) = " $A |] constructArithmetics
+            } failed ? *
+          } failed ? *
+        }
+        { thm "0 < A" // } {
+          [ /nngt0i $$ ] pushStep
+          |pushStep [| $A " e. NN" |] constructDecimal
+        }
+        { thm "( A + 0 ) = A" // } {
+          [ /addid1i $$ ] pushStep
+          |pushStep [| $A " e. CC" |] constructDecimal
+        }
+        { thm "A = ; 0 A" // } {
+          [ /dec0h $$ ] pushStep
+          |pushStep [| $A " e. NN0" |] constructDecimal
+        }
+        { thm "( A + B ) = C" //
+            { $A parseNumber } andif { 10 lt } andif
+            { $B parseNumber } andif { 10 lt } andif } {
+          $A parseNumber -- $B parseNumber -- lt {
+            map ==eqtriNames
+            [| "( " $A " + " $B " )" |] /A eqtriNames $=[]
+            [| "( " $B " + " $A " )" |] /B eqtriNames $=[]
+            $C /C eqtriNames $=[]
+
+            [ /eqtri eqtriNames ] pushStep
+            [ /addcomi $$ ] pushStep
+            |pushStep [| $A " e. CC" |] constructDecimal
+            |pushStep [| $B " e. CC" |] constructDecimal
+
+            |pushStep [| "( " $B " + " $A " ) = " $C |] constructArithmetics
+          } {
+            $C parseNumber { ==C
+              [| $A "p" $B "e" C txt .produce .u |] ==name
+              name assertions .has {
+                [ name map ] pushStep
+              } failed ? *
+            } failed ? *
+          } ? *
+        }
+        { thm "( M + N ) = ; E F" // } { $_
+          $M parseNumber { ==M
+            $N parseNumber { ==N
+              { ==name [| -01 printNumber { " " } each -- |] name $= } "$=#" deffst
+
+              M _ 10 div $=#A 10 mod _ ==B $=#B
+              N _ 10 div $=#C 10 mod _ ==D $=#D
+              B D add 10 ge /decaddc /decadd ? ==name
+
+              [ name $$ ] pushStep
+              name assertions * ==a
+              a .hyps { a .ctx isEHyp } grep { ==hyp
+                [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==thm
+                |pushStep thm _ "A e. NN0" // |constructDecimal |constructArithmetics ? * 
+              } each 
+            } failed ? *
+          } failed ? *
+        }
+        { thm "( ; A B x. ; C D ) = ; ; E F G" // } { $_
+          [ [ /A /B /P /C /D ] { ==v
+            v $ parseNumber { v ==? }' { 0 v ==? 0 }' ? *
+          }' each ] all {
+            { ==name [| -01 printNumber { " " } each -- |] name $= } "$=#" deffst
+
+            B D mul 10 div $=#H
+            A D mul _ 10 div $=#I 10 mod $=#J
+            C B mul _ 10 div $=#K 10 mod $=#L
+            I K add $=#N
+            H J add $=#O
+            O L add 10 div $=#M
+            A C mul $=#P
+            N M add $=#Q
+
+            [ /decmul12c $$ ] pushStep
+            /decmul12c assertions * ==a
+            a .hyps { a .ctx isEHyp } grep { ==hyp
+              [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==thm
+              |pushStep thm _ "A e. NN0" // |constructDecimal |constructArithmetics ? * 
+            } each 
+          } failed ? *
+        }
+        { thm "( ; A B x. P ) = ; C D" // } { $_
+          [ [ /A /B /P /C /D ] { ==v
+            v $ parseNumber { v ==? }' { 0 v ==? 0 }' ? *
+          }' each ] all {
+            { ==name [| -01 printNumber { " " } each -- |] name $= } "$=#" deffst
+
+            A 10 mul B add $=#N
+            B P mul 10 div $=#E
+
+            [ /decmul1c $$ ] pushStep
+            /decmul1c assertions * ==a
+            a .hyps { a .ctx isEHyp } grep { ==hyp
+              [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==thm
+              |pushStep thm _ "A e. NN0" // |constructDecimal |constructArithmetics ? * 
+            } each 
+          } failed ? *
+        }
+        { thm "( D x. E ) = ; 0 B" // } { $_
+          [| "( " $D " x. " $E " )" |] $=A
+          [| "; 0 " $B |] $=C
+          [ /eqtri $$ ] pushStep
+
+          |pushStep [| $A " = " $B |] constructArithmetics
+          |pushStep [| $B " = " $C |] constructArithmetics
+        }
+        { thm "( A x. B ) = C" // } { $_
+          $A parseNumber { ==A
+            $B parseNumber { ==B
+              A B lt {
+                map ==eqtriNames
+                [| "( " $A " x. " $B " )" |] /A eqtriNames $=[]
+                [| "( " $B " x. " $A " )" |] /B eqtriNames $=[]
+                $C /C eqtriNames $=[]
+
+                [ /eqtri eqtriNames ] pushStep
+                [ /mulcomi $$ ] pushStep
+                |pushStep [| $A " e. CC" |] constructDecimal
+                |pushStep [| $B " e. CC" |] constructDecimal
+
+                |pushStep [| "( " $B " x. " $A " ) = " $C |] constructArithmetics
+              } {
+                $C parseNumber { ==C
+                  [| $A "t" $B "e" C txt .produce .u |] ==name
+                  name assertions .has {
+                    [ name map ] pushStep
+                  } failed ? *
+                } failed ? *
+              } ? *
+            } failed ? *
+          } failed ? *
+        }
+        { 1 } {
+          [| 0 thm renderNicely "\n" |] out
+          /TODO:strategyArithmetics die
+        }
+      ] conds
+    } /constructArithmetics deffst
     <
       { ==goal
-        /TODO:strategyArithmetics die
+        ""
       } /usedAntecedent deffs
 
-      { ==goal =*pushStep
-        /TODO:strategyArithmetics die
-      } /construct deffst
+      { .thm constructArithmetics } /construct deffst
     > ==strategyArithmetics
     { _ ==goal .thm ==thm
       thm "A = B" // { $_
@@ -4076,10 +4520,52 @@
 
     <
       { ==goal
-        /TODO:strategyWithinAntes die
+        0 goal .children * _ .strategy .usedAntecedent ==childAnte
+
+        map ==needed
+        [ childAnte splitConjunction ] { 1 -01 needed =[] } each
+        goal .deduced needed .has {
+          1 [| "( " goal .source " -> " goal .deduced " )" |] needed =[]
+          1 goal .source needed =[]
+          0 goal .deduced needed =[]
+
+          needed dom { needed * } grep makeConjunction
+        } {
+          childAnte
+        } ? *
       } /usedAntecedent deffst
+
       { ==goal =*pushStep
-        /TODO:strategyWithinAntes die
+        0 goal .children * _ .strategy .usedAntecedent ==childAnte
+
+        map ==needed
+        [ childAnte splitConjunction ] { 1 -01 needed =[] } each
+
+        goal .deduced needed .has {
+          goal _ .strategy .usedAntecedent ==usedAntecedent
+          # |- usedAntecedent -> goal .thm
+          map ==lastGrammarMatch $_
+          usedAntecedent _ $=ph $=ps
+          goal .thm $=th
+          goal .deduced $=ch
+
+          [ /syl2anc $$ ] pushStep
+          [ /id $$ ] pushStep
+
+          # |- $ph -> $ch
+          |pushStep $ph [| "( " goal .source " /\\ ( " goal .source " -> " goal .deduced " ) )" |] transformConjunct
+          map ==pm335Names
+          goal .source /ph pm335Names $=[]
+          goal .deduced /ps pm335Names $=[]
+          [ /pm3.35 pm335Names ] pushStep
+
+          # |- ( $ps /\ $ch ) -> $th
+          |pushStep [| "( " $ps " /\\ " $ch " )" |] 0 goal .children * _ .strategy .usedAntecedent
+            transformConjunct
+          |pushStep 0 goal .children * _ .strategy .construct
+        } {
+          |pushStep 0 goal .children * _ .strategy .construct
+        } ? *
       } /construct deffst
     > ==strategyWithinAntes
     { ==goal
@@ -4093,6 +4579,8 @@
         strategyWithinAntes /strategy goal .set
           [ goal .antes [ $ps ] cat goal .thm newGoal ]
         /children goal .set
+        $ps /deduced goal .setExtra
+        $ph /source goal .setExtra
       } rep } each
     } /withinAntes deffst
 
@@ -4116,7 +4604,7 @@
           [
             |unusedVariable
             |knownAntes
-            |decimalIsNN
+            |decimal
             |arithmetics
             |extractAntes
             |fromAntes
@@ -4228,7 +4716,11 @@
 
         goal .children { ==child
           child _ .strategy .usedAntecedent "" neq {
-            [| "TODO: Child rendered with used antecedent." |] err
+            [| "Child rendered with used antecedent (but none were offered)." |] err
+            goal .resolution dump
+            child .resolution dump
+            [| 0 child _ .strategy .usedAntecedent renderNicely "\n" |] out
+            [| 0 child .thm renderNicely "\n" |] out
           } rep
 
           |pushStep child _ .strategy .construct
@@ -4361,35 +4853,83 @@
           goal .substitution applySubstitution
           { " " } each --
         |] 3 -01 str .postfix ==thm
-        goal _ .strategy .usedAntecedent ==availableAntes
-        goal .thm ==builtupThm
 
-        stack ==anteTransforms
+        goal _ .strategy .usedAntecedent ==requestedAntes
 
-        [ { thm "( ph -> ps )" // } { $ps =thm $ph } loop ] ==antesToGenerate
-        availableAntes "" eq {
+        map ==availableAntes
+        1 goal .children len range goal .children * { _ .thm availableAntes =[] } each
+
+        [ { thm "( ph -> ps )" // } { $ps =thm $ph } loop ] { ==ante
+          [| ante " " str .split expandMeta { " " } each -- |]
+        } '*0.0 ==antesToGenerate
+        thm ==thmConclusion
+
+        # |- ( requestedAntes -> goal .thm )
+        thmConclusion goal .thm neq {
+          map ==lastGrammarMatch $_
+          requestedAntes $=ph thmConclusion $=ps goal .thm $=ch
+          [ /syl $$ ] pushStep
+        } rep
+
+        # |- ( requestedAntes -> thmConclusion )
+        requestedAntes "" eq {
           antesToGenerate reverse { ==ante
+            /TODO:strategyUseTheorem1 die
             $_
-            ante $=ps builtupThm $=ph
+            ante $=ps thm $=ph
             [ /a1i $$ ] pushStep
-            [| "( " $ps " -> " $ph " )" |] =builtupThm
+            [| "( " $ps " -> " $ph " )" |] =thm
           } each
         } {
           antesToGenerate reverse { ==ante
             $_
-            availableAntes $=ph ante $=ps builtupThm $=ch
+            requestedAntes $=ph ante $=ps thm $=ch
             [ /mpd $$ ] pushStep
-            [| "( " $ps " -> " $ch " )" |] =builtupThm
+            [| "( " $ps " -> " $ch " )" |] =thm
 
-            |pushStep availableAntes ante transformConjunct
+            { ==conjunction
+              [
+                { conjunction availableAntes .has } {
+                  # TODO: Optimize case of trivial child
+
+                  conjunction availableAntes * ==child
+                  child _ .strategy .usedAntecedent ==childAnte
+                  $_ requestedAntes $=ph conjunction $=ch childAnte $=ps
+                  [ /syl $$ ] pushStep
+
+                  |pushStep requestedAntes childAnte transformConjunct
+                  |pushStep child _ .strategy .construct
+                }
+                { conjunction "( ps /\\ ch )" // } { $_
+                  requestedAntes $=ph
+                  [ /jca $$ ] pushStep
+
+                  $ps callChildren
+                  $ch callChildren
+                }
+                { 1 } {
+                  [| "Failed to construct theorem formula." |] err
+                  "Requested antes:" dump
+                  [| 0 requestedAntes renderNicely "\n" |] out
+                  "Conjunction:" dump
+                  [| 0 conjunction renderNicely "\n" |] out
+                }
+              ] conds
+            } /callChildren deffst
+            ante callChildren
           } each
 
           $_
-          availableAntes $=ps builtupThm $=ph
+          requestedAntes $=ps thm $=ph
           [ /a1i $$ ] pushStep
         } ? *
 
         |pushStep 0 goal .children * _ .strategy .construct
+
+        thmConclusion goal .thm neq {
+        # |- ( thmConclusion -> goal .thm )
+          |pushStep thmConclusion goal .thm transformConjunct
+        } rep
       } /construct deffst
     > ==strategyUseTheorem
 
@@ -4432,11 +4972,14 @@
 
           1 ==legit
 
-          goal .thm " " str .split thm " " str .split /wff 0 possibleSubstitutionsForToks ==possibleSubstitutions
+            [ goal .thm splitConjunction ] makeConjunction " " str .split
+            [ thm splitConjunction ] makeConjunction " " str .split
+          /wff 0 possibleSubstitutionsForToks ==possibleSubstitutions
+
           possibleSubstitutions len 1 neq { 0 =legit
             [| "No possible substitution found." |] err
-              goal .thm " " str .split
-              thm " " str .split
+              [ goal .thm splitConjunction ] makeConjunction " " str .split
+              [ thm splitConjunction ] makeConjunction " " str .split
               /wff 0
             debugPossibleSubstitutionsForToks
           } rep
@@ -4474,13 +5017,140 @@
       ] conds
     } /useTheorem deffst
 
+    { ==thm =*pushStep
+      0 ==applied
+      [
+        /id
+        /bicom1
+        /eqcom
+        /imbi1d /imbi2d /imbi12d
+        /bibi1d /bibi2d /bibi12d
+        /eleq1d /eleq2d /eleq12d
+        /orbi1d /orbi2d /orbi12d
+        /anbi1d /anbi2d4 /anbi2d /anbi12d
+        /3anbi1d /3anbi2d /3anbi3d /3anbi12d /3anbi13d /3anbi23d /3anbi123d
+        /3orbi123d
+        /notbid
+        /eqeq1d /eqeq2d /eqeq12d
+        /neeq1d /neeq2d /neeq12d
+        /sseq1d /sseq2d /sseq12d
+        /albid
+        /exbid
+        /ralbid /ralbidv2
+        /rexbid /rexbidv
+        /breq1d /breq2d /breqd /breq12d /breq123d
+        /releqd
+        /feq1d /feq2d /feq12d /feq23d
+        /sbceq1a /sbceq1b /sbceq1c /sbceq1d /sbceq1aa /sbceq1ba /sbceq1ca /sbceq1da /sbcbid /sbcbi13d /sbcbi123d
+        /fveq1d /fveq2d /fveq12d
+        /oveq /oveq1d /oveq2d /oveq12d /oveq123d
+        /opeq1d /opeq2d /opeq12d
+        /xpeq1d /xpeq2d /xpeq12d
+        /inteqd
+        /abbidv /abbid
+        /rabbidv /rabeqbidv
+        /uneq1d /uneq2d /uneq12d
+        /iuneq1d /iuneq2d /iuneq12d
+        /seqeq1d /seqeq2d /seqeq3d /seqeq123d
+        /mpteq12dv
+        /mpt2eq123dv
+        /coeq1d /coeq2d /coeq12d
+        /reseq1d /reseq2d /reseq12d
+        /dmeqd
+        /rneqd
+        /cnveqd
+        /unieqd
+        /ifeq1d /ifeq2d /ifbid /ifeq12d /ifbieq12d
+      ] { ==name
+        applied not {
+          name assertions * ==a
+          thm [| a .thm { " " } each -- |] 3 -01 str .postfix // { $_
+            1 =applied
+
+            [ name $$ ] pushStep
+            a .hyps { a .ctx isEHyp } grep { ==hyp
+              [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==child
+              |pushStep child constructRewrite
+            } each 
+          } rep
+        } rep
+      } each
+
+      applied not { thm "( A = B -> B = A )" // } andif {
+        1 =applied
+
+        [| $A " = " $B |] $=ph [| $B " = " $A |] $=ps
+        [ /biimpi $$ ] pushStep
+
+        |pushStep [| "( " $A " = " $B " <-> " $B " = " $A " )" |] constructRewrite
+      } rep
+
+      applied not { thm "( ph -> A. x ph )" // } andif
+                  { $ph " " str .split $x eq any not } andif {
+        1 =applied
+
+        $ph $x mayDisjunct not {
+          [| "non-disjunction violated during rewrite" |] err
+        } rep
+
+        [ /ax-17 $$ ] pushStep
+      } rep
+
+      applied not {
+        [| "\n" 0 thm renderNicely "\n" |] out
+        /TODO:constructRewrite die
+      } rep
+    } /constructRewrite deffst
+
     <
       { ==goal
-        /TODO:strategyRewrite die
+        1 goal .resolution ":" str .split * 1 neg -01 str .prefix ==pattern
+        0 goal .children * ==child
+
+          child _ .strategy .usedAntecedent _ ==usedByChild
+        "" neq {
+          [| "( " usedByChild " /\\ " pattern " )" |]
+        } {
+          pattern
+        } ? *
       } /usedAntecedent deffst
 
       { ==goal =*pushStep
-        /TODO:strategyRewrite die
+        goal _ .strategy .usedAntecedent ==requestedAnte
+        0 goal .children * _ ==child .strategy .usedAntecedent ==childAnte
+        1 goal .resolution ":" str .split * 1 neg -01 str .prefix ==pattern
+
+        # |- ( requestedAnte -> goal .thm )
+        map ==lastGrammarMatch $_
+        requestedAnte $=ph goal .thm $=ch child .thm $=ps
+        [ /mpbid $$ ] pushStep
+
+        # |- ( requestedAnte -> child .thm )
+        childAnte "" eq {
+          map ==lastGrammarMatch $_
+          child .thm $=ph
+          [ /a1i $$ ] pushStep
+
+          |pushStep child _ .strategy .construct
+        } {
+          map ==lastGrammarMatch $_
+          requestedAnte $=ph child .thm $=ch childAnte $=ps
+          [| 0 goal _ .strategy .usedAntecedent renderNicely "\n" |] out
+          [| 0 0 goal .children * _ .strategy .usedAntecedent renderNicely "\n" |] out
+          [| 0 0 goal .children * .thm renderNicely "\n" |] out
+          [| 0 goal .thm renderNicely "\n" |] out
+          /TODO:strategyRewrite1 die
+        } ? *
+
+        # |- ( requestedAnte -> ( child .thm <-> goal .thm ) )
+        map ==lastGrammarMatch $_
+        requestedAnte $=ph pattern $=ps [| "( " child .thm " <-> " goal .thm " )" |] $=ch
+        [ /syl $$ ] pushStep
+        
+        |pushStep requestedAnte pattern transformConjunct
+
+        # |- ( pattern -> ( child .thm <-> goal .thm ) )
+        |pushStep [| "( " pattern " -> ( " child .thm " <-> " goal .thm " ) )" |] constructRewrite
       } /construct deffst
     > ==strategyRewrite
 
@@ -4495,15 +5165,7 @@
           expr
         }
         { expr variables .has } {
-          0 ==symbolicRewrite
-          from " " str .split { ==x expr ==y
-            x y gt { x y =x =y } rep
-            x nonDisj .has {
-              y x nonDisj * .has {
-                1 =symbolicRewrite
-              } rep
-            } rep
-          } each
+          from expr mayDisjunct not ==symbolicRewrite
 
           symbolicRewrite {
             from " " str .split len 1 eq {
@@ -4574,6 +5236,9 @@
             [| "{ " $x " e. " $A ... " | " $ph ... " }" |]
           } ? *
         }
+        { expr "A =/= B" // } { $_
+          [| $A ... " =/= " $B ... |]
+        }
         { expr "A = B" // } { $_
           $A from eq $B to eq and
           $B from eq $A to eq and or {
@@ -4590,33 +5255,37 @@
     } /rewriteRecursive deffst
 
     { ==goal ==pattern
-      "" ==from "" ==to
-      [
-        { pattern "( ph <-> ps )" // } {
-          $ph =from $ps =to
-        }
-        { pattern "A = B" // } {
-          $A =from $B =to
-        }
-      ] conds
-
-      from "" neq {
+      goal .antes pattern eq any {
+        "" ==from "" ==to
         [
-            [
-              goal .antes { ==ante
-                ante from to rewriteRecursive ==newAnte
-                newAnte ante neq newAnte ante ?
-              } each
-            ]
-            goal .thm from to rewriteRecursive ==newThm
-            newThm goal .thm neq newThm goal .thm ?
-          newGoal
-        ] /children goal .set
+          { pattern "( ph <-> ps )" // } {
+            $ph =from $ps =to
+          }
+          { pattern "A = B" // } {
+            $A =from $B =to
+          }
+        ] conds
 
-        [| "(rewrite:" pattern ")" |] /resolution goal .set
-        strategyRewrite /strategy goal .set
+        from "" neq {
+          [
+              [
+                goal .antes { ==ante
+                  ante from to rewriteRecursive ==newAnte
+                  newAnte ante neq newAnte ante ?
+                } each
+              ]
+                goal .thm from to rewriteRecursive ==newThm
+              newThm goal .thm neq newThm goal .thm ?
+            newGoal
+          ] /children goal .set
+
+          [| "(rewrite:" pattern ")" |] /resolution goal .set
+          strategyRewrite /strategy goal .set
+        } {
+          [| "Could not parse replacement pattern." |] err
+        } ? *
       } {
-        [| "Could not parse replacement pattern." |] err
+        [| "Desired rewrite pattern not shown to be true." |] err
       } ? *
     } /rewrite deffst
 
@@ -4784,11 +5453,47 @@
 
     <
       { ==goal
-        /TODO:strategyInstantiate die
-      } /antecedent deffst
+        1 goal .children * ==child
+        goal .universal "A. x ph" // --
+        $ph $x goal .value rewriteRecursive ==deduced
+
+        map ==unique
+          [ child _ .strategy .usedAntecedent splitConjunction ] { deduced neq } grep
+        { 1 -01 unique =[] } each
+
+        unique dom makeConjunction ==secondPart
+        secondPart "" neq {
+          [| "( " goal .universal " /\\ " unique dom makeConjunction " )" |]
+        } {
+          goal .universal
+        } ? *
+      } /usedAntecedent deffst
 
       { ==goal =*pushStep
-        /TODO:strategyInstantiate die
+        1 goal .children * ==child
+        goal .universal "A. x ph" // --
+        $ph $x goal .value rewriteRecursive ==deduced
+
+        # |- ( ( universal /\ child .usedAntecedent <filtered> ) -> goal .thm )
+        goal _ .strategy .usedAntecedent "( ph /\\ ch )" // --
+        goal .thm $=th
+        deduced $=ps
+        [ /sylan $$ ] pushStep
+        $ch ==filteredChildAnte
+
+        # |- universal -> deduced
+        goal .universal "A. x ph" // -- $_
+        deduced $=ps goal .value $=A
+        [ /cla4v $$ ] pushStep
+
+        # |- value e. _V
+        |pushStep 0 goal .children * _ .strategy .construct
+
+        |pushStep [| "( " $x " = " goal .value " -> ( " $ph " <-> " $ps " ) )" |] constructRewrite
+
+        # |- ( deduced /\ child .usedAntecedent <filtered> ) -> goal .thm
+        |pushStep [| "( " deduced " /\\ " filteredChildAnte " )" |] child _ .strategy .usedAntecedent transformConjunct
+        |pushStep child _ .strategy .construct
       } /construct deffst
     > ==strategyInstantiate
     { ==goal ==universal ==value
@@ -4799,8 +5504,10 @@
           strategyInstantiate /strategy goal .set
           universal /universal goal .setExtra
           value /value goal .setExtra
-            [ goal .antes [ $ph $x value rewriteRecursive ] cat goal .thm newGoal ]
-          /children goal .set
+          [
+            [ ] [| value " e. _V" |] newGoal
+            goal .antes [ $ph $x value rewriteRecursive ] cat goal .thm newGoal
+          ] /children goal .set
         } {
           [| "Not a universal quantifier: " universal |] err
         } ? *
@@ -4811,11 +5518,88 @@
 
     <
       { ==goal
-        /TODO:strategyConclude die
-      } /antecedent deffst
+        0 goal .children * .thm ==conclusion
+
+        0 goal .children * _ .strategy .usedAntecedent ==firstAnte
+          [ 1 goal .children * _ .strategy .usedAntecedent splitConjunction ]
+          { conclusion neq } grep
+        makeConjunction ==secondAnte
+
+        [
+          { firstAnte "" neq secondAnte "" neq and } {
+            [| "( " firstAnte " /\\ " secondAnte " )" |]
+          }
+          { firstAnte "" neq } {
+            firstAnte
+          }
+          { secondAnte "" neq } {
+            secondAnte
+          }
+          { 1 } {
+            ""
+          }
+        ] conds
+      } /usedAntecedent deffst
 
       { ==goal =*pushStep
-        /TODO:strategyConclude die
+        0 goal .children * .thm ==conclusion
+        0 goal .children * _ .strategy .usedAntecedent ==firstAnte
+          [ 1 goal .children * _ .strategy .usedAntecedent _ ==rawSecondAnte splitConjunction ]
+          { conclusion neq } grep
+        makeConjunction ==secondAnte
+
+        [
+          { firstAnte "" neq secondAnte "" neq and } {
+            # |- ( firstAnte /\ secondAnte ) -> goal .thm
+            map ==lastGrammarMatch $_
+            firstAnte $=ph $secondAnte $=ch goal .thm $=th
+            0 goal .children * .thm $=ps
+
+            [ /sylan $$ ] pushStep
+
+            |pushStep 0 goal .children * _ .strategy .construct
+            
+            # |- ( $ps /\ $ch ) -> child1 .thm
+            |pushStep [| "( " $ps " /\\ " $ch " )" |] rawSecondAnte transformConjunct
+            |pushStep 1 goal .children * _ .strategy .construct
+          }
+          { firstAnte "" neq } {
+            # |- firstAnte -> goal .thm
+            firstAnte $=ph
+            goal .thm $=ch
+            0 goal .children * .thm $=ps
+
+            [ /syl $$ ] pushStep
+
+            |pushStep 0 goal .children * _ .strategy .construct
+            
+            # |- $ps -> child1 .thm
+            |pushStep $ps rawSecondAnte transformConjunct
+            |pushStep 1 goal .children * _ .strategy .construct
+          }
+          { secondAnte "" neq } {
+            # |- secondAnte -> goal .thm
+            map ==lastGrammarMatch $_
+            secondAnte $=ph secondAnte $=ps
+            goal .thm $=th
+            0 goal .children * .thm $=ch
+            [ /sylancl $$ ] pushStep
+
+            # |- ( ph -> ps )
+            [ /id $$ ] pushStep
+
+            |pushStep 0 goal .children * _ .strategy .construct
+
+            # |- ( ( secondAnte /\ conclusion ) -> 1 goal .children * .thm
+            |pushStep [| "( " $ps " /\\ " $ch " )" |] rawSecondAnte transformConjunct
+            |pushStep 1 goal .children * _ .strategy .construct
+          }
+          { 1 } {
+            firstAnte dump
+            secondAnte dump
+            /TODO:strategyConclude die
+          }
+        ] conds
       } /construct deffst
     > ==strategyConclude
     { ==goal ==conclusion
@@ -4892,7 +5676,7 @@
       # [ ... (steps for syl.2) ... ]
       stack ==proofSteps
       { proofSteps .push } mainGoal _ .strategy .construct
-
+      
       # All proof steps in nested arrays and final order
       # Example:
       # [
@@ -4937,6 +5721,9 @@
 
               resolution
             ] proofTree .push
+          }
+          { resolution "?" eq } {
+            [ resolution ] proofTree .push
           }
           { 1 } {
             step dump
@@ -5139,31 +5926,40 @@
     } /exportTheorem deffst
 
     { ==thing ==indent
-      thing len 70 lt {
-        thing " " str .split { renderName " " } each --
-      } {
-        [
-          { thing "A. x ph" // } {
-            "A. " $x renderName " "
-            indent 5 add $ph renderNicely
-          }
-          { thing "( ph /\\ ps )" // } { $_
-            "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
-            "/\\ " indent 3 add $ps renderNicely " )"
-          }
-          { thing "( ph -> ps )" // } { $_
-            "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
-            "-> " indent 3 add $ps renderNicely " )"
-          }
-          { thing "A. x e. A ph" // } { $_
-            "A. " $x renderName " e. " indent 8 add $A renderNicely "\n" indent 3 add { " " } rep
-            indent 3 add $ph renderNicely
-          }
-          { 1 } {
-            thing " " str .split { renderName " " } each --
-          }
-        ] conds
-      } ? *
+      [
+        { thing "" eq } {
+          "<empty>"
+        }
+        { thing len 70 lt } {
+          thing " " str .split {  _ "" eq { -- } { renderName } ? * " " } each --
+        }
+        { thing "A. x ph" // } {
+          "A. " $x renderName " "
+          indent 5 add $ph renderNicely
+        }
+        { thing "( ph /\\ ps )" // } { $_
+          "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
+          "/\\ " indent 3 add $ps renderNicely " )"
+        }
+        { thing "( ph -> ps )" // } { $_
+          "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
+          "-> " indent 3 add $ps renderNicely " )"
+        }
+        { thing "A. x e. A ph" // } { $_
+          "A. " $x renderName " e. " indent 8 add $A renderNicely "\n" indent 3 add { " " } rep
+          indent 3 add $ph renderNicely
+        }
+        { thing "ph" // } { $_
+          thing " " str .split { _ "" eq { -- } { renderName } ? * " " } each --
+        }
+        { thing "A" // } { $_
+          thing " " str .split { _ "" eq { -- } { renderName } ? * " " } each --
+        }
+        { 1 } {
+          "<unparseable> "
+          thing " " str .split { _ "" eq { -- } { renderName } ? * " " } each --
+        }
+      ] conds
     } /renderNicely deffst
 
     map ==disj map ==nonDisj
@@ -5192,6 +5988,21 @@
         y x nonDisj * .has
       } { 0 } ? *
     } /mustNotDisj deffst
+
+    { ==termA ==termB
+      1 ==may
+      termA " " str .split { ==x
+        termB " " str .split { ==y
+          x y gt { x y =x =y } rep
+          x nonDisj .has {
+            y x nonDisj * .has {
+              0 =may
+            } rep
+          } rep
+        } each
+      } each
+      may
+    } /mayDisjunct deffst
 
     1 ==running
     0 ==selectedGoal
@@ -5303,7 +6114,7 @@
     ] _ ==residue len 0 gt {
       [| "Something left on the stack:" |] err
       residue dump
-    } } loop
+    } rep } loop
   } /prove2Proposition deffd
 
   { ==name
