@@ -5703,13 +5703,13 @@
       } /construct deffst
     > ==strategyConclude
     { ==goal ==conclusion
-      [| conclusion " " str .split useLastMetas expandMeta { " " } each -- |] =conclusion
+      [| conclusion " " str .split { "" neq } grep useLastMetas expandMeta { " " } each -- |] =conclusion
       conclusion "ph" // {
         "(conclude)" /resolution goal .set
         strategyConclude /strategy goal .set
         [
           goal .antes conclusion newGoal
-          goal .antes [ conclusion ] cat goal .thm newGoal
+          goal .antes [ conclusion splitConjunction ] cat goal .thm newGoal
         ] /children goal .set
       } {
         [| "Desired conclusion is not a wff: " universal |] err
