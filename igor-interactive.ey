@@ -3974,64 +3974,102 @@
 
     { ==term ==var
       [
-        { term " " str .split var eq any not } { 1 }
         { term "( ph /\\ ps )" // } { $_
-          var $ph isUnusedIn
-          var $ps isUnusedIn and
+          var $ph requiredDisjuncts
+          var $ps requiredDisjuncts cat
         }
         { term "( ph -> ps )" // } { $_
-          var $ph isUnusedIn
-          var $ps isUnusedIn and
+          var $ph requiredDisjuncts
+          var $ps requiredDisjuncts cat
         }
         { term "A. x ph" // } { $_
           $x var eq {
-            1
+            [ ]
           } {
-            var $ph isUnusedIn
+            var $ph requiredDisjuncts
           } ? *
         }
-        { 1 } { 0 }
+        { 1 } {
+          term " " str .split { variables .has } grep
+        }
       ] conds
-    } /isUnusedIn deffst
+    } /requiredDisjuncts deffst
 
+      [ /a" /b" /c" /d" /e" /f" /g" /h" /i" /j" /k" /l" /m" /n" /p" /q" /r" /t" /u" /w" /x" /y" /z" ]
+    ==:uncommonSetVariables
+    { ==count ==term
+      [
+        map ==used
+        term " " str .split { 1 -01 used =[] } each
+        uncommonSetVariables { used .has not } grep _ len count lt {
+            [| "Not enough unused variable names available." |] err
+            -- [ count { /x } rep ]
+          } rep
+        count dearray
+      ] _ { ==v
+            term " " str .split { variables .has } grep { ==w
+              v w markDisj
+            } each
+          } each
+          count dearray
+    } /freshVariables deffst
+
+    { ==thm =*pushStep
+      [
+        { thm "( ph -> A. x ph )" // {
+          $ph $x mayDisjunct
+        } andif } {
+          $ph $x checkMarkedDisjunct
+          [ /ax-17 $$ ] pushStep
+        }
+        { thm "( ( ph /\\ ps ) -> A. x ( ph /\\ ps ) )" // } { $_
+          [ /hban $$ ] pushStep
+          |pushStep [| "( " $ph " -> A. " $x " " $ph " )" |] constructUnused
+          |pushStep [| "( " $ps " -> A. " $x " " $ps " )" |] constructUnused
+        }
+        { thm "( ( ph -> ps ) -> A. x ( ph -> ps ) )" // } { $_
+          [ /hbim $$ ] pushStep
+          |pushStep [| "( " $ph " -> A. " $x " " $ph " )" |] constructUnused
+          |pushStep [| "( " $ps " -> A. " $x " " $ps " )" |] constructUnused
+        }
+        { thm "( [ y / x ] ph -> A. x [ y / x ] ph )" // } {
+          [ /hbsb3 $$ ] pushStep
+          |pushStep [| "( " $ph " -> A. " $y " " $ph " )" |] constructUnused
+        }
+        { thm "( A = B -> A. x A = B )" // } {
+          [| $x " " $A " " $B |] 2 freshVariables $=y $=z
+          [ /hbeq $$ ] pushStep
+
+          |pushStep [| "( " $y " e. " $A " -> A. " $x " " $y " e. " $A " )" |] constructUnused
+          |pushStep [| "( " $z " e. " $B " -> A. " $x " " $z " e. " $B " )" |] constructUnused
+        }
+        { thm "( A. x ph -> A. x A. x ph )" // } {
+          [ /hba1 $$ ] pushStep
+        }
+        { 1 } {
+          [| "No construction step known to show non-usage for:" |] err
+          [| 0 thm renderNicely "\n" |] out
+          thm "( ph -> A. x ph )" // --
+          $ph $x mayDisjunct dump
+          /TODO:strategyUnusedVariable die
+        }
+      ] conds
+    } /constructUnused deffst
     <
       { ==goal
         ""
       } /usedAntecedent deffst
 
-      { ==goal =*pushStep
-        { ==thm
-          [
-            { thm "( ph -> A. x ph )" // {
-              $ph $x mayDisjunct
-            } andif } {
-              $ph $x checkMarkedDisjunct
-              [ /ax-17 $$ ] pushStep
-            }
-            { thm "( ( ph /\\ ps ) -> A. x ( ph /\\ ps ) )" // } { $_
-              [ /hban $$ ] pushStep
-              [| "( " $ph " -> A. " $x " " $ph " )" |] constructUnused
-              [| "( " $ps " -> A. " $x " " $ps " )" |] constructUnused
-            }
-            { thm "( A. x ph -> A. x A. x ph )" // } {
-              [ /hba1 $$ ] pushStep
-            }
-            { 1 } {
-              [| "No construction step known to show non-usage for:" |] err
-              [| 0 thm renderNicely "\n" |] out
-              /TODO:strategyUnusedVariable die
-            }
-          ] conds
-        } /constructUnused deffst
-
-        goal .thm constructUnused
-      } /construct deffst
+      { .thm constructUnused } /construct deffst
     > ==strategyUnusedVariable
     { _ ==goal .thm ==thm
-      thm "( ph -> A. x ph )" // {
-        $x $ph isUnusedIn {
+      thm "( ph -> A. x ph )" // { $_
+        $x $ph requiredDisjuncts ==required
+        required $x eq any not {
           "... (unusedVariable)" /resolution goal .set
           strategyUnusedVariable /strategy goal .set
+
+          required { $x markDisj } each
         } rep
       } rep
     } /unusedVariable deffst
@@ -5193,6 +5231,16 @@
               expr
             } ? *
           } {
+            from " " str .split { ==x
+              x variables .has {
+                expr " " str .split { ==y
+                  y variables .has {
+                    x y markDisj
+                  } rep
+                } each
+              } rep
+            } each
+
             expr
           } ? *
         }
@@ -5502,13 +5550,26 @@
 
         # |- universal -> deduced
         goal .universal "A. x ph" // -- $_
-        deduced $=ps goal .value $=A
-        [ /cla4v $$ ] pushStep
+        goal .value $=A
+
+        map ==axmpNames
+        [| "( A. " $x " " $ph " -> " deduced " )" |] /ps axmpNames $=[]
+        [| $A " e. _V" |] /ph axmpNames $=[]
+        [ /ax-mp axmpNames ] pushStep
 
         # |- value e. _V
         |pushStep 0 goal .children * _ .strategy .construct
 
-        |pushStep [| "( " $x " = " goal .value " -> ( " $ph " <-> " $ps " ) )" |] constructRewrite
+        # |- ( value e. _V -> ( universal -> deduced ) )
+        goal .universal "A. x ph" // -- $_
+        deduced $=ps goal .value $=A
+        "_V" $=V
+        [| $A " " $x |] 1 freshVariables $=y
+        [ /cla4gf $$ ] pushStep
+
+        |pushStep [| "( " $y " e. " $A " -> A. " $x " " $y " e. " $A " )" |] constructUnused
+        |pushStep [| "( " $ps " -> A. " $x " " $ps " )" |] constructUnused
+        |pushStep [| "( " $x " = " $A " -> ( " $ph " <-> " $ps " ) )" |] constructRewrite
 
         # |- ( deduced /\ child .usedAntecedent <filtered> ) -> goal .thm
         child _ .strategy .usedAntecedent ==childAnte
@@ -5787,6 +5848,10 @@
         } ? *
       } loop
 
+      flatProof
+    } /buildProof deffst
+
+    { ==flatProof
       # Just an array of metamath names
       flatProof .top ==flatProofMax
       flatProof .data =flatProof
@@ -5978,9 +6043,14 @@
 
       " $." wrapOut
       "\n" out
+    } /exportProof deffst
+
+    {
+      buildProof exportProof
     } /exportCompressed deffst
 
     {
+      buildProof ==proof
       [| "=== snip here for " proposition .name " ===\n" |] out
       [| "${" |] out
       exportDisjuncts
@@ -5989,7 +6059,7 @@
       } each
       [| "\n" |] out
       [| "  " proposition .name " $p " proposition .thm { " " } each -- " $=" |] out
-      exportCompressed
+      proof exportProof
       [| "$}\n" |] out
       [| "=== /snip here for " proposition .name " ===\n" |] out
     } /exportTheorem deffst
@@ -6055,34 +6125,29 @@
     } /markNonDisj deffst
 
     { ==x ==y
-      x y gt { x y =x =y } rep
-      x nonDisj .has {
-        y x nonDisj * .has
-      } { 0 } ? *
+      x y eq { 1 } {
+        x y gt { x y =x =y } rep
+        x nonDisj .has {
+          y x nonDisj * .has
+        } { 0 } ? *
+      } ? *
     } /mustNotDisj deffst
 
     { ==termA ==termB
       1 ==may
       termA " " str .split { ==x
-        termB " " str .split { ==y
-          x y gt { x y =x =y } rep
-          x nonDisj .has {
-            y x nonDisj * .has {
-              0 =may
+        x variables .has {
+          termB " " str .split { ==y
+            y variables .has {
+              x y mustNotDisj {
+                0 =may
+              } rep
             } rep
-          } rep
-        } each
+          } each
+        } rep
       } each
       may
     } /mayDisjunct deffst
-
-    { ==termA ==termB
-      termA " " str .split { ==x
-        termB " " str .split { ==y
-          x y markDisj
-        } each
-      } each
-    } /markDisjunct deffst
 
     { ==termA ==termB
       termA " " str .split { ==x
@@ -6091,9 +6156,13 @@
             y variables .has {
               x y eq {
                 [| "Identical variable found on both sides of allegedly disjunct terms: " x |] err
+                [| 0 termA renderNicely "\n" |] out
+                [| 0 termB renderNicely "\n" |] out
               } rep
               x y mustDisj not {
                 [| "Not all required variables were marked disjunct: " x " <!> " y |] err
+                [| 0 termA renderNicely "\n" |] out
+                [| 0 termB renderNicely "\n" |] out
               } rep
             } rep
           } each
