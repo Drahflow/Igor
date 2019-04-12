@@ -3710,7 +3710,11 @@
       {
         _ /usedAntecedent eq { ==name =*f
           { ==goal
-            goal f ==result
+            [
+              goal f ==result
+            ] len 0 neq {
+              [| "Stack polluted by " goal .resolution |] err
+            } rep
             map ==antes goal .antes { 1 -01 antes =[] } each
             [ result splitConjunction ] { antes .has not } grep _ ==error len 0 neq {
               [| "--- goal requested invalid ante ---" |] err
@@ -3736,7 +3740,11 @@
           { ==goal =*pushStep
             [| debugIndent { " " } rep goal .resolution "\n" |] out
             { 2 add } |=debugIndent
-            |pushStep goal f
+            [ /sentinel
+              |pushStep goal f
+            ] len 1 neq {
+              [| "Stack polluted by " goal .resolution |] err
+            } rep
             { 2 sub } |=debugIndent
             [| debugIndent { " " } rep "/" goal .resolution "\n" |] out
           } name
@@ -3950,7 +3958,7 @@
             { 1 } {
               to "( ps /\\ ch )" // {
                 $_ from $=ph
-                [ /jca $$ ] pushStep
+                [ /jca$HERE1 $$ ] pushStep
 
                 $ps ==toLeft
                 $ch ==toRight
@@ -3995,24 +4003,9 @@
         { ==thm
           [
             { thm "( ph -> A. x ph )" // {
-              1 ==unused
-              $ph " " str .split { ==tok
-                [ 
-                  { tok $x eq } { 0 =unused }
-                  { tok variables .has } {
-                    $x ==x tok ==y
-                    x y gt { x y =x =y } rep
-                    x nonDisj .has {
-                      y x nonDisj * .has {
-                        0 =unused
-                      } rep
-                    } rep
-                  }
-                ] conds
-              } each
-
-              unused
+              $ph $x mayDisjunct
             } andif } {
+              $ph $x checkMarkedDisjunct
               [ /ax-17 $$ ] pushStep
             }
             { thm "( ( ph /\\ ps ) -> A. x ( ph /\\ ps ) )" // } { $_
@@ -4069,7 +4062,7 @@
           0 goal .children * _ ==child _ .strategy .usedAntecedent ==childAnte
           goal _ .strategy .usedAntecedent ==usedAnte
           
-          childAnte "" neq {
+          childAnte "" eq {
             # knownAntes -> goal .thm
 
             map ==lastGrammarMatch $_
@@ -4077,7 +4070,7 @@
             child .thm $=ps
             knownAntes $=ch
             goal .thm $=th
-            [ /syl2anc $$ ] pushStep
+            [ /syl2anc$HERE2 $$ ] pushStep
 
             map ==lastGrammarMatch $_
             child .thm $=ph
@@ -4095,7 +4088,7 @@
             child .thm $=ps
             knownAntes _ $=ta $=ch
             goal .thm $=th
-            [ /syl2anr $$ ] pushStep
+            [ /syl2an $$ ] pushStep
 
             |pushStep child _ .strategy .construct
 
@@ -4270,7 +4263,7 @@
             innerResult /B oveq1iNames $=[]
             $G /F oveq1iNames $=[]
             $C /C oveq1iNames $=[]
-            [ /oveq1 oveq1iNames ] pushStep
+            [ /oveq1i oveq1iNames ] pushStep
 
             |pushStep [| /A oveq1iNames * { " " } each -- " = " innerResult |] constructArithmetics
 
@@ -4325,10 +4318,19 @@
             |pushStep [| "( " $B " + " $A " ) = " $C |] constructArithmetics
           } {
             $C parseNumber { ==C
+              $C "; 1 0" eq {
+                map ==eqtriNames
+                [| "( " $A " + " $B " )" |] /A eqtriNames $=[]
+                "10" /B eqtriNames $=[] $C /C eqtriNames $=[]
+                [ /eqtri eqtriNames ] pushStep
+              } rep
               [| $A "p" $B "e" C txt .produce .u |] ==name
               name assertions .has {
                 [ name map ] pushStep
               } failed ? *
+              $C "; 1 0" eq {
+                [ /dec10 map ] pushStep
+              } rep
             } failed ? *
           } ? *
         }
@@ -4475,7 +4477,7 @@
         childAnte len {
           thm "( ph -> ch )" // { $_
             childAnte $=ps
-            [ /syl $$ ] pushStep
+            [ /syl$HERE1 $$ ] pushStep
             |pushStep $ph $ps transformConjunct
             |pushStep 0 goal .children * _ .strategy .construct
           } {
@@ -4543,25 +4545,41 @@
 
         goal .deduced needed .has {
           goal _ .strategy .usedAntecedent ==usedAntecedent
+          usedAntecedent len not {
+            /TODO:strategyWithinAntes die
+          } rep
+
           # |- usedAntecedent -> goal .thm
           map ==lastGrammarMatch $_
-          usedAntecedent _ $=ph $=ps
-          goal .thm $=th
-          goal .deduced $=ch
+          usedAntecedent $=ph
+          goal .thm $=ch
+          goal .deduced $=ps
 
-          [ /syl2anc $$ ] pushStep
-          [ /id $$ ] pushStep
+          [ /mpdan $$ ] pushStep
 
-          # |- $ph -> $ch
+          # |- $ph -> $ps
+          map ==sylNames
+          $ph /ph sylNames $=[]
+          [| "( " goal .source " /\\ ( " goal .source " -> " goal .deduced " ) )" |] /ps sylNames $=[]
+          $ps /ch sylNames $=[]
+          [ /syl sylNames ] pushStep
+
           |pushStep $ph [| "( " goal .source " /\\ ( " goal .source " -> " goal .deduced " ) )" |] transformConjunct
+
           map ==pm335Names
           goal .source /ph pm335Names $=[]
           goal .deduced /ps pm335Names $=[]
           [ /pm3.35 pm335Names ] pushStep
 
-          # |- ( $ps /\ $ch ) -> $th
-          |pushStep [| "( " $ps " /\\ " $ch " )" |] 0 goal .children * _ .strategy .usedAntecedent
-            transformConjunct
+          # |- ( $ph /\ $ps ) -> $ch
+          0 goal .children * _ .strategy .usedAntecedent ==childAnte
+          map ==sylNames
+          [| "( " $ph " /\\ " $ps " )" |] /ph sylNames $=[]
+          childAnte /ps sylNames $=[]
+          $ch /ch sylNames $=[]
+          [ /syl sylNames ] pushStep
+
+          |pushStep [| "( " $ph " /\\ " $ps " )" |] childAnte transformConjunct
           |pushStep 0 goal .children * _ .strategy .construct
         } {
           |pushStep 0 goal .children * _ .strategy .construct
@@ -4868,7 +4886,7 @@
         thmConclusion goal .thm neq {
           map ==lastGrammarMatch $_
           requestedAntes $=ph thmConclusion $=ps goal .thm $=ch
-          [ /syl $$ ] pushStep
+          [ /syl$HERE2 $$ ] pushStep
         } rep
 
         # |- ( requestedAntes -> thmConclusion )
@@ -4895,14 +4913,14 @@
                   conjunction availableAntes * ==child
                   child _ .strategy .usedAntecedent ==childAnte
                   $_ requestedAntes $=ph conjunction $=ch childAnte $=ps
-                  [ /syl $$ ] pushStep
+                  [ /syl$HERE3 $$ ] pushStep
 
                   |pushStep requestedAntes childAnte transformConjunct
                   |pushStep child _ .strategy .construct
                 }
                 { conjunction "( ps /\\ ch )" // } { $_
                   requestedAntes $=ph
-                  [ /jca $$ ] pushStep
+                  [ /jca$HERE2 $$ ] pushStep
 
                   $ps callChildren
                   $ch callChildren
@@ -5093,6 +5111,7 @@
           [| "non-disjunction violated during rewrite" |] err
         } rep
 
+        $ph $x checkMarkedDisjunct
         [ /ax-17 $$ ] pushStep
       } rep
 
@@ -5117,7 +5136,7 @@
 
       { ==goal =*pushStep
         goal _ .strategy .usedAntecedent ==requestedAnte
-        0 goal .children * _ ==child .strategy .usedAntecedent ==childAnte
+        0 goal .children * _ _ ==child .strategy .usedAntecedent ==childAnte
         1 goal .resolution ":" str .split * 1 neg -01 str .prefix ==pattern
 
         # |- ( requestedAnte -> goal .thm )
@@ -5145,7 +5164,7 @@
         # |- ( requestedAnte -> ( child .thm <-> goal .thm ) )
         map ==lastGrammarMatch $_
         requestedAnte $=ph pattern $=ps [| "( " child .thm " <-> " goal .thm " )" |] $=ch
-        [ /syl $$ ] pushStep
+        [ /syl$HERE4 $$ ] pushStep
         
         |pushStep requestedAnte pattern transformConjunct
 
@@ -5492,7 +5511,15 @@
         |pushStep [| "( " $x " = " goal .value " -> ( " $ph " <-> " $ps " ) )" |] constructRewrite
 
         # |- ( deduced /\ child .usedAntecedent <filtered> ) -> goal .thm
-        |pushStep [| "( " deduced " /\\ " filteredChildAnte " )" |] child _ .strategy .usedAntecedent transformConjunct
+        child _ .strategy .usedAntecedent ==childAnte
+
+        map ==sylNames
+        [| "( " deduced " /\\ " filteredChildAnte " )" |] /ph sylNames $=[]
+        childAnte /ps sylNames $=[]
+        goal .thm /ch sylNames $=[]
+        [ /syl sylNames ] pushStep
+
+        |pushStep [| "( " deduced " /\\ " filteredChildAnte " )" |] childAnte transformConjunct
         |pushStep child _ .strategy .construct
       } /construct deffst
     > ==strategyInstantiate
@@ -5560,6 +5587,12 @@
             |pushStep 0 goal .children * _ .strategy .construct
             
             # |- ( $ps /\ $ch ) -> child1 .thm
+            map ==sylNames
+            [| "( " $ps " /\\ " $ch " )" |] /ph sylNames $=[]
+            rawSecondAnte /ps sylNames $=[]
+            goal .thm /ch sylNames $=[]
+            [ /syl sylNames ] pushStep
+
             |pushStep [| "( " $ps " /\\ " $ch " )" |] rawSecondAnte transformConjunct
             |pushStep 1 goal .children * _ .strategy .construct
           }
@@ -5569,7 +5602,7 @@
             goal .thm $=ch
             0 goal .children * .thm $=ps
 
-            [ /syl $$ ] pushStep
+            [ /syl$HERE5 $$ ] pushStep
 
             |pushStep 0 goal .children * _ .strategy .construct
             
@@ -5591,6 +5624,12 @@
             |pushStep 0 goal .children * _ .strategy .construct
 
             # |- ( ( secondAnte /\ conclusion ) -> 1 goal .children * .thm
+            map ==sylNames
+            [| "( " $ps " /\\ " $ch " )" |] /ph sylNames $=[]
+            rawSecondAnte /ps sylNames $=[]
+            goal .thm /ch sylNames $=[]
+            [ /syl sylNames ] pushStep
+
             |pushStep [| "( " $ps " /\\ " $ch " )" |] rawSecondAnte transformConjunct
             |pushStep 1 goal .children * _ .strategy .construct
           }
@@ -5674,6 +5713,8 @@
       # [ /syl <ph => ph, ch => ch> ]
       # [ ... (steps for syl.1) ... ]
       # [ ... (steps for syl.2) ... ]
+      # To debug, add info after $, e.g. syl$DEBUG1
+
       stack ==proofSteps
       { proofSteps .push } mainGoal _ .strategy .construct
       
@@ -5691,12 +5732,15 @@
       { proofSteps .has } {
         proofSteps .pop ==step
         step 2 dearray ==substitution ==resolution
+        resolution "$" str .split ==splitResolution
+        0 splitResolution * ==resolutionName
+
         [
-          { resolution collectedEHyps .has } {
+          { resolutionName collectedEHyps .has } {
             [ resolution ] proofTree .push
           }
-          { resolution assertions .has } {
-            resolution assertions * ==a
+          { resolutionName assertions .has } {
+            resolutionName assertions * ==a
 
             [
               a .hyps { ==hyp [
@@ -5722,7 +5766,7 @@
               resolution
             ] proofTree .push
           }
-          { resolution "?" eq } {
+          { resolutionName "?" eq } {
             [ resolution ] proofTree .push
           }
           { 1 } {
@@ -5744,7 +5788,8 @@
       } loop
 
       # Just an array of metamath names
-      0 flatProof .top range flatProof .data * =flatProof
+      flatProof .top ==flatProofMax
+      flatProof .data =flatProof
 
       # Checking, duplication detection + tagging
       # Elements: [ "|- ph" <min proof step used> <final proof step> ]
@@ -5752,24 +5797,31 @@
       # From "|- ph" to proof step which first produced it
       map ==seenThms
 
-      flatProof dom { ==i
+      0 flatProofMax range { ==i
         i flatProof * ==step
         # 0 proofState .top range proofState .data * dump
         # step dump
+        step "$" str .split ==splitStep
+        0 splitStep * ==stepName
+
         [
-          { step collectedEHyps .has } {
-            [ [| step collectedEHyps * { " " } each -- |] i i ] proofState .push
+          { stepName collectedEHyps .has } {
+            [ [| stepName collectedEHyps * { " " } each -- |] i i ] proofState .push
           }
-          { step collectedFHyps .has } {
-            [ [| step collectedFHyps * { " " } each -- |] i i ] proofState .push
+          { stepName collectedFHyps .has } {
+            [ [| stepName collectedFHyps * { " " } each -- |] i i ] proofState .push
           }
-          { step assertions .has } {
+          { stepName assertions .has } {
             i ==blockStart
             map ==substitution
             map ==assignments
-            step assertions * ==a
+            map ==sources # DEBUGGING ONLY
+            stepName assertions * ==a
             [ a .hyps { } each ] reverse { ==hyp
-              proofState .pop 3 dearray -- =blockStart hyp assignments =[]
+              proofState .pop 3 dearray
+                hyp sources =[]
+                =blockStart
+                hyp assignments =[]
             } each
 
             [ a .hyps { } each ] { ==hyp
@@ -5779,7 +5831,7 @@
                   hyp assignments * " " str .split ==toks
 
                   0 toks * 0 expected * neq {
-                    [| "Broken proof: Could not unify $f-hyp of: " step |] err
+                    [| "Broken proof: Could not unify $f-hyp: " hyp " of " step |] err
                   } rep
 
                   1 toks len range toks * 1 hyp a .ctx getFHyp * substitution =[]
@@ -5787,9 +5839,10 @@
                 { hyp a .ctx isEHyp } {
                   [| hyp a .ctx getEHyp substitution applySubstitution { " " } each -- |] ==expected
                   hyp assignments * expected neq {
-                    [| "Broken proof: Could not unify $e-hyp: " step |] err
-                    [| "On the stack: " hyp assignments * "\n" |] out
-                    [| "Expected: " expected "\n" |] out
+                    [| "Broken proof: Could not unify $e-hyp: " hyp " of " step |] err
+                    [| "On the stack:\n" 0 hyp assignments * renderNicely "\n" |] out
+                    [| "Expected:\n" 0 expected renderNicely "\n" |] out
+                    [| "Generated by: " hyp sources * flatProof * |] dump
                   } rep
                 }
               ] conds
@@ -5813,11 +5866,21 @@
 
             [ newThm blockStart i ] proofState .push
           }
+          { stepName "?" eq } {
+            [ "?" i i ] proofState .push
+          }
           { 1 } {
             [| "Unresolved name during proof checking: " step |] err
           }
         ] conds
       } each
+
+      # Remove debugging $-suffixes
+      0 flatProofMax range { ==i
+        i flatProof * "$" str .split 0 -01 * i flatProof =[]
+      } each
+
+      flatProofMax flatProof len range { "~" -01 flatProof =[] } each
 
       # 0 proofState .top range proofState .data * dump
       # flatProof dump
@@ -5836,6 +5899,9 @@
           { t "!" eq } {
             1 step str .postfix "!" str .split 2 dearray ==thm ==name
             name nameCount .has { name nameCount * } { 0 } ? * 1 add name nameCount =[]
+          }
+          { step "?" eq } {
+            # don't count
           }
           { 1 } {
             step nameCount .has { step nameCount * } { 0 } ? * 1 add step nameCount =[]
@@ -5892,6 +5958,9 @@
       flatProof { ==step
         1 step str .prefix ==t
         [
+          { step "?" eq } {
+            "?" wrapOut
+          }
           { t "*" eq } {
             1 step str .postfix taggedThms * encodeNumber |wrapOut each
           }
@@ -5932,6 +6001,9 @@
         }
         { thing len 70 lt } {
           thing " " str .split {  _ "" eq { -- } { renderName } ? * " " } each --
+        }
+        { 3 thing str .prefix "|- " eq } {
+          "|- " indent 3 add 3 thing str .postfix renderNicely
         }
         { thing "A. x ph" // } {
           "A. " $x renderName " "
@@ -6003,6 +6075,32 @@
       } each
       may
     } /mayDisjunct deffst
+
+    { ==termA ==termB
+      termA " " str .split { ==x
+        termB " " str .split { ==y
+          x y markDisj
+        } each
+      } each
+    } /markDisjunct deffst
+
+    { ==termA ==termB
+      termA " " str .split { ==x
+        x variables .has {
+          termB " " str .split { ==y
+            y variables .has {
+              x y eq {
+                [| "Identical variable found on both sides of allegedly disjunct terms: " x |] err
+              } rep
+              x y mustDisj not {
+                [| "Not all required variables were marked disjunct: " x " <!> " y |] err
+              } rep
+            } rep
+          } each
+        } rep
+      } each
+    } /checkMarkedDisjunct deffst
+
 
     1 ==running
     0 ==selectedGoal
