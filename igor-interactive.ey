@@ -3892,6 +3892,12 @@
           $ph splitConjunction
           $ps splitConjunction
         }
+        { ante "( ph /\\ ps /\\ ch )" // } {
+          $_
+          $ph splitConjunction
+          $ps splitConjunction
+          $ch splitConjunction
+        }
         { 1 } { ante }
       ] conds
     } /splitConjunction deffst
