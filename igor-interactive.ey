@@ -4214,6 +4214,11 @@
           [ /nn0rei $$ ] pushStep
           |pushStep [| $A " e. NN0" |] constructDecimal
         }
+        { thm "A e. RR+" // { $A parseNumber } andif { 0 gt } andif } {
+          [ /ax-mp <$ [| $A " e. NN0" |] ==ph thm ==ps $> ] pushStep
+          |pushStep [| $A " e. NN0" |] constructDecimal
+          [ /nnrp $$ ] pushStep
+        }
         { thm "A e. _V" // { $A parseNumber } andif } { --
           "NN0" $=B
           [ /elexi $$ ] pushStep
@@ -4265,6 +4270,25 @@
           |pushStep [| $A " e. NN" |] constructDecimal
           |pushStep [| $B " e. NN" |] constructDecimal
         }
+        { thm "( A - B ) e. RR" // } { $_
+          [ /resubcli $$ ] pushStep
+          |pushStep [| $A " e. RR" |] constructDecimal
+          |pushStep [| $B " e. RR" |] constructDecimal
+        }
+        { thm "( A mod B ) e. RR" // } { $_
+          [ /ax-mp <$
+            thm ==ps
+            [| "( " $A " e. RR /\\ " $B " e. RR+ )" |] ==ph
+          $> ] pushStep
+
+          [ /pm3.1i <$
+            [| $A " e. RR" |] ==ph
+            [| $B " e. RR+" |] ==ps
+          $> ] pushStep
+
+          |pushStep [| $A " e. RR" |] constructDecimal
+          |pushStep [| $B " e. RR+" |] constructDecimal
+        }
         { 1 } {
           [| "Could not deduce decimal class membership for:" |] err
           [| 0 thm renderNicely "\n" |] out
@@ -4293,6 +4317,22 @@
         $A evaluateArithmetics { ==A
           A 0 ge {
             "... (e. NN0)" /resolution goal .set
+            strategyDecimal /strategy goal .set
+          } rep
+        } rep
+      } rep
+      thm "A e. RR" // {
+        $A evaluateArithmetics { ==A
+          A 0 ge {
+            "... (e. RR)" /resolution goal .set
+            strategyDecimal /strategy goal .set
+          } rep
+        } rep
+      } rep
+      thm "A e. CC" // {
+        $A evaluateArithmetics { ==A
+          A 0 ge {
+            "... (e. CC)" /resolution goal .set
             strategyDecimal /strategy goal .set
           } rep
         } rep
@@ -4583,6 +4623,16 @@
             } failed ? *
           } failed ? *
         }
+        { thm "C = ( A - B )" // } { $_
+          $A parseNumber { ==A
+            $B parseNumber { ==B
+              $C parseNumber { ==C
+                [ /eqcomi <$ $C ==B [| "( " $A " - " $B " )" |] ==A $> ] pushStep
+                |pushStep [| "( " $A " - " $B " ) = " $C |] constructArithmetics
+              } failed ? *
+            } failed ? *
+          } failed ? *
+        }
         { thm "A =/= B" // } { $_
           $A parseNumber { ==A
             $B parseNumber { ==B
@@ -4624,21 +4674,32 @@
           [ /leidi $$ ] pushStep
         }
         { thm "A <_ B" // } { $_
-          $A parseNumber { ==A
-            $B parseNumber { ==B
-              A B lt {
-                [ /ltleii $$ ] pushStep
-                |pushStep [| $A " e. RR" |] constructDecimal
-                |pushStep [| $B " e. RR" |] constructDecimal
+          $A evaluateArithmetics { ==A
+            $B evaluateArithmetics { ==B
+              [
+                { A B lt } {
+                  [ /ltleii $$ ] pushStep
+                  |pushStep [| $A " e. RR" |] constructDecimal
+                  |pushStep [| $B " e. RR" |] constructDecimal
 
-                |pushStep [| $A " < " $B |] constructArithmetics
-              } todo ? *
+                  |pushStep [| $A " < " $B |] constructArithmetics
+                }
+                { A B eq } {
+                  [ /ax-mp <$ [| "( " $A " e. RR /\\ " $A " = " $B " )" |] ==ph thm ==ps $> ] pushStep
+                  [ /pm3.2i <$ [| "( " $A " e. RR" |] ==ph [| $A " = " $B |] ==ps $> ] pushStep
+                  |pushStep [| $A " e. RR" |] constructDecimal
+                  |pushStep [| $A " = " $B |] constructArithmetics
+
+                  [ /eqle $$ ] pushStep
+                }
+                { 1 } failed
+              ] conds
             } failed ? *
           } failed ? *
         }
         { thm "A < B" // } { $_
-          $A parseNumber { ==A
-            $B parseNumber { ==B
+          $A evaluateArithmetics { ==A
+            $B evaluateArithmetics { ==B
               [ /mpbir <$
                 thm ==ph [| "0 < ( " $B " - " $A " )" |] ==ps
               $> ] pushStep
@@ -5194,12 +5255,24 @@
                   $ps callChildren
                   $ch callChildren
                 }
+                { conjunction "( ps /\\ ch /\\ th )" // } { $_
+                  requestedAntes $=ph
+                  [ /3jca$HERE7 $$ ] pushStep
+
+                  $ps callChildren
+                  $ch callChildren
+                  $th callChildren
+                }
                 { 1 } {
                   [| "Failed to construct theorem formula." |] err
                   "Requested antes:" dump
                   [| 0 requestedAntes renderNicely "\n" |] out
                   "Conjunction:" dump
                   [| 0 conjunction renderNicely "\n" |] out
+                  "Children:" dump
+                  goal .children { ==child
+                    [| 0 child .thm renderNicely "\n" |] out
+                  } each
                 }
               ] conds
             } /callChildren deffst
@@ -6452,7 +6525,9 @@
               [ $A "<_" $B ante ]
             }
             { ante "A <_ B" // } { $_
-              [ $A "<_" $B ante ]
+              [ $A "<_" $B ante { =*pushStep
+                [ /id <$ ante ==ph $> ] pushStep
+              } ]
             }
             { ante "A > B" // } { $_
               [ $B "<" $A [| "( " ante " /\\ ( " $A " e. _V /\\ " $B " e. _V ) )" |] _
@@ -6483,7 +6558,9 @@
               [ $B "<_" $A ante ]
             }
             { ante "A = B" // } { $_
-              [ $A "<_" $B ante ]
+              [ $A "<_" $B [| "( " $A " e. RR /\\ " ante " )" |] { =*pushStep
+                [ /eqle $$ ] pushStep
+              } ]
               [ $B "<_" $A ante ]
             }
           ] conds
@@ -6542,9 +6619,85 @@
       goal .thm "C R ( A - B )" // { 1 [| " - " $B |] offsets =[] } rep
 
       graph [
-        offsets dom { ==off
-          graph { =*o [ [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |] 3 o ] } each
-        } each
+        offsets dom { ==off [
+          { 1 off * 0 "+" * eq } {
+            graph { =*o [
+              [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |]
+              [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |] _ ==stepAnte
+              { =*pushStep
+                |o dump
+                [ [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |] ] dump
+                /TODO:strategyRange8 die
+              }
+            ] } each
+          }
+          { 1 off * 0 "-" * eq } {
+            graph { =*o [
+              [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |]
+              [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |] _ ==stepAnte
+              { =*pushStep
+                # TODO: This is a huge bunch of ante reorganization. Helper methods would be good
+                [ /mpbid <$
+                  stepAnte ==ph
+                  [| 0 o " " 1 o " " 2 o |] ==ps
+                  [| "( " 0 o off " ) " 1 o " ( " 2 o off " )" |] ==ch
+                $> ] pushStep
+
+                # |- stepAnte -> [ 0 1 2 ] o
+                [ /syl <$ stepAnte ==ph 3 o ==ps [| 0 o " " 1 o " " 2 o |] ==ch $> ] pushStep
+                [ /simpl <$ 3 o ==ps [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps $> ] pushStep
+                |o len 5 neq { |o dump /TODO:strategyRange die } rep
+                |pushStep 4 o *
+
+                # |- stepAnte -> ( [ 0 1 2 ] o <-> this_step )
+                [ /syl <$
+                  stepAnte ==ph
+                  [| "( " 0 o " e. RR /\\ " 2 o " e. RR /\\ " 3 off str .postfix " e. RR )" |] ==ps
+                  [| "( " 0 o off " ) " 1 o " ( " 2 o off " )" |] ==ch
+                $> ] pushStep
+
+                # |- stepAnte -> ( 0 o e. RR /\ 1 o e. RR /\ 3 off str .postfix e. RR )
+                [ /mpbird <$
+                  stepAnte ==ph
+                  [| "( ( " 0 o " e. RR /\\ " 2 o " e. RR ) /\\ " 3 off str .postfix " e. RR )" |] ==ch
+                  [| "( " 0 o " e. RR /\\ " 2 o " e. RR /\\ " 3 off str .postfix " e. RR )" |] ==ps
+                $> ] pushStep
+
+                # |- stepAnte -> ( ( 0 o e. RR /\ 1 o e. RR ) /\ 3 off str .postfix e. RR )
+                [ /jctir <$
+                  stepAnte ==ph
+                  [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps
+                  [| 3 off str .postfix " e. RR" |] ==ch
+                $> ] pushStep
+
+                [ /simpr <$
+                  3 o ==ph
+                  [| "( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |] ==ps
+                $> ] pushStep
+                |pushStep [| 3 off str .postfix " e. RR" |] constructDecimal
+
+                [ /a1i <$
+                  stepAnte ==ps
+                  [|
+                    "( ( " 0 o " e. RR /\\ " 2 o " e. RR ) /\\ " 3 off str .postfix " e. RR )"
+                    " <-> "
+                    "( " 0 o " e. RR /\\ " 2 o " e. RR /\\ " 3 off str .postfix " e. RR )"
+                  |] ==ph
+                $> ] pushStep
+
+                [ /df-3an <$
+                  [| 0 o " e. RR" |] ==ph
+                  [| 2 o " e. RR" |] ==ps
+                  [| 3 off str .postfix " e. RR" |] ==ch
+                $> ] pushStep
+
+                # |- ( 0 o e. RR /\ 1 o e. RR /\ 3 off str .postfix e. RR ) -> ...
+                [ /ltsub1 <$ 0 o ==A 2 o ==B 3 off str .postfix ==C $> ] pushStep
+              }
+            ] } each
+          }
+          { 1 } { /ASSERT:strategyRange3 die }
+        ] conds } each
       ] cat ==graph
 
       map ==computed
@@ -6557,8 +6710,12 @@
               value 0 ge {
                 [| value printNumber { " " } each -- |] ==strValue
                 term strValue neq {
-                  [ term "<_" strValue "" ]
-                  [ strValue "<_" term "" ]
+                  [ term "<_" strValue "" { # =*pushStep
+                    [| term " <_ " strValue |] constructArithmetics
+                  } ]
+                  [ strValue "<_" term "" { # =*pushStep
+                    [| strValue " <_ " term |] constructArithmetics
+                  } ]
                 } rep
               } rep
             } rep
@@ -6600,20 +6757,22 @@
       ]
     } /findLePaths deffst
 
-    { ==graph
-      { ==path
-        0 ==hasLt
-        0 path len 1 sub range { ==i
-          graph {
-            [
-              i path *
-              "<"
-              i 1 add path *
-            ] eq all { 1 =hasLt } rep
-          } each
+    { ==graph ==path
+      0 ==hasLt
+      0 path len 1 sub range { ==i
+        graph {
+          [
+            i path *
+            "<"
+            i 1 add path *
+          ] eq all { 1 =hasLt } rep
         } each
-        hasLt
-      } grep
+      } each
+      hasLt
+    } /isLtPath deffst
+
+    { # ==graph
+      { isLtPath }_ grep
     } /grepLtPaths deffst
 
     { ==arrays
@@ -6636,7 +6795,7 @@
                 1 =hasLt
                 step
               }
-              { 
+              {
                 step [
                   i path *
                   "<_"
@@ -6774,26 +6933,29 @@
 
         # |- ( usedAntecedent -> 0 path * { <_, < } 1 neg path * )
         { ==path
+          0 path graph pathSteps * =*step
+          |step len 5 neq { |step dump /TODO:strategyRange die } rep
+
+          3 step ==stepAnte
+          4 step =*constructStep
+
+          stepAnte "" neq {
+            [ /syl <$ usedAnte ==ph stepAnte ==ps [| 0 path * " <_ " 1 path * |] ==ch $> ] pushStep
+
+            # |- ( usedAnte -> stepAnte )
+            |pushStep usedAnte stepAnte transformConjunct
+
+            # |- ( stepAnte -> [| 0 path * " <_ " 1 path * |] )
+            |pushStep constructStep
+          } {
+            [ /a1i <$ usedAnte ==ps [| 0 path * " <_ " 1 path * |] ==ph $> ] pushStep
+
+            |pushStep constructStep
+          } ? *
+        } /constructOneStepPath deffst
+        { ==path
           path len 2 eq {
-            0 path graph pathSteps * =*step
-            |step len 5 neq { |step dump /TODO:strategyRange die } rep
-
-            3 step ==stepAnte
-            4 step =*constructStep
-
-            stepAnte "" neq {
-              [ /syl <$ usedAnte ==ph stepAnte ==ps [| 0 path * " <_ " 1 path * |] ==ch $> ] pushStep
-
-              # |- ( usedAnte -> stepAnte )
-              |pushStep usedAnte stepAnte transformConjunct
-
-              # |- ( stepAnte -> [| 0 path * " <_ " 1 path * |] )
-              |pushStep constructStep
-            } {
-              [ /a1i <$ usedAnte ==ps [| 0 path * " <_ " 1 path * |] ==ph $> ] pushStep
-
-              |pushStep constructStep
-            } ? *
+            path constructOneStepPath
           } {
             path len 2 div ==split
             0 split 1 add range path * ==left
@@ -6811,9 +6973,37 @@
         } /constructLeFromPath deffst
         { ==path
           path len 2 eq {
-            /TODO:strategyRange3 die
+            path constructOneStepPath
           } {
-            /TODO:strategyRange4 die
+            path len 2 div ==split
+            0 split 1 add range path * ==left
+            split path len range path * ==right
+
+            [
+              { left graph isLtPath } {
+                [ /ltletrd <$
+                  0 path * ==A
+                  0 right * ==B
+                  1 neg path * ==C
+                $> ] pushStep
+
+                left constructLtFromPath
+                right constructLeFromPath
+              }
+              { right graph isLtPath } {
+                [ /lelttrd <$
+                  0 path * ==A
+                  0 right * ==B
+                  1 neg path * ==C
+                $> ] pushStep
+
+                left constructLeFromPath
+                right constructLtFromPath
+              }
+              { 1 } {
+                /ASSERT:strategyRange4 die
+              }
+            ] conds
           } ? *
         } /constructLtFromPath deffst
         path needsLt |constructLtFromPath |constructLeFromPath ? *
