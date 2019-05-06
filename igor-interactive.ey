@@ -3864,11 +3864,11 @@
 
     { # ==map ==key ==value
       -102 " " str .split -021 =[]
-    } "$=[]" deffst
+    } "$=[]" deffd
 
     # <$ "x e. A" ==ph "y e. B" ==ps $> as inline-map constructor for pushStep
-    "<" | "<$" deffst
-    ">" | { ==s map _ ==m s keys { ==k k s . k m =[] } each } "$>" deffst
+    { < map ==m { m $=[] } "==" =* }" "<$" deffst
+    { m > -- }" "$>" deffst
 
     { lastGrammarMatch * [| -01 { " " } each -- |] } "$" deffst
     { lastGrammarMatch $=[] } "$=" deffst
@@ -4257,9 +4257,7 @@
         { thm "9 e. NN" // } { [ /9nn map ] pushStep }
         { thm "10 e. NN" // } { [ /10nn map ] pushStep }
         { thm "( B - A ) e. NN" // } { $_
-          map ==mpbiNames
-          thm /ps mpbiNames $=[] [| $A " < " $B |] /ph mpbiNames $=[]
-          [ /mpbi mpbiNames ] pushStep
+          [ /mpbi <$ thm ==ps [| $A " < " $B |] ==ph $> ] pushStep
 
           |pushStep [| $A " < " $B |] constructArithmetics
 
@@ -4386,21 +4384,19 @@
           [| "( " $A " " $F " " $B " )" |] evaluateArithmetics {
             [| -01 printNumber { " " } each -- |] ==innerResult
 
-            map ==eqtriNames
-            [| "( ( " $A " " $F " " $B " ) " $G " " $C " )" |] /A eqtriNames $=[]
-            [| "( " innerResult " " $G " " $C " )" |] /B eqtriNames $=[]
-            $D /C eqtriNames $=[]
-            [ /eqtri eqtriNames ] pushStep
+            [ /eqtri <$
+              [| "( ( " $A " " $F " " $B " ) " $G " " $C " )" |] ==A
+              [| "( " innerResult " " $G " " $C " )" |] ==B
+              $D ==C
+            $> ] pushStep
 
             # |- ( ( A F B ) G C ) = ( <eval> G C )
-            map ==oveq1iNames
-            [| "( " $A " " $F " " $B " )" |] /A oveq1iNames $=[]
-            innerResult /B oveq1iNames $=[]
-            $G /F oveq1iNames $=[]
-            $C /C oveq1iNames $=[]
-            [ /oveq1i oveq1iNames ] pushStep
+            [ /oveq1i <$
+              [| "( " $A " " $F " " $B " )" |] ==A
+              innerResult ==B $G ==F $C ==C
+            $> ] pushStep
 
-            |pushStep [| /A oveq1iNames * { " " } each -- " = " innerResult |] constructArithmetics
+            |pushStep [| "( " $A " " $F " " $B " ) = " innerResult |] constructArithmetics
 
             # |- ( <eval> G C ) = D
             |pushStep [| "( " innerResult " " $G " " $C " ) = " $D |] constructArithmetics
@@ -4452,12 +4448,12 @@
             { $A parseNumber } andif { 10 lt } andif
             { $B parseNumber } andif { 10 lt } andif } { $_
           $A parseNumber -- $B parseNumber -- lt {
-            map ==eqtriNames
-            [| "( " $A " + " $B " )" |] /A eqtriNames $=[]
-            [| "( " $B " + " $A " )" |] /B eqtriNames $=[]
-            $C /C eqtriNames $=[]
+            [ /eqtri <$
+              [| "( " $A " + " $B " )" |] ==A
+              [| "( " $B " + " $A " )" |] ==B
+              $C ==C
+            $> ] pushStep
 
-            [ /eqtri eqtriNames ] pushStep
             [ /addcomi $$ ] pushStep
             |pushStep [| $A " e. CC" |] constructDecimal
             |pushStep [| $B " e. CC" |] constructDecimal
@@ -4466,10 +4462,9 @@
           } {
             $C parseNumber { ==C
               $C "; 1 0" eq {
-                map ==eqtriNames
-                [| "( " $A " + " $B " )" |] /A eqtriNames $=[]
-                "10" /B eqtriNames $=[] $C /C eqtriNames $=[]
-                [ /eqtri eqtriNames ] pushStep
+                [ /eqtri <$
+                  [| "( " $A " + " $B " )" |] ==A "10" ==B $C ==C
+                $> ] pushStep
               } rep
               [| $A "p" $B "e" C txt .produce .u |] ==name
               name assertions .has {
@@ -4566,12 +4561,12 @@
           $A parseNumber { ==A
             $B parseNumber { ==B
               A B lt {
-                map ==eqtriNames
-                [| "( " $A " x. " $B " )" |] /A eqtriNames $=[]
-                [| "( " $B " x. " $A " )" |] /B eqtriNames $=[]
-                $C /C eqtriNames $=[]
+                [ /eqtri <$
+                  [| "( " $A " x. " $B " )" |] ==A
+                  [| "( " $B " x. " $A " )" |] ==B
+                  $C ==C
+                $> ] pushStep
 
-                [ /eqtri eqtriNames ] pushStep
                 [ /mulcomi $$ ] pushStep
                 |pushStep [| $A " e. CC" |] constructDecimal
                 |pushStep [| $B " e. CC" |] constructDecimal
@@ -4611,18 +4606,15 @@
             $B parseNumber { ==B
               [| A B sub printNumber { " " } each -- |] ==result
 
-              map ==mpbirNames
-              thm /ph mpbirNames $=[]
-              [| "0 < " result |] /ps mpbirNames $=[]
-              [ /mpbir mpbirNames ] pushStep
+              [ /mpbir <$ thm ==ph [| "0 < " result |] ==ps $> ] pushStep
 
               |pushStep [| "0 < " result |] constructArithmetics
 
-              map ==breq2iNames
-              "<" /R breq2iNames $=[] "0" /C breq2iNames $=[]
-              [| "( " $A " - " $B " )" |] /A breq2iNames $=[]
-              [| A B sub printNumber { " " } each -- |] /B breq2iNames $=[]
-              [ /breq2i breq2iNames ] pushStep
+              [ /breq2i <$
+                "<" ==R "0" ==C
+                [| "( " $A " - " $B " )" |] ==A
+                [| A B sub printNumber { " " } each -- |] ==B
+              $> ] pushStep
 
               |pushStep [| "( " $A " - " $B " ) = " result |] constructArithmetics
             } failed ? *
@@ -4647,10 +4639,9 @@
         { thm "A < B" // } { $_
           $A parseNumber { ==A
             $B parseNumber { ==B
-              map ==mpbirNames
-              thm /ph mpbirNames $=[]
-              [| "0 < ( " $B " - " $A " )" |] /ps mpbirNames $=[]
-              [ /mpbir mpbirNames ] pushStep
+              [ /mpbir <$
+                thm ==ph [| "0 < ( " $B " - " $A " )" |] ==ps
+              $> ] pushStep
 
               |pushStep [| "0 < ( " $B " - " $A " )" |] constructArithmetics
 
@@ -4805,26 +4796,22 @@
           [ /mpdan $$ ] pushStep
 
           # |- $ph -> $ps
-          map ==sylNames
-          $ph /ph sylNames $=[]
-          [| "( " goal .source " /\\ ( " goal .source " -> " goal .deduced " ) )" |] /ps sylNames $=[]
-          $ps /ch sylNames $=[]
-          [ /syl sylNames ] pushStep
+          [ /syl <$
+            $ph ==ph $ps ==ch
+            [| "( " goal .source " /\\ ( " goal .source " -> " goal .deduced " ) )" |] ==ps
+          $> ] pushStep
 
           |pushStep $ph [| "( " goal .source " /\\ ( " goal .source " -> " goal .deduced " ) )" |] transformConjunct
 
-          map ==pm335Names
-          goal .source /ph pm335Names $=[]
-          goal .deduced /ps pm335Names $=[]
-          [ /pm3.35 pm335Names ] pushStep
+          [ /pm3.35 <$ goal .source ==ph goal .deduced ==ps $> ] pushStep
 
           # |- ( $ph /\ $ps ) -> $ch
           0 goal .children * _ .strategy .usedAntecedent ==childAnte
-          map ==sylNames
-          [| "( " $ph " /\\ " $ps " )" |] /ph sylNames $=[]
-          childAnte /ps sylNames $=[]
-          $ch /ch sylNames $=[]
-          [ /syl sylNames ] pushStep
+          [ /syl <$
+            [| "( " $ph " /\\ " $ps " )" |] ==ph
+            childAnte ==ps
+            $ch ==ch
+          $> ] pushStep
 
           |pushStep [| "( " $ph " /\\ " $ps " )" |] childAnte transformConjunct
           |pushStep 0 goal .children * _ .strategy .construct
@@ -5700,23 +5687,21 @@
               |pushStep [| "( " $ph " -> A. " $x " " $ph " )" |] constructUnused
 
               # |- ( ante -> ( x e. A -> $ps ) )
-              map ==exNames
-              ante /ph exNames $=[]
-              [| $x " e. " $A |] /ps exNames $=[]
-              $ps /ch exNames $=[]
-
-              [ /ex exNames ] pushStep
+              [ /ex <$
+                ante ==ph
+                [| $x " e. " $A |] ==ps
+                $ps ==ch
+              $> ] pushStep
 
               # |- ( ( ante /\ x e. A ) -> $ps )
               0 goal .children * ==child
               child _ .strategy .usedAntecedent ==childAnte
 
-              map ==sylNames
-              [| "( " ante " /\\ " $x " e. " $A " )" |] /ph sylNames $=[]
-              $ps /ch sylNames $=[]
-              childAnte /ps sylNames $=[]
-
-              [ /syl sylNames ] pushStep
+              [ /syl <$
+                [| "( " ante " /\\ " $x " e. " $A " )" |] ==ph
+                childAnte ==ps
+                $ps ==ch
+              $> ] pushStep
               |pushStep [| "( " ante " /\\ " $x " e. " $A " )" |] childAnte transformConjunct
               |pushStep child _ .strategy .construct
             }
@@ -6055,10 +6040,10 @@
           goal .universal "A. x ph" // -- $_
           goal .value $=A
 
-          map ==axmpNames
-          [| "( A. " $x " " $ph " -> " deduced " )" |] /ps axmpNames $=[]
-          [| $A " e. _V" |] /ph axmpNames $=[]
-          [ /ax-mp axmpNames ] pushStep
+          [ /ax-mp <$
+            [| "( A. " $x " " $ph " -> " deduced " )" |] ==ps
+            [| $A " e. _V" |] ==ph
+          $> ] pushStep
 
           # |- value e. _V
           |pushStep 0 goal .children * _ .strategy .construct
@@ -6077,11 +6062,11 @@
           # |- ( deduced /\ child .usedAntecedent <filtered> ) -> goal .thm
           child _ .strategy .usedAntecedent ==childAnte
 
-          map ==sylNames
-          [| "( " deduced " /\\ " filteredChildAnte " )" |] /ph sylNames $=[]
-          childAnte /ps sylNames $=[]
-          goal .thm /ch sylNames $=[]
-          [ /syl sylNames ] pushStep
+          [ /syl <$
+            [| "( " deduced " /\\ " filteredChildAnte " )" |] ==ph
+            childAnte ==ps
+            goal .thm ==ch
+          $> ] pushStep
 
           |pushStep [| "( " deduced " /\\ " filteredChildAnte " )" |] childAnte transformConjunct
           |pushStep child _ .strategy .construct
@@ -6096,10 +6081,10 @@
           goal .universal "A. x ph" // -- $_
           goal .value $=A
 
-          map ==axmpNames
-          [| "( A. " $x " " $ph " -> " deduced " )" |] /ps axmpNames $=[]
-          [| $A " e. _V" |] /ph axmpNames $=[]
-          [ /ax-mp axmpNames ] pushStep
+          [ /ax-mp <$
+            [| "( A. " $x " " $ph " -> " deduced " )" |] ==ps
+            [| $A " e. _V" |] ==ph
+          $> ] pushStep
 
           # |- value e. _V
           |pushStep 0 goal .children * _ .strategy .construct
@@ -6119,11 +6104,7 @@
           child _ .strategy .usedAntecedent ==childAnte
 
           childAnte "" neq {
-            map ==sylNames
-            deduced /ph sylNames $=[]
-            childAnte /ps sylNames $=[]
-            goal .thm /ch sylNames $=[]
-            [ /syl sylNames ] pushStep
+            [ /syl <$ deduced ==ph childAnte ==ps goal .thm ==ch $> ] pushStep
 
             |pushStep deduced childAnte transformConjunct
             |pushStep child _ .strategy .construct
@@ -6225,11 +6206,11 @@
           1 goal .children * ==child
           child _ .strategy .usedAntecedent ==childAnte
 
-          map ==sylNames
-          [| "( " deduced " /\\ " secondPart " )" |] /ph sylNames $=[]
-          childAnte /ps sylNames $=[]
-          goal .thm /ch sylNames $=[]
-          [ /syl sylNames ] pushStep
+          [ /syl <$
+            [| "( " deduced " /\\ " secondPart " )" |] ==ph
+            childAnte ==ps
+            goal .thm ==ch
+          $> ] pushStep
 
           |pushStep [| "( " deduced " /\\ " secondPart " )" |] childAnte transformConjunct
           |pushStep child _ .strategy .construct
@@ -6341,11 +6322,11 @@
             |pushStep 0 goal .children * _ .strategy .construct
 
             # |- ( $ps /\ $ch ) -> child1 .thm
-            map ==sylNames
-            [| "( " $ps " /\\ " $ch " )" |] /ph sylNames $=[]
-            rawSecondAnte /ps sylNames $=[]
-            goal .thm /ch sylNames $=[]
-            [ /syl sylNames ] pushStep
+            [ /syl <$
+              [| "( " $ps " /\\ " $ch " )" |] ==ph
+              rawSecondAnte ==ps
+              goal .thm ==ch
+            $> ] pushStep
 
             |pushStep [| "( " $ps " /\\ " $ch " )" |] rawSecondAnte transformConjunct
             |pushStep 1 goal .children * _ .strategy .construct
@@ -6395,11 +6376,11 @@
             |pushStep 0 goal .children * _ .strategy .construct
 
             # |- ( ( secondAnte /\ conclusion ) -> 1 goal .children * .thm
-            map ==sylNames
-            [| "( " $ps " /\\ " $ch " )" |] /ph sylNames $=[]
-            rawSecondAnte /ps sylNames $=[]
-            goal .thm /ch sylNames $=[]
-            [ /syl sylNames ] pushStep
+            [ /syl <$
+              [| "( " $ps " /\\ " $ch " )" |] ==ph
+              rawSecondAnte ==ps
+              goal .thm ==ch
+            $> ] pushStep
 
             |pushStep [| "( " $ps " /\\ " $ch " )" |] rawSecondAnte transformConjunct
             |pushStep 1 goal .children * _ .strategy .construct
@@ -6478,22 +6459,22 @@
               { ==stepAnte =*pushStep
                 # |- ( A > B /\ ( A e. _V /\ B e. _V ) ) -> B < A
 
-                map ==mpbidNames
-                [| $B " < " $A |] /ch mpbidNames $=[] stepAnte /ph mpbidNames $=[] ante /ps mpbidNames $=[]
-                [ /mpbid mpbidNames ] pushStep
+                [ /mpbid <$
+                  [| $B " < " $A |] ==ch stepAnte ==ph ante ==ps
+                $> ] pushStep
 
                 # |- ( A > B /\ ( A e. _V /\ B e. _V ) ) -> A > B
-                map ==simplNames
-                ante /ph simplNames $=[] 
-                [| "( " $A " e. _V /\\ " $B " e. _V )" |] /ps simplNames $=[]
-                [ /simpl simplNames ] pushStep
+                [ /simpl <$
+                  ante ==ph
+                  [| "( " $A " e. _V /\\ " $B " e. _V )" |] ==ps
+                $> ] pushStep
 
                 # |- ( A > B /\ ( A e. _V /\ B e. _V ) ) -> ( A > B <-> B < A )
-                map ==adantlNames
-                ante /ch adantlNames $=[]
-                [| "( " $A " e. _V /\\ " $B " e. _V )" |] /ph adantlNames $=[]
-                [| "( " $A " > " $B " <-> " $B " < " $A " )" |] /ps adantlNames $=[]
-                [ /adantl adantlNames ] pushStep
+                [ /adantl <$
+                  ante ==ch
+                  [| "( " $A " e. _V /\\ " $B " e. _V )" |] ==ph
+                  [| "( " $A " > " $B " <-> " $B " < " $A " )" |] ==ps
+                $> ] pushStep
               }_ ]
 
               [ $B "<_" $A ante ]
@@ -6707,11 +6688,7 @@
         [ /syl <$ ante ==ph goalAnte ==ps goal .thm ==ch $> ] pushStep
         |pushStep ante goalAnte transformConjunct
       } {
-        map ==a1iNames
-        ante /ps a1iNames $=[]
-        goal .thm /ph a1iNames $=[]
-
-        [ /a1i a1iNames ] pushStep
+        [ /a1i <$ ante ==ps goal .thm ==ph $> ] pushStep
       } ? *
 
       |pushStep goal _ .strategy .construct
@@ -6736,11 +6713,7 @@
 
         # |- ( usedAnte -> goal .thm )
         goal .children { ==child
-          map ==mpancomNames
-          usedAnte /ps mpancomNames $=[]
-          goal .thm /ch mpancomNames $=[]
-          child .thm /ph mpancomNames $=[]
-          [ /mpancom mpancomNames ] pushStep
+          [ /mpancom <$ usedAnte ==ps goal .thm ==ch child .thm ==ph $> ] pushStep
 
           # |- ( usedAnte -> child .thm )
           |pushStep usedAnte child constructFromAnte
@@ -6752,24 +6725,18 @@
         [
           { thm "A >_ B" // } { $_
             # ( usedAnte -> A >_ B )
-            map ==mpbirdNames
-            usedAnte /ph mpbirdNames $=[]
-            thm /ps mpbirdNames $=[]
-            [| $B " <_ " $A |] /ch mpbirdNames $=[]
-
-            [ /mpbird mpbirdNames ] pushStep
+            [ /mpbird <$ usedAnte ==ph thm ==ps [| $B " <_ " $A |] ==ch $> ] pushStep
 
             # |- ( usedAnte -> $B <_ $A )
             $B $A graph findLePaths shortest =path
 
             # |- ( usedAnte -> ( $A >_ $B <-> $B <_ $A ) )
             {
-              map ==sylNames
-              usedAnte /ph sylNames $=[]
-              [| "( " $A " >_ " $B " <-> " $B " <_ " $A " )" |] /ch sylNames $=[]
-              [| "( " $A " e. _V /\\ " $B " e. _V )" |] /ps sylNames $=[]
-
-              [ /syl sylNames ] pushStep
+              [ /syl <$
+                usedAnte ==ph
+                [| "( " $A " e. _V /\\ " $B " e. _V )" |] ==ps
+                [| "( " $A " >_ " $B " <-> " $B " <_ " $A " )" |] ==ch
+              $> ] pushStep
 
               |pushStep usedAnte [| "( " $A " e. _V /\\ " $B " e. _V )" |] transformConjunct
               [ /gte-lte $$ ] pushStep
@@ -6780,24 +6747,18 @@
           }
           { thm "A > B" // } { $_
             # ( usedAnte -> A >_ B )
-            map ==mpbirdNames
-            usedAnte /ph mpbirdNames $=[]
-            thm /ps mpbirdNames $=[]
-            [| $B " < " $A |] /ch mpbirdNames $=[]
-
-            [ /mpbird mpbirdNames ] pushStep
+            [ /mpbird <$ usedAnte ==ph thm ==ps [| $B " < " $A |] ==ch $> ] pushStep
 
             # |- ( usedAnte -> $B < $A )
             $B $A graph findLePaths graph grepLtPaths shortest =path 1 =needsLt
 
             # |- ( usedAnte -> ( $A > $B <-> $B < $A ) )
             {
-              map ==sylNames
-              usedAnte /ph sylNames $=[]
-              [| "( " $A " > " $B " <-> " $B " < " $A " )" |] /ch sylNames $=[]
-              [| "( " $A " e. _V /\\ " $B " e. _V )" |] /ps sylNames $=[]
-
-              [ /syl sylNames ] pushStep
+              [ /syl <$
+                usedAnte ==ph
+                [| "( " $A " e. _V /\\ " $B " e. _V )" |] ==ps
+                [| "( " $A " > " $B " <-> " $B " < " $A " )" |] ==ch
+              $> ] pushStep
 
               |pushStep usedAnte [| "( " $A " e. _V /\\ " $B " e. _V )" |] transformConjunct
               [ /gt-lt $$ ] pushStep
@@ -6821,24 +6782,15 @@
             4 step =*constructStep
 
             stepAnte "" neq {
-              map ==sylNames
-              usedAnte /ph sylNames $=[]
-              stepAnte /ps sylNames $=[]
-              [| 0 path * " <_ " 1 path * |] /ch sylNames $=[]
-
-              [ /syl sylNames ] pushStep
+              [ /syl <$ usedAnte ==ph stepAnte ==ps [| 0 path * " <_ " 1 path * |] ==ch $> ] pushStep
 
               # |- ( usedAnte -> stepAnte )
               |pushStep usedAnte stepAnte transformConjunct
 
-              # |- ( stepAnte -> /ch sylNames * )
+              # |- ( stepAnte -> [| 0 path * " <_ " 1 path * |] )
               |pushStep constructStep
             } {
-              map ==a1iNames
-              usedAnte /ps a1iNames $=[]
-              [| 0 path * " <_ " 1 path * |] /ph a1iNames $=[]
-
-              [ /a1i a1iNames ] pushStep
+              [ /a1i <$ usedAnte ==ps [| 0 path * " <_ " 1 path * |] ==ph $> ] pushStep
 
               |pushStep constructStep
             } ? *
@@ -6847,12 +6799,11 @@
             0 split 1 add range path * ==left
             split path len range path * ==right
 
-            map ==letrdNames
-            0 path * /A letrdNames $=[]
-            1 neg path * /C letrdNames $=[]
-            0 right * /B letrdNames $=[]
-
-            [ /letrd letrdNames ] pushStep
+            [ /letrd <$
+              0 path * ==A
+              0 right * ==B
+              1 neg path * ==C
+            $> ] pushStep
 
             left constructLeFromPath
             right constructLeFromPath
