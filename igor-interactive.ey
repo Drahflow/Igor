@@ -4333,6 +4333,14 @@
           } rep
         } rep
       } rep
+      thm "A e. RR+" // {
+        $A evaluateArithmetics { ==A
+          A 0 gt {
+            "... (e. RR+)" /resolution goal .set
+            strategyDecimal /strategy goal .set
+          } rep
+        } rep
+      } rep
       thm "A e. RR" // {
         $A evaluateArithmetics { ==A
           A 0 ge {
@@ -4782,6 +4790,29 @@
       } each
     } /arithmetics deffst
 
+    { ==thm =*pushStep
+      [
+        { thm "x e. _V" // } { [ /vex $$ ] pushStep }
+        { thm "A = A" // } { [ /eqid $$ ] pushStep }
+      ] conds
+    } /constructTrivialities deffst
+    <
+      { ==goal
+        ""
+      } /usedAntecedent deffs
+
+      { # ==goal =*pushStep
+        .thm constructTrivialities
+      } /construct deffst
+    > ==strategyTrivialities
+    { ==goal
+      # If we could do it, consider it done.
+      { --
+        "(trivial)" /resolution goal .set
+        strategyTrivialities /strategy goal .set
+      } goal .thm constructTrivialities
+    } /trivialities deffst
+
     <
       { ==goal
         0 goal .children * _ .strategy .usedAntecedent ==childAnte
@@ -4932,6 +4963,44 @@
       } rep } each
     } /withinAntes deffst
 
+    # Things which could be a strategy maybe, but for now just call high-level commands
+    { _ ==goal .thm ==thm
+      map ==equalities
+      { ==A A equalities .has { A equalities * } { A } ? * } /eqmin deffst
+
+      goal .antes { ==ante
+        ante "A = B" // {
+          1 ante equalities =[]
+          $A eqmin $B eqmin min _ $A equalities =[]
+                                  $B equalities =[]
+        } rep
+      } each
+
+      "" ==x "" ==y
+      goal .antes { ==ante
+        ante "[ x / y ] ph" // {
+          $ph thm eq {
+            $x eqmin $y eqmin eq { $_
+              /stdpc7 goal useTheorem
+              [ $x ] "$x" let
+              [ $y ] "$y" let
+            } rep
+          } rep
+        } rep
+      } each
+
+      thm "( A F C ) = ( B F C )" // {
+        $A eqmin $B eqmin eq { $_
+          [| $A " = " $B |] equalities .has not {
+            [| $A " = " $B |] goal conclude
+          } {
+            /oveq1d goal useTheorem
+            [| $A " = " $B |] " " str .split "$ph" let
+          } ? *
+        } rep
+      } rep
+    } /automations deffst
+
     { _ ==goal _ .thm ==thm .antes ==antes
       # meta variable expansion in-place
       [| thm " " str .split expandMeta { " " } each -- |] ==expandedThm
@@ -4954,9 +5023,11 @@
             |knownAntes
             |decimal
             |arithmetics
+            |trivialities
             |extractAntes
             |fromAntes
             |withinAntes
+            |automations
             loadedAutomations "*" | each
           ] { =*resolution
             goal .isopen { goal resolution } rep
@@ -5018,6 +5089,8 @@
     { ==substitution ==assertion
       assertion mandatoryVariables dom { substitution .has not } grep { ==var
         [ var newMetaVariable ] var substitution =[]
+        # [| "assigned " 0 var substitution * * " to " var |] err
+        # [| "last is " var lastMetaVariables * |] err
       } each
     } /introduceMetaVariables deffst
 
@@ -5085,7 +5158,7 @@
       } /construct deffst
     > ==strategyUseEHypLiterally
 
-    { ==thmName ==goal
+    { ==goal ==thmName
       [
         { thmName collectedEHyps .has } {
           [ "|-" ] goal .thm " " str .split cat thmName collectedEHyps * arrEq {
@@ -5332,7 +5405,7 @@
       } /construct deffst
     > ==strategyUseTheorem
 
-    { ==thmName ==goal
+    { ==goal ==thmName
       [
         { thmName collectedEHyps .has } {
           [| thmName collectedEHyps * { " " } each -- |] 3 -01 str .postfix _ ==thm ==rawThm
@@ -5356,7 +5429,7 @@
 
               strategyUseEHyp /strategy goal .set
 
-              0 goal .children * thmName useTheoremLiterally
+              thmName 0 goal .children * useTheoremLiterally
             } rep
           } {
             [| "$e-hypothesis does not match current goal: " thmName |] err
@@ -5407,7 +5480,7 @@
               0 goal .children * ==executionGoal
               {
                 executionGoal .thm "$" str .split len 1 eq {
-                  executionGoal thmName useTheoremLiterally
+                  thmName executionGoal useTheoremLiterally
                 } rep
               } /delayedResolution executionGoal .setExtra
             } rep
@@ -7707,7 +7780,7 @@
         { cmd "next" eq } { selectedGoal goals len 1 sub lt { selectedGoal 1 add =selectedGoal } rep }
         { cmd "prev" eq } { selectedGoal 0 gt { selectedGoal 1 sub =selectedGoal } rep }
         { cmd "norm" eq } { selectedGoal goals * normalizeGoal } unlessSolved
-        { cmd "use" eq } { selectedGoal goals * args useTheorem } unlessSolved
+        { cmd "use" eq } { args selectedGoal goals * useTheorem } unlessSolved
         { cmd "let" eq { args "^(\\$[^=]+) = (.*)" regex } andif } { ==metaVar " " str .split { "" neq } grep ==tokens
           tokens metaVar let
           selectedGoal goals * normalizeGoal
