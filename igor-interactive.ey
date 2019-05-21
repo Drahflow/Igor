@@ -3841,7 +3841,7 @@
 
     map ==lastGrammarMatch
     map ==grammarMatchCache
-    { ==pattern ==subject
+    { ==pattern
       pattern grammarMatchCache .has not {
         pattern " " str .split ==patternTokens
           [
@@ -3852,15 +3852,38 @@
         pattern grammarMatchCache =[]
       } rep
 
-      pattern grammarMatchCache * ==cached
+      pattern grammarMatchCache *
+    } /cachedPatternParse deffst
+
+    { cachedPatternParse ==pattern ==subject
       subject " " str .split ==tokens
-      0 tokens 2 cached * metaLogicParsers * * { ==tokensParse
-        tokensParse tokens cached 2 dearray possibleSubstitutionsForParses ==substs
+      0 tokens 2 pattern * metaLogicParsers * * { ==tokensParse
+        tokensParse tokens pattern 2 dearray possibleSubstitutionsForParses ==substs
         substs len 1 eq {
           0 substs * =lastGrammarMatch 1
         } { 0 } ? *
       } { 0 } ? *
     } "//" deffst
+
+    { cachedPatternParse ==pattern ==subject
+      subject " " str .split ==tokens
+      [ ] ==result
+
+      { ==parse
+        parse tokens pattern 2 dearray possibleSubstitutionsForParses ==substs
+        substs len {
+          result [ 0 substs * ] cat =result
+        } {
+          0 parse logicChildCount range { ==i
+            i parse * search
+          } each
+        } ? *
+      } /search deffst
+
+      0 tokens /wff metaLogicParsers * * |search rep
+
+      result
+    } /allMatchingSubparses deffst
 
     { # ==map ==key ==value
       -102 " " str .split -021 =[]
@@ -5707,6 +5730,15 @@
         { expr "( ph /\\ ps )" // } { $_
           [| "( " $ph ... " /\\ " $ps ... " )" |]
         }
+        { expr "( ph /\\ ps /\\ ch )" // } { $_
+          [| "( " $ph ... " /\\ " $ps ... " /\\ " $ch ... " )" |]
+        }
+        { expr "( ph \\/ ps )" // } { $_
+          [| "( " $ph ... " \\/ " $ps ... " )" |]
+        }
+        { expr "( ph \\/ ps \\/ ch )" // } { $_
+          [| "( " $ph ... " \\/ " $ps ... " \\/ " $ch ... " )" |]
+        }
         { expr "( A u. B )" // } { $_
           [| "( " $A ... " u. " $B ... " )" |]
         }
@@ -5744,6 +5776,14 @@
             [| "A. " $x " e. " $A ... " " $ph ... |]
           } ? *
         }
+        { expr "E. x e. A ph" // } { $_
+          from " " str .split $x eq any
+          to " " str .split $x eq any or {
+            expr
+          } {
+            [| "E. " $x " e. " $A ... " " $ph ... |]
+          } ? *
+        }
         { expr "{ x | ph }" // } { $_
           from " " str .split $x eq any
           to " " str .split $x eq any or {
@@ -5758,6 +5798,14 @@
             expr
           } {
             [| "{ " $x " e. " $A ... " | " $ph ... " }" |]
+          } ? *
+        }
+        { expr "[ A / x ] ph" // } { $_
+          from " " str .split $x eq any
+          to " " str .split $x eq any or {
+            expr
+          } {
+            [| "[ " $A ... " / " $x " ] " $ph ... |]
           } ? *
         }
         { expr "A =/= B" // } { $_
@@ -6590,7 +6638,7 @@
           goal .antes conclusion splitConjunction cat goal .thm newGoal
         ] /children goal .set
       } {
-        [| "Desired conclusion is not a wff: " universal |] err
+        [| "Desired conclusion is not a wff: " conclusion |] err
       } ? *
     } /conclude deffst
 
@@ -7165,14 +7213,16 @@
         }
       ] conds
 
-      map ==existingAntes
-      goal .antes { 1 -01 existingAntes =[] } each
+      "(range)" goal .resolution eq {
+        map ==existingAntes
+        goal .antes { 1 -01 existingAntes =[] } each
 
-      goal rangeAntecedent splitConjunction {
-        existingAntes .has not
-      } grep {
-        goal .antes -01 newGoal
-      } '*0.0 /children goal .set
+        goal rangeAntecedent splitConjunction {
+          existingAntes .has not
+        } grep {
+          goal .antes -01 newGoal
+        } '*0.0 /children goal .set
+      } rep
     } /ranges deffst
 
     { ==goal ==ante
@@ -7699,6 +7749,7 @@
 
     [ ] ==loadedCommands
     [ ] ==loadedAutomations
+    [ ] ==loadedDisplays
     { include }' /load deffst
 
     1 ==running
@@ -7758,6 +7809,22 @@
               [| "* " 2 ante renderNicely "\n" |] out
             } ? *
           } each
+          loadedDisplays len 0 gt {
+            |out _ ==origOut =*?out
+            {
+              origOut =out
+              [| "\e[1m-------------------------------------------------\n" |] out
+              out
+            } =out
+
+            [
+              loadedDisplays "*" | each
+            ] _ ==litter len 0 gt {
+              [| "Loaded displays left stuff on the stack." |] err
+              litter dump
+            } rep
+          } rep
+
           [|
             "\e[1m-------------------------------------------------"
             " (" selectedGoal 1 add txt .produce .u "/" goals len txt .produce .u ")"
