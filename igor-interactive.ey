@@ -6909,23 +6909,43 @@
         graph { 1 -01 * "<" eq } grep
       cat ==ltLeGraph
       map ==visited
+      map ==hopeless
       stack ==path
 
+      map ==nextStep
+      ltLeGraph { ==step
+        0 step * ==from
+          [ step ] from nextStep .has { from nextStep * cat } rep
+        from nextStep =[]
+      } each
+
       { ==src
-        src visited .has { src visited * } andif not {
-          1 src visited =[]
+        src hopeless .has not {
+          src visited .has { src visited * } andif not {
+            1 src visited =[]
 
-          src to eq {
-            0 path .top range path .data *
-          } {
-            ltLeGraph { 0 -01 * src eq } grep {
-              _ path .push
-                2 -01 * depthFirstSearch
-              path .pop --
-            } each
-          } ? *
+            src to eq {
+              0 path .top range path .data *
+            } {
+              src nextStep .has { src nextStep * { ==step
+                [
+                  step path .push
+                  2 step * depthFirstSearch
+                  path .pop --
+                ] ==results
+                results len 0 eq {
+                  2 step * ==target
+                  target visited .has { target visited * } andif not {
+                    1 2 step * hopeless =[]
+                  } rep
+                } {
+                  results _ len dearray
+                } ? *
+              } each } rep
+            } ? *
 
-          0 src visited =[]
+            0 src visited =[]
+          } rep
         } rep
       } /depthFirstSearch deffst
 
