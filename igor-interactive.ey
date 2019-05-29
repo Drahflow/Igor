@@ -5856,7 +5856,7 @@
           from /from goal .setExtra
           to /to goal .setExtra
         } {
-          [| "Could not parse replacement pattern." |] err
+          [| "Could not parse replacement pattern: " pattern |] err
         } ? *
       } {
         [| "Desired rewrite pattern not shown to be true." |] err
