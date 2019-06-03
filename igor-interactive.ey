@@ -4118,6 +4118,11 @@
         { thm "( A. x e. A ph -> A. x A. x e. A ph )" // } {
           [ /hbra1 $$ ] pushStep
         }
+        { thm "( A. y ph -> A. x A. y ph )" // } {
+          [ /hbal $$ ] pushStep
+
+          |pushStep [| "( " $ph " -> A. " $x " " $ph " )" |] constructUnused
+        }
         { thm "( A. y e. A ph -> A. x A. y e. A ph )" // } {
           [ /hbral $$ ] pushStep
 
@@ -4495,7 +4500,7 @@
               $D ==C
             $> ] pushStep
 
-            # |- ( A F ( B G C ) = ( A F <eval> )
+            # |- ( A F ( B G C ) ) = ( A F <eval> )
             [ /oveq2i <$
               [| "( " $B " " $G " " $C " )" |] ==A
               innerResult ==B $F ==F $A ==C
@@ -6460,7 +6465,7 @@
           # |- ( firstPart -> deduced )
           constructDeducedInstance
 
-          # |- ( deduced -> goal .thm }
+          # |- ( deduced -> goal .thm )
           1 goal .children * ==child
           child _ .strategy .usedAntecedent ==childAnte
 
@@ -6612,7 +6617,7 @@
 
             |pushStep 0 goal .children * _ .strategy .construct
 
-            # |- ( ( secondAnte /\ conclusion ) -> 1 goal .children * .thm
+            # |- ( secondAnte /\ conclusion ) -> 1 goal .children * .thm
             [ /syl$HERE18 <$
               [| "( " $ps " /\\ " $ch " )" |] ==ph
               rawSecondAnte ==ps
@@ -6650,13 +6655,19 @@
 
       { ==goal =*pushStep
         goal .resolution "\\(rename (.+) to (.+)\\)" regex -- ==from ==to
-        goal _ .strategy .usedAntecedent ==goalAnte
         0 goal .children * ==child
         child _ .strategy .usedAntecedent ==childAnte
+        childAnte to from rewriteRecursive ==goalAnte
 
         map ==lastGrammarMatch $_
-        [| "( " goalAnte " -> " goal .thm " )" |] $=ps
-        [| "( " childAnte " -> " child .thm " )" |] $=ph
+
+        goalAnte "" neq {
+          [| "( " goalAnte " -> " goal .thm " )" |] $=ps
+          [| "( " childAnte " -> " child .thm " )" |] $=ph
+        } {
+          goal .thm $=ps
+          child .thm $=ph
+        } ? *
         from $=y to $=x
         [ /chvar $$ ] pushStep
 
@@ -6686,6 +6697,134 @@
       } ? *
     } /rename deffst
 
+    { ==thm =*pushStep
+      {
+        [| 0 thm renderNicely "\n" |] out
+        /TODO:constructRangeHelper die
+      } /todo defvst
+
+      [
+        { thm "( A e. RR -> ( ( A - B ) + C ) <_ ( A - D ) )" // } { $_
+          # |- stepAnte -> orig <_ image
+          [| "( ( " $A " - " $B " ) + " $C " )" |] ==orig
+          [| "( " $A " - " $D " )" |] ==image
+
+          [ /syl$HERE31 <$
+            [| $A " e. RR" |] ==ph
+            [| "( " orig " e. RR /\\ " orig " = " image " )" |] ==ps
+            [| orig " <_ " image |] ==ch
+          $> ] pushStep
+
+          |pushStep [| "( " $A " e. RR -> ( " orig " e. RR /\\ " orig " = " image " ) )" |] constructRangeHelper
+          |pushStep [| "( ( " orig " e. RR /\\ " orig " = " image " ) -> " orig " <_ " image " )" |] constructRangeHelper
+        }
+        { thm "( ph -> ( ( A - B ) + C ) = ( A - ( B - C ) ) )" // } { $_
+          [| "( " $A " - ( " $B " - " $C " ) )" |] ==A
+          [| "( ( " $A " - " $B " ) + " $C " )" |] ==B
+
+          [ /eqcomd <$ $ph ==ph A ==A B ==B $> ] pushStep
+
+          |pushStep [| "( " $ph " -> " A " = " B " )" |] constructRangeHelper
+        }
+        { thm "( A e. RR -> ( A - ( B - C ) ) = ( ( A - B ) + C ) )" // } { $_
+          [| $A " e. RR" |] ==ph
+          [| "( " $A " e. CC /\\ " $B " e. CC /\\ " $C " e. CC )" |] ==ps
+          [| "( " $A " - ( " $B " - " $C " ) ) = ( ( " $A " - " $B " ) + " $C " )" |] ==ch
+
+          [ /syl$HERE30 <$ ph ==ph ps ==ps ch ==ch $> ] pushStep
+
+          |pushStep [| "( " ph " -> " ps " )" |] constructRangeHelper
+          |pushStep [| "( " ps " -> " ch " )" |] constructRangeHelper
+        }
+        { thm "( ( A e. CC /\\ B e. CC /\\ C e. CC ) -> ( A - ( B - C ) ) = ( ( A - B ) + C ) )" // } { $_
+          [ /subsub $$ ] pushStep
+        }
+        { thm "( ph -> ( ( A - B ) + C ) = ( A - D ) )" // } { $_
+          [| "( ( " $A " - " $B " ) + " $C " )" |] ==A
+          [| "( " $A " - ( " $B " - " $C " ) )" |] ==B
+          [| "( " $A " - " $D " )" |] ==C
+
+          [ /eqtrd <$ $ph ==ph A ==A B ==B C ==C $> ] pushStep
+
+          |pushStep [| "( " $ph " -> " A " = " B " )" |] constructRangeHelper
+          |pushStep [| "( " $ph " -> " B " = " C " )" |] constructRangeHelper
+        }
+        { thm "( ps -> ( C - ( D - E ) ) = ( C - I ) )" // } { $_
+          [| "( " $C " - ( " $D " - " $E " ) ) = ( " $C " - " $I " )" |] ==ph
+
+          [ /a1i <$ $ps ==ps ph ==ph $> ] pushStep
+
+          |pushStep ph constructRangeHelper
+        }
+        { thm "( C - ( D - E ) ) = ( C - B )" // } { $_
+          [ /oveq2i <$ $C ==C "-" ==F [| "( " $D " - " $E " )" |] ==A $B ==B $> ] pushStep
+
+          |pushStep [| "( " $D " - " $E " ) = " $B |] constructArithmetics
+        }
+        { thm "( A e. RR -> ( A e. CC /\\ B e. CC /\\ C e. CC ) )" // } { $_
+          [| $A " e. RR" |] ==ph
+          [| $A " e. CC" |] ==ps
+          [| $B " e. CC" |] ==ch
+          [| $C " e. CC" |] ==th
+          [ /3jca <$ ph ==ph ps ==ps ch ==ch th ==th $> ] pushStep
+
+          |pushStep [| "( " ph " -> " ps " )" |] constructRangeHelper
+          |pushStep [| "( " ph " -> " ch " )" |] constructRangeHelper
+          |pushStep [| "( " ph " -> " th " )" |] constructRangeHelper
+        }
+        { thm "( A e. RR -> A e. CC )" // } { $_
+          [ /recn $$ ] pushStep
+        }
+        { thm "( A e. RR -> B e. CC )" // { $B evaluateArithmetics } andif } { -- $_
+          [ /a1i <$ [| $A " e. RR" |] ==ps [| $B " e. CC" |] ==ph $> ] pushStep
+
+          |pushStep [| $B " e. CC" |] constructDecimal
+        }
+        { thm "( ph -> ( ps /\\ ch ) )" // } { $_
+          [ /jca $$ ] pushStep
+          |pushStep [| "( " $ph " -> " $ps " )" |] constructRangeHelper
+          |pushStep [| "( " $ph " -> " $ch " )" |] constructRangeHelper
+        }
+        { thm "( ( A e. RR /\\ A = B ) -> A <_ B )" // } { $_
+          [ /eqle $$ ] pushStep
+        }
+        { thm "( ph -> ( A + B ) e. RR )" // } { $_
+          [ /syl2anc <$
+            $ph ==ph
+            [| $A " e. RR" |] ==ps
+            [| $B " e. RR" |] ==ch
+            [| "( " $A " + " $B " ) e. RR" |] ==th
+          $> ] pushStep
+
+          |pushStep [| "( " $ph " -> " $A " e. RR )" |] constructRangeHelper
+          |pushStep [| "( " $ph " -> " $B " e. RR )" |] constructRangeHelper
+
+          [ /readdcl $$ ] pushStep
+        }
+        { thm "( ph -> ( A - B ) e. RR )" // } { $_
+          [ /syl2anc <$
+            $ph ==ph
+            [| $A " e. RR" |] ==ps
+            [| $B " e. RR" |] ==ch
+            [| "( " $A " - " $B " ) e. RR" |] ==th
+          $> ] pushStep
+
+          |pushStep [| "( " $ph " -> " $A " e. RR )" |] constructRangeHelper
+          |pushStep [| "( " $ph " -> " $B " e. RR )" |] constructRangeHelper
+
+          [ /resubcl $$ ] pushStep
+        }
+        { thm "( ps -> A e. RR )" //
+            { $A evaluateArithmetics } andif } { --
+          [ /a1i$HERE20 <$ $ps ==ps [| $A " e. RR" |] ==ph $> ] pushStep
+          |pushStep [| $A " e. RR" |] constructDecimal
+        }
+        { thm "( ph -> ph )" // } {
+          [ /id $$ ] pushStep
+        }
+        { 1 } todo
+      ] conds
+    } /constructRangeHelper deffst
     { ==goal
       [
         goal .antes { ==ante
@@ -6724,7 +6863,29 @@
               }_ ]
             }
             { ante "A >_ B" // } { $_
-              [ $B "<_" $A ante ]
+              [ $B "<_" $A [| "( " ante " /\\ ( " $A " e. _V /\\ " $B " e. _V ) )" |] _
+              { ==stepAnte =*pushStep
+                # |- ( A >_B /\ ( A e. _V /\ B e _V ) ) -> B <_ A
+
+                [ /mpbid <$
+                  [| $B " <_ " $A |] ==ch stepAnte ==ph ante ==ps
+                $> ] pushStep
+
+                # |- ( A >_ B /\ ( A e. _V /\ B e. _V ) ) -> A >_ B
+                [ /simpl <$
+                  ante ==ph
+                  [| "( " $A " e. _V /\\ " $B " e. _V )" |] ==ps
+                $> ] pushStep
+
+                # |- ( A >_ B /\ ( A e. _V /\ B e. _V ) ) -> ( A >_ B <-> B <_ A )
+                [ /adantl$HERE3 <$
+                  ante ==ch
+                  [| "( " $A " e. _V /\\ " $B " e. _V )" |] ==ph
+                  [| "( " $A " >_ " $B " <-> " $B " <_ " $A " )" |] ==ps
+                $> ] pushStep
+
+                [ /gte-lte $$ ] pushStep
+              }_ ]
             }
             { ante "A = B" // } { $_
               [ $A "<_" $B [| "( " $A " e. RR /\\ " ante " )" |] { =*pushStep
@@ -6759,37 +6920,40 @@
                 { result 0 lt } {
                   [
                     [| "( " $A " - " result neg printNumber { " " } each -- " )" |] "<_" orig
-                    [| "( " $A " e. RR /\\ ( " $B " e. RR /\\ " $C " e. RR ) )" |]
+                    [| $A " e. RR" |]
                     { /TODO:strategyRange20 die }
                   ]
                   [
-                    orig "<_" [| "( " $A " - " result neg printNumber { " " } each -- " )" |]
-                    [| "( " $A " e. RR /\\ ( " $B " e. RR /\\ " $C " e. RR ) )" |]
-                    { /TODO:strategyRange21 die }
+                    orig "<_" [| "( " $A " - " result neg printNumber { " " } each -- " )" |] _ ==image
+                    [| $A " e. RR" |] _ ==stepAnte
+
+                    { # =*pushStep
+                      [| "( " stepAnte " -> " orig " <_ " image " )" |] constructRangeHelper
+                    }
                   ]
                   1 [| " - " result neg printNumber { " " } each -- |] offsets =[]
                 }
                 { result 0 eq } {
                   [
                     $A "<_" orig
-                    [| "( " $A " e. RR /\\ ( " $B " e. RR /\\ " $C " e. RR ) )" |]
+                    [| $A " e. RR" |]
                     { /TODO:strategyRange22 die }
                   ]
                   [
                     orig "<_" $A
-                    [| "( " $A " e. RR /\\ ( " $B " e. RR /\\ " $C " e. RR ) )" |]
+                    [| $A " e. RR" |]
                     { /TODO:strategyRange23 die }
                   ]
                 }
                 { result 0 gt } {
                   [
                     [| "( " $A " + " result printNumber { " " } each -- " )" |] "<_" orig
-                    [| "( " $A " e. RR /\\ ( " $B " e. RR /\\ " $C " e. RR ) )" |]
+                    [| $A " e. RR" |]
                     { /TODO:strategyRange24 die }
                   ]
                   [
                     orig "<_" [| "( " $A " + " result printNumber { " " } each -- " )" |]
-                    [| "( " $A " e. RR /\\ ( " $B " e. RR /\\ " $C " e. RR ) )" |]
+                    [| $A " e. RR" |]
                     { /TODO:strategyRange25 die }
                   ]
                   1 [| " + " result printNumber { " " } each -- |] offsets =[]
@@ -6925,16 +7089,16 @@
               ]
               [
                 [| "( " 0 o off " )" |] "<" 0 o
-                [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR )" |]
-                {
-                  /TODO:strategyRange30 die
+                [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
+                { =*pushStep
+                  [ /ltsubrp <$ 0 o ==A 3 off str .postfix ==B $> ] pushStep
                 }
               ]
               [
                 [| "( " 2 o off " )" |] "<" 2 o
-                [| "( " 2 o " e. RR /\\ " 3 off str .postfix " e. RR )" |]
-                {
-                  /TODO:strategyRange31 die
+                [| "( " 2 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
+                { =*pushStep
+                  [ /ltsubrp <$ 2 o ==A 3 off str .postfix ==B $> ] pushStep
                 }
               ]
             } each
@@ -7172,24 +7336,31 @@
         # |- ( usedAntecedent -> 0 path * { <_, < } 1 neg path * )
         { ==path
           0 path * =*step
-          |step len 5 neq { |step dump /TODO:strategyRange die } rep
 
-          3 step ==stepAnte
-          4 step =*constructStep
+          [
+            |step len 5 neq { |step dump /TODO:strategyRange die } rep
 
-          stepAnte "" neq {
-            [ /syl$HERE24 <$ usedAnte ==ph stepAnte ==ps [| 0 step " " 1 step " " 2 step |] ==ch $> ] pushStep
+            3 step ==stepAnte
+            4 step =*constructStep
 
-            # |- ( usedAnte -> stepAnte )
-            |pushStep usedAnte stepAnte transformConjunct
+            stepAnte "" neq {
+              [ /syl$HERE24 <$ usedAnte ==ph stepAnte ==ps [| 0 step " " 1 step " " 2 step |] ==ch $> ] pushStep
 
-            # |- ( stepAnte -> [| 0 path * " { <_, < } " 1 path * |] )
-            |pushStep constructStep
-          } {
-            [ /a1i$HERE14 <$ usedAnte ==ps [| 0 step " " 1 step " " 2 step |] ==ph $> ] pushStep
+              # |- ( usedAnte -> stepAnte )
+              |pushStep usedAnte stepAnte transformConjunct
 
-            |pushStep constructStep
-          } ? *
+              # |- ( stepAnte -> [| 0 path * " { <_, < } " 1 path * |] )
+              |pushStep constructStep
+            } {
+              [ /a1i$HERE14 <$ usedAnte ==ps [| 0 step " " 1 step " " 2 step |] ==ph $> ] pushStep
+
+              |pushStep constructStep
+            } ? *
+          ] ==residue
+          residue len 0 gt {
+            [| "Range step construction polluted stack." |] err
+            |step dump
+          } rep
         } /constructOneStepPath deffst
         { ==path
           path len 1 eq {
@@ -7242,6 +7413,10 @@
                   2 1 neg path * * ==C
                   usedAnte ==ph
                 $> ] pushStep
+
+                |pushStep usedAnte [| 0 0 path * * " e. RR" |] transformConjunct
+                |pushStep usedAnte [| 0 0 right * * " e. RR" |] transformConjunct
+                |pushStep usedAnte [| 2 1 neg path * * " e. RR" |] transformConjunct
 
                 left constructLtFromPath
                 right constructLeFromPath
