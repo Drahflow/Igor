@@ -5031,7 +5031,7 @@
 
     { _ ==goal _ .thm ==thm .antes ==antes
       # meta variable expansion in-place
-      [| thm " " str .split expandMeta { " " } each -- |] ==expandedThm
+      [| thm " " str .split { "" neq } grep expandMeta { " " } each -- |] ==expandedThm
       thm expandedThm neq { expandedThm _ =thm /thm goal .set } rep
 
       antes dom { _ ==i antes * ==ante
@@ -7008,7 +7008,11 @@
           { 1 off * 0 "+" * eq } {
             graph { =*o [
               [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |]
-              [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |] _ ==stepAnte
+              3 o "" eq {
+                [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |]
+              } {
+                [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |]
+              } ? * _ ==stepAnte
               { =*pushStep
                 |o dump
                 [ [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |] ] dump
@@ -7020,8 +7024,15 @@
             graph { =*o
               [
                 [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |]
-                [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |] _ ==stepAnte
+                3 o "" eq {
+                  [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |]
+                } {
+                  [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |]
+                } ? * _ ==stepAnte
+
                 { =*pushStep
+                  3 o "" eq { /TODO:strategyRange25 die } rep
+
                   # TODO: This is a huge bunch of ante reorganization. Helper methods would be good
                   [ /mpbid <$
                     stepAnte ==ph
@@ -7152,9 +7163,6 @@
         graph { 1 -01 * "<_" eq } grep
         graph { 1 -01 * "<" eq } grep
       cat ==ltLeGraph
-      map ==visited
-      map ==hopeless
-      stack ==path
 
       map ==nextStep
       ltLeGraph { ==step
@@ -7163,38 +7171,28 @@
         from nextStep =[]
       } each
 
-      { ==src
-        src hopeless .has not {
-          src visited .has { src visited * } andif not {
-            1 src visited =[]
+      map ==paths # from element to shortest path from -> element
+      stack ==queue # things to (re-)check
 
-            src to eq {
-              0 path .top range path .data *
-            } {
-              src nextStep .has { src nextStep * { ==step
-                [
-                  step path .push
-                  2 step * depthFirstSearch
-                  path .pop --
-                ] ==results
-                results len 0 eq {
-                  2 step * ==target
-                  target visited .has { target visited * } andif not {
-                    1 2 step * hopeless =[]
-                  } rep
-                } {
-                  results _ len dearray
-                } ? *
-              } each } rep
-            } ? *
+      from queue .push
+      [ ] from paths =[]
 
-            0 src visited =[]
+      { queue .has } {
+        queue .pop ==src
+
+        src paths * len 1 add ==newLen
+        src nextStep .has { src nextStep * { ==step
+          2 step * ==dst
+
+          dst paths .has { newLen dst paths * len lt } { 1 } ? * {
+            src paths * [ step ] cat dst paths =[]
+            dst queue .push
           } rep
-        } rep
-      } /depthFirstSearch deffst
+        } each } rep
+      } loop
 
       [
-        from depthFirstSearch
+        to paths .has { to paths * } { } ? *
       ]
     } /findLeLtPaths deffst
 
