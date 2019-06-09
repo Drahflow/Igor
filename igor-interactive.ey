@@ -25,6 +25,26 @@
     { top } /has deffst
   > } /stack deffst
 
+  { <
+    0 128 range ==data
+    0 ==read
+    0 ==write
+
+    { # ==elem
+      write data len ge { data _ cat =data } rep
+      write data =[]
+      write 1 add =write
+    } /push deffst
+
+    {
+      read write eq { "export fifo underflow" die } rep
+      read _ 1 add =read
+             data *
+    } /pop deffst
+
+    { read write lt } /has deffst
+  > } /fifo deffst
+
   <
     map ==:renderNameCache
     "" ==name
