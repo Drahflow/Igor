@@ -6919,13 +6919,13 @@
 
       map ==numbers
       graph { 3 dearray ==A -- ==B
-        A evaluateArithmetics { -- 1 A numbers =[] } rep
-        B evaluateArithmetics { -- 1 B numbers =[] } rep
+        A evaluateArithmetics { A numbers =[] } rep
+        B evaluateArithmetics { B numbers =[] } rep
       } each
 
       goal .thm "A R B" // { $_
-        $A evaluateArithmetics { -- 1 $A numbers =[] } rep
-        $B evaluateArithmetics { -- 1 $B numbers =[] } rep
+        $A evaluateArithmetics { $A numbers =[] } rep
+        $B evaluateArithmetics { $B numbers =[] } rep
       } rep
 
       map ==offsets
@@ -6985,8 +6985,8 @@
       ] cat =graph
 
       graph [
-        numbers dom { _ ==Aexpr evaluateArithmetics -- ==A
-          numbers dom { _ ==Bexpr evaluateArithmetics -- ==B
+        numbers dom { _ ==Aexpr numbers * ==A
+          numbers dom { _ ==Bexpr numbers * ==B
             A B lt { [ Aexpr "<" Bexpr "" { # =*pushStep
               [| Aexpr " < " Bexpr |] constructArithmetics
             } ] } rep
@@ -7000,19 +7000,19 @@
       graph [
         graph { 3 dearray ==right ==rel ==left
           left "( A + B )" // {
-            [ $A rel [| "( " right " - " $B " )" |] ]
+            [ $A rel [| "( " right " - " $B " )" |] "" ]
             1 [| " + " $B |] offsets =[]
           } rep
           left "( A - B )" // {
-            [ $A rel [| "( " right " + " $B " )" |] ]
+            [ $A rel [| "( " right " + " $B " )" |] "" ]
             1 [| " - " $B |] offsets =[]
           } rep
           right "( A + B )" // {
-            [ [| "( " left " - " $B " )" |] rel $A ]
+            [ [| "( " left " - " $B " )" |] rel $A "" ]
             1 [| " + " $B |] offsets =[]
           } rep
           right "( A - B )" // {
-            [ [| "( " left " + " $B " )" |] rel $A ]
+            [ [| "( " left " + " $B " )" |] rel $A "" ]
             1 [| " - " $B |] offsets =[]
           } rep
         } each
@@ -7026,19 +7026,35 @@
       graph [
         offsets dom { ==off [
           { 1 off * 0 "+" * eq } {
-            graph { =*o [
-              [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |]
-              3 o "" eq {
-                [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |]
-              } {
-                [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |]
-              } ? * _ ==stepAnte
-              { =*pushStep
-                |o dump
-                [ [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |] ] dump
-                /TODO:strategyRange8 die
-              }
-            ] } each
+            graph { =*o
+              [
+                [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |]
+                3 o "" eq {
+                  [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |]
+                } {
+                  [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |]
+                } ? * _ ==stepAnte
+                { =*pushStep
+                  |o dump
+                  [ [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |] ] dump
+                  /TODO:strategyRange8 die
+                }
+              ]
+              [
+                0 o "<" [| "( " 0 o off " )" |]
+                [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
+                { =*pushStep
+                  /TODO:strategyRange47 die
+                }
+              ]
+              [
+                2 o "<" [| "( " 2 o off " )" |]
+                [| "( " 2 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
+                { =*pushStep
+                  /TODO:strategyRange48 die
+                }
+              ]
+            } each
           }
           { 1 off * 0 "-" * eq } {
             graph { =*o
@@ -7159,6 +7175,31 @@
             } rep
           } rep
         } each } each
+      ] cat ==graph
+
+      graph
+        { 3 dearray -201 -- neq } grep
+        map ==seen
+        { [| -01 { "$" } each |] _ seen .has -01 1 -01 seen =[] not } grep
+      =graph
+
+      map ==numbers
+      graph { 3 dearray ==A -- ==B
+        A evaluateArithmetics { A numbers =[] } rep
+        B evaluateArithmetics { B numbers =[] } rep
+      } each
+
+      graph [
+        numbers dom { _ ==Aexpr numbers * ==A
+          numbers dom { _ ==Bexpr numbers * ==B
+            A B lt { [ Aexpr "<" Bexpr "" { # =*pushStep
+              [| Aexpr " < " Bexpr |] constructArithmetics
+            } ] } rep
+            A B eq { [ Aexpr "<_" Bexpr "" { # =*pushStep
+              [| Aexpr " <_ " Bexpr |] constructArithmetics
+            } ] } rep
+          } each
+        } each
       ] cat ==graph
 
       graph
