@@ -56,8 +56,16 @@ objset ==blocks
     { =*f { t ==start f t start sub time l . add l setTime count l . 1 add l setCount } }
     quoted not { * } rep
   }
-  { time keys { _ dump _ time -01 . txt .produce .u " μs" cat dump count -01 . txt .produce .u " calls" cat dump } each }
-> -- /perfstats deffd -- { -- } "τ" defq
+  {
+    time keys _ { ==b ==a time a . time b . lt } order -01* {
+      [ -01 ==k
+        k time -01 . txt .produce .u " μs "
+        k count -01 . txt .produce .u " calls "
+        k
+      ] |cat fold dump
+    } each
+  }
+> -- /perfstats deffd "τ" defq
 
 { ==n =*f { n dump f "/" n cat dump } } "δ" deffst
 

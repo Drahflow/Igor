@@ -3877,13 +3877,13 @@
 
     { cachedPatternParse ==pattern ==subject
       subject " " str .split ==tokens
-      0 tokens 2 pattern * metaLogicParsers * * { ==tokensParse
+      { 0 tokens 2 pattern * metaLogicParsers * * } τparsing * { ==tokensParse
         tokensParse tokens pattern 2 dearray possibleSubstitutionsForParses ==substs
         substs len 1 eq {
           0 substs * =lastGrammarMatch 1
         } { 0 } ? *
       } { 0 } ? *
-    } "//" deffst
+    } "//" τ "//" deffst
 
     { cachedPatternParse ==pattern ==subject
       subject " " str .split ==tokens
@@ -3943,7 +3943,7 @@
       i |toks len neq { 0 =success } rep
 
       success { result 1 } { 0 } ? *
-    } /parseNumber deffst
+    } τparseNumber /parseNumber deffst
 
     {
       { ==ante
@@ -3964,7 +3964,7 @@
         ] conds
       } /split deffst
       [ -01 split ]
-    } /splitConjunction deffst
+    } τsplitConjunction /splitConjunction deffst
 
     { ==antes
       [
@@ -3987,7 +3987,7 @@
           # l 1 sub { [| "( " " /\\ " " )" -325140 |] } rep
         }
       ] conds
-    } /makeConjunction deffst
+    } τmakeConjunction /makeConjunction deffst
 
     { ==to ==from =*pushStep
       {
@@ -4044,7 +4044,7 @@
         }
         { 1 } failed
       ] conds
-    } /transformConjunct deffst
+    } τtransformConjunct /transformConjunct deffst
 
     { ==to ==from
       map ==available
@@ -4175,7 +4175,7 @@
           required { $x markDisj } each
         } rep
       } rep
-    } /unusedVariable deffst
+    } τunusedVariable /unusedVariable deffst
 
     <
       { ==goal
@@ -4260,7 +4260,7 @@
           /children goal .set
         } rep
       } rep
-    } /knownAntes deffst
+    } τknownAntes /knownAntes deffst
 
     { ==thm =*pushStep
       [
@@ -4411,71 +4411,80 @@
           strategyDecimal /strategy goal .set
         } rep
       } rep
-    } /decimal deffst
+    } τdecimal /decimal deffst
 
+    map ==cachedArithmetics
     { ==expr
-      [
-        { expr parseNumber } { # ==n
-          1
-        }
-        { expr "; A B" // } { $_
-          $A evaluateArithmetics {
-            10 mul $B evaluateArithmetics {
-              add 1
-            } {
-              -- 0
-            } ? *
-          } {
-            0
-          } ? *
-        }
-        { expr "( A + B )" // } { $_
-          $A evaluateArithmetics {
-            $B evaluateArithmetics {
-              add 1
-            } {
-              -- 0
-            } ? *
-          } {
-            0
-          } ? *
-        }
-        { expr "( A - B )" // } { $_
-          $A evaluateArithmetics {
-            $B evaluateArithmetics {
-              sub 1
-            } {
-              -- 0
-            } ? *
-          } {
-            0
-          } ? *
-        }
-        { expr "( A x. B )" // } { $_
-          $A evaluateArithmetics {
-            $B evaluateArithmetics {
-              mul 1
-            } {
-              -- 0
-            } ? *
-          } {
-            0
-          } ? *
-        }
-        { expr "( A mod B )" // } { $_
-          $A evaluateArithmetics {
-            $B evaluateArithmetics {
-              mod 1
-            } {
-              -- 0
-            } ? *
-          } {
-            0
-          } ? *
-        }
-        { 1 } { 0 }
-      ] conds
-    } /evaluateArithmetics deffst
+      expr cachedArithmetics .has not {
+        [
+          [
+            { expr parseNumber } { # ==n
+              1
+            }
+            { expr "; A B" // } { $_
+              $A evaluateArithmetics {
+                10 mul $B evaluateArithmetics {
+                  add 1
+                } {
+                  -- 0
+                } ? *
+              } {
+                0
+              } ? *
+            }
+            { expr "( A + B )" // } { $_
+              $A evaluateArithmetics {
+                $B evaluateArithmetics {
+                  add 1
+                } {
+                  -- 0
+                } ? *
+              } {
+                0
+              } ? *
+            }
+            { expr "( A - B )" // } { $_
+              $A evaluateArithmetics {
+                $B evaluateArithmetics {
+                  sub 1
+                } {
+                  -- 0
+                } ? *
+              } {
+                0
+              } ? *
+            }
+            { expr "( A x. B )" // } { $_
+              $A evaluateArithmetics {
+                $B evaluateArithmetics {
+                  mul 1
+                } {
+                  -- 0
+                } ? *
+              } {
+                0
+              } ? *
+            }
+            { expr "( A mod B )" // } { $_
+              $A evaluateArithmetics {
+                $B evaluateArithmetics {
+                  mod 1
+                } {
+                  -- 0
+                } ? *
+              } {
+                0
+              } ? *
+            }
+            { 1 } { 0 }
+          ] conds
+        ]
+
+        expr cachedArithmetics =[]
+      } rep
+
+      expr cachedArithmetics * _ len dearray
+    } τevaluateArithmetics /evaluateArithmetics deffst
 
     { ==thm =*pushStep
       {
@@ -4859,7 +4868,7 @@
         "(trivial)" /resolution goal .set
         strategyTrivialities /strategy goal .set
       } goal .thm constructTrivialities
-    } /trivialities deffst
+    } τtrivialities /trivialities deffst
 
     <
       { ==goal
@@ -4916,7 +4925,7 @@
 
         [ goal .antes newAntes cat thm newGoal ] /children goal .set
       } rep
-    } /extractAntes deffst
+    } τextractAntes /extractAntes deffst
 
     <
       { ==goal
@@ -4931,7 +4940,7 @@
         "... (fromAntes)" /resolution goal .set
         strategyFromAntes /strategy goal .set
       } rep
-    } /fromAntes deffst
+    } τfromAntes /fromAntes deffst
 
     <
       { ==goal
@@ -5009,7 +5018,7 @@
         $ps /deduced goal .setExtra
         $ph /source goal .setExtra
       } rep } each
-    } /withinAntes deffst
+    } τwithinAntes /withinAntes deffst
 
     # Things which could be a strategy maybe, but for now just call high-level commands
     { _ ==goal .thm ==thm
@@ -5047,7 +5056,7 @@
           } ? *
         } rep
       } rep
-    } /automations deffst
+    } τautomations /automations deffst
 
     { _ ==goal _ .thm ==thm .antes ==antes
       # meta variable expansion in-place
@@ -5082,7 +5091,7 @@
           } each
         } rep
       } ? *
-    } /normalizeGoal deffst
+    } τnormalizeGoal /normalizeGoal deffst
 
     # takes variable name, either wff, set or class
     { ==var
@@ -5163,7 +5172,7 @@
         } each
       } each
       disjunctionsViolated
-    } /hasDisjunctionViolations deffst
+    } τhasDisjunctionViolations /hasDisjunctionViolations deffst
 
     { ==substitution ==assertion
       assertion .disj { 2 dearray ==x ==y
@@ -5175,7 +5184,7 @@
           } rep
         } each
       } each
-    } /markDisjunctions deffst
+    } τmarkDisjunctions /markDisjunctions deffst
 
     <
       { ==goal
@@ -5535,7 +5544,7 @@
           } rep
         }
       ] conds
-    } /useTheorem deffst
+    } τuseTheorem /useTheorem deffst
 
     { ==thm =*pushStep
       0 ==applied
@@ -5886,7 +5895,7 @@
       } {
         [| "Desired rewrite pattern not shown to be true." |] err
       } ? *
-    } /rewrite deffst
+    } τrewrite /rewrite deffst
 
     { ==goal
       1 neg goal .antes * goal rewrite
@@ -6013,7 +6022,7 @@
           [| "Goal not in A. x e. A ph / A. x ph format." |] err
         }
       ] conds
-    } /takeAny deffst
+    } τtakeAny /takeAny deffst
 
     {
       [| "\n" |] out
@@ -6174,7 +6183,7 @@
       success not {
         [| "Failed to deduce:full." |] err
       } rep
-    } /deduceFull deffst
+    } τdeduceFull /deduceFull deffst
 
     <
       { ==goal
@@ -6250,7 +6259,7 @@
       [ clauses { goal .antes -01 newGoal } each ] /children goal .set
       /split /resolution goal .set
       strategySplit /strategy goal .set
-    } /split deffst
+    } τsplit /split deffst
 
     <
       { ==goal
@@ -6530,7 +6539,7 @@
       } {
         [| "Universal quantifier not among antecedents: " universal |] err
       } ? *
-    } /instantiate deffst
+    } τinstantiate /instantiate deffst
 
     <
       { ==goal
@@ -6665,7 +6674,7 @@
       } {
         [| "Desired conclusion is not a wff: " conclusion |] err
       } ? *
-    } /conclude deffst
+    } τconclude /conclude deffst
 
     <
       { ==goal
@@ -6715,7 +6724,7 @@
       } {
         [| "Desired rename would violate non-disjunction constraints." |] err
       } ? *
-    } /rename deffst
+    } τrename /rename deffst
 
     { ==thm =*pushStep
       {
@@ -7218,7 +7227,7 @@
       } rep
 
       lastGraph
-    } /buildRangeGraph deffst
+    } τbuildRangeGraph /buildRangeGraph deffst
 
     { ==graph ==to ==from
         graph { 1 -01 * "<_" eq } grep
@@ -7255,7 +7264,7 @@
       [
         to paths .has { to paths * } { } ? *
       ]
-    } /findLeLtPaths deffst
+    } τfindLeLtPaths /findLeLtPaths deffst
 
     { ==path
       [ path { 1 -01 * "<" eq } each ] any
@@ -7298,7 +7307,7 @@
 
       map ==unique allAntecedents { splitConjunction { 1 -01 unique =[] } each } each
       unique dom makeConjunction
-    } /rangeAntecedent deffst
+    } τrangeAntecedent /rangeAntecedent deffst
 
     { ==goal ==ante =*pushStep
       # |- ( ante -> goal .thm )
@@ -7557,7 +7566,7 @@
           goal .antes -01 newGoal
         } '*0.0 /children goal .set
       } rep
-    } /ranges deffst
+    } τranges /ranges deffst
 
     { ==goal ==ante
       goal .antes { ante neq } grep /antes goal .set
@@ -8012,7 +8021,7 @@
           thing " " str .split { _ "" eq { -- } { renderName } ? * " " } each --
         }
       ] conds
-    } /renderNicely deffst
+    } τrenderNicely /renderNicely deffst
 
     map ==disj map ==nonDisj
     { ==x ==y
