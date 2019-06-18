@@ -65,7 +65,7 @@ objset ==blocks
       ] |cat fold dump
     } each
   }
-> -- /perfstats deffd "τ" defq
+> -- /perfstats deffd -- { -- } "τ" defq
 
 { ==n =*f { n dump f "/" n cat dump } } "δ" deffst
 
@@ -466,11 +466,11 @@ objset ==blocks
 { "Generating logic parser...\n"      sys .out .writeall |noMetaVariables   generateLogicParsers } memoized /logicParsers deffst
 { "Generating meta-logic parser...\n" sys .out .writeall |alsoMetaVariables generateLogicParsers } memoized /metaLogicParsers deffst
 
-{ ==node node len 3 sub node * } /logicStart deffst
-{ ==node node len 2 sub node * } /logicEnd deffst
-{ ==node node len _ 3 sub node * -01 2 sub node * range } /logicRange deffst
-{ ==node node len 1 sub node * } /logicNonTerminal deffst
-{ ==node node len 3 sub } /logicChildCount deffst
+{ ==node node len 3 sub node * } /logicStart deffd
+{ ==node node len 2 sub node * } /logicEnd deffd
+{ ==node node len _ 3 sub node * -01 2 sub node * range } /logicRange deffd
+{ ==node node len 1 sub node * } /logicNonTerminal deffd
+{ ==node node len 3 sub } /logicChildCount deffd
 
 sys .argv len 3 eq {
   logicParsers --

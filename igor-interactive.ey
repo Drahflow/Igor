@@ -241,7 +241,11 @@
 
     tokensParse assertionParse recurse
 
-    [ valid { substitution } rep ]
+    valid { substitution } rep valid
+  } τpossibleSubstitutionsParsesScalar /possibleSubstitutionsForParsesScalar deffd
+
+  {
+    possibleSubstitutionsForParsesScalar { [ -01 ] } { [ ] } ? *
   } τpossibleSubstitutionsParses /possibleSubstitutionsForParses deffd
 
   { ==start ==rootNonterminal ==assertionTokens ==tokens ==tokensParse
@@ -3875,12 +3879,14 @@
       pattern grammarMatchCache *
     } /cachedPatternParse deffst
 
+    map ==cachedTokens
     { cachedPatternParse ==pattern ==subject
-      subject " " str .split ==tokens
-      { 0 tokens 2 pattern * metaLogicParsers * * } τparsing * { ==tokensParse
-        tokensParse tokens pattern 2 dearray possibleSubstitutionsForParses ==substs
-        substs len 1 eq {
-          0 substs * =lastGrammarMatch 1
+      subject cachedTokens .has not { subject " " str .split subject cachedTokens =[] } rep
+      subject cachedTokens * ==tokens
+      0 tokens 2 pattern * metaLogicParsers * * { ==tokensParse
+        tokensParse tokens pattern 2 dearray possibleSubstitutionsForParsesScalar
+        {
+          =lastGrammarMatch 1
         } { 0 } ? *
       } { 0 } ? *
     } "//" τ "//" deffst
