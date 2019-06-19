@@ -3930,6 +3930,7 @@
               i patternPartParse * buildPatternCheck
             } each ] ==childCheckers
 
+            # Might be useful later, when optimizing compilation is recouped more
             # sys .|executeIdentifier "☰" deffst
             # "{" ☰
             #   "subjectPartParse" "==" ☰
@@ -3944,17 +3945,14 @@
             #   } each
             # "}" ☰
 
-            { ==subjectPartParse
+            { ==subjectPartParse 0 ==i
               nt subjectPartParse logicNonTerminal eq {
                 1
-                childRange { ==i
-                  {
-                    i subjectPartParse *
-                    i childCheckers * *
-                  } {
-                    0
-                  } ? *
-                } each
+                { _ i childRange len lt and } { --
+                  i subjectPartParse *
+                  i childCheckers * *
+                  i 1 add =i
+                } loop
               } {
                 0
               } ? *
