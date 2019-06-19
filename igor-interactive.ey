@@ -3864,6 +3864,7 @@
     } /useLastMetas deffst
 
     map ==lastGrammarMatch
+
     map ==grammarMatchCache
     { ==pattern
       pattern grammarMatchCache .has not {
@@ -3879,16 +3880,109 @@
       pattern grammarMatchCache *
     } /cachedPatternParse deffst
 
+    # map ==cachedTokens
+    # { cachedPatternParse ==pattern ==subject
+    #   subject cachedTokens .has not { subject " " str .split subject cachedTokens =[] } rep
+    #   subject cachedTokens * ==tokens
+    #   0 tokens 2 pattern * metaLogicParsers * * { ==tokensParse
+    #     tokensParse tokens pattern 2 dearray possibleSubstitutionsForParsesScalar
+    #     {
+    #       =lastGrammarMatch 1
+    #     } { 0 } ? *
+    #   } { 0 } ? *
+    # } "//" τ "//" deffst
+
     map ==cachedTokens
-    { cachedPatternParse ==pattern ==subject
-      subject cachedTokens .has not { subject " " str .split subject cachedTokens =[] } rep
-      subject cachedTokens * ==tokens
-      0 tokens 2 pattern * metaLogicParsers * * { ==tokensParse
-        tokensParse tokens pattern 2 dearray possibleSubstitutionsForParsesScalar
-        {
-          =lastGrammarMatch 1
+    { ==pattern
+      pattern " " str .split ==patternTokens
+      [
+        { 0 patternTokens   /wff metaLogicParsers * * } { /wff }
+        { 0 patternTokens /class metaLogicParsers * * } { /class }
+        { 1 } { [| "Could not parse '" pattern "' as wff or class" |] die }
+      ] conds metaLogicParsers * =*subjectParser ==patternParse
+
+      map ==substitution
+      [ ] ==subjectTokens
+
+      { ==patternPartParse
+        patternPartParse logicNonTerminal ==nt
+        [
+          { nt "" eq } {
+            patternPartParse logicStart patternTokens * ==var
+            var substitution .has {
+              { ==subjectPartParse
+                subjectPartParse logicRange subjectTokens *
+                var substitution * arrEq
+              }
+            } {
+              { ==subjectPartParse
+                  subjectPartParse logicRange subjectTokens *
+                var substitution =[]
+                1
+              }
+            } ? *
+            "" var substitution =[] # mark this variable substituted
+          }
+          { 1 } {
+            0 patternPartParse logicChildCount range ==childRange
+
+            [ childRange { ==i
+              i patternPartParse * buildPatternCheck
+            } each ] ==childCheckers
+
+            # sys .|executeIdentifier "☰" deffst
+            # "{" ☰
+            #   "subjectPartParse" "==" ☰
+            #   nt ☰subjectPartParse ☰logicNonTerminal ☰eq
+            #   childRange { ==i
+            #     "{" ☰
+            #       i ☰subjectPartParse "*" ☰
+            #       i childCheckers *
+            #   } each
+            #   childRange { ==i
+            #     "}" ☰ "{" ☰ 0 "}" ☰ "?" ☰ "*" ☰
+            #   } each
+            # "}" ☰
+
+            { ==subjectPartParse
+              nt subjectPartParse logicNonTerminal eq {
+                1
+                childRange { ==i
+                  {
+                    i subjectPartParse *
+                    i childCheckers * *
+                  } {
+                    0
+                  } ? *
+                } each
+              } {
+                0
+              } ? *
+            }
+          }
+        ] conds
+      } /buildPatternCheck deffst
+
+      patternParse buildPatternCheck =*subjectParseCheck
+
+      { ==subject
+        subject cachedTokens .has not { subject " " str .split subject cachedTokens =[] } rep
+        subject cachedTokens * =subjectTokens
+        0 subjectTokens subjectParser { ==subjectParse
+          map =substitution
+          subjectParse subjectParseCheck {
+            substitution =lastGrammarMatch 1
+          } { 0 } ? *
         } { 0 } ? *
-      } { 0 } ? *
+      }
+    } /buildGrammarMatcher deffst
+
+    { ==pattern
+      pattern grammarMatchCache .has not {
+        pattern buildGrammarMatcher pattern grammarMatchCache =[]
+      } rep
+
+      pattern grammarMatchCache * *
     } "//" τ "//" deffst
 
     { cachedPatternParse ==pattern ==subject
@@ -4830,14 +4924,14 @@
     > ==strategyArithmetics
     { _ ==goal .thm ==thm
       [
-        [ "=" |eq ]
-        [ "=/=" |neq ]
-        [ "<" |lt ]
-        [ "<_" |le ]
-        [ ">" |gt ]
-        [ ">_" |ge ]
-      ] { 2 dearray =*check ==rel
-        thm [| "A " rel " B" |] // { $_
+        [ { "A = B" // } |eq ]
+        [ { "A =/= B" // } |neq ]
+        [ { "A < B" // } |lt ]
+        [ { "A <_ B" // } |le ]
+        [ { "A > B" // } |gt ]
+        [ { "A >_ B" // } |ge ]
+      ] { 2 dearray =*check =*rel
+        thm rel { $_
           $A evaluateArithmetics { ==A
             $B evaluateArithmetics { ==B
               A B check {
