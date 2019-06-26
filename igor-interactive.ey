@@ -5158,6 +5158,10 @@
           } ? *
         } rep
       } rep
+
+      thm "( ( A + B ) + C ) = ( A + ( B + C ) )" // {
+        /addass goal useTheorem
+      } rep
     } τautomations /automations deffst
 
     { _ ==goal _ .thm ==thm .antes ==antes
