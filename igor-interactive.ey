@@ -1,4 +1,8 @@
 <
+  # OPTIMIZATION ONLY
+  { "{ =*p [ -01 { _ p not \"--\" | rep }\" each ] } *" includeLine } /grep defq
+  # END OF OPTIMIZATION
+
   { [ } "[|" deffd sys .asmroutines .|assemblestr "|]" deffd
 
   emptyBlock ==renderContext
@@ -7261,9 +7265,47 @@
         ] conds } each
       ] cat ==graph
 
+      map ==terms
+      graph { [ 0 2 ] -01 * { ==term
+        1 term terms =[]
+      } each } each
+      goal .thm "A R B" // {
+        1 $A terms =[]
+        1 $B terms =[]
+      } rep
+
+      graph [
+        terms dom { _ ==t "( T + A )" // { $A evaluateArithmetics } andif { ==A
+          $T ==T
+
+          terms dom { _ ==s "( S + B )" // { $B evaluateArithmetics } andif { ==B $_
+            $S T eq {
+              [
+                { A B lt } {
+                  [ t "<" s "" { # =*pushStep
+                    /TODO:ranges105 die
+                  } ]
+                  [ t "<_" s "" { # =*pushStep
+                    /TODO:ranges106 die
+                  } ]
+                }
+                { B A lt } {
+                  [ s "<" t "" { # =*pushStep
+                    /TODO:ranges107 die
+                  } ]
+                  [ s "<_" t "" { # =*pushStep
+                    /TODO:ranges107 die
+                  } ]
+                }
+              ] conds
+            } rep
+          } rep } each
+        } rep } each
+      ] cat =graph
+
       map ==computed
       graph [
-        graph { [ 0 2 ] -01 * { ==term
+        terms dom { ==term
           term computed .has not {
             1 term computed =[]
 
@@ -7281,7 +7323,7 @@
               } rep
             } rep
           } rep
-        } each } each
+        } each
       ] cat ==graph
 
       graph
