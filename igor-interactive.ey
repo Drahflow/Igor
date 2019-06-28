@@ -6961,6 +6961,8 @@
       ] conds
     } /constructRangeHelper deffst
     { ==goal
+      [| "Bulding graph for " goal .thm |] out
+
       [
         goal .antes { ==ante
           [
@@ -7032,6 +7034,8 @@
         } each
       ] ==graph
 
+      graph len dump
+
       map ==numbers
       graph { 3 dearray ==A -- ==B
         A evaluateArithmetics { A numbers =[] } rep
@@ -7099,6 +7103,8 @@
         } rep
       ] cat =graph
 
+      graph len dump
+
       graph [
         numbers dom { _ ==Aexpr numbers * ==A
           numbers dom { _ ==Bexpr numbers * ==B
@@ -7110,7 +7116,9 @@
             } ] } rep
           } each
         } each
-      ] cat ==graph
+      ] cat =graph
+
+      graph len dump
 
       graph [
         graph { 3 dearray ==right ==rel ==left
@@ -7131,7 +7139,9 @@
             1 [| " - " $B |] offsets =[]
           } rep
         } each
-      ] cat ==graph
+      ] cat =graph
+
+      graph len dump
 
       goal .thm "( A + B ) R C" // { 1 [| " + " $B |] offsets =[] } rep
       goal .thm "( A - B ) R C" // { 1 [| " - " $B |] offsets =[] } rep
@@ -7267,7 +7277,17 @@
           }
           { 1 } { /ASSERT:strategyRange3 die }
         ] conds } each
-      ] cat ==graph
+      ] cat =graph
+
+      graph len dump
+
+      map ==unique
+      graph { _ ==i 3 dearray ==to ==rel ==from
+        to from neq {
+          i [| to "$" rel "$" from |] unique =[]
+        } rep
+      } each
+      unique dom unique * =graph
 
       map ==terms
       graph { [ 0 2 ] -01 * { ==term
@@ -7278,11 +7298,19 @@
         1 $B terms =[]
       } rep
 
+      /Terms... dump
+      terms dom len dump
+
+      map ==termsWithFirstPart
+      terms dom { _ ==t "( T + A )" // $_ { $A evaluateArithmetics } andif { ==A
+        $T termsWithFirstPart .has not { [ ] $T termsWithFirstPart =[] } rep
+        $T termsWithFirstPart * [ t ] cat $T termsWithFirstPart =[]
+      } rep } each
+
       graph [
         terms dom { _ ==t "( T + A )" // { $A evaluateArithmetics } andif { ==A
           $T ==T
-
-          terms dom { _ ==s "( S + B )" // { $B evaluateArithmetics } andif { ==B $_
+          T termsWithFirstPart * { _ ==s "( S + B )" // { $B evaluateArithmetics } andif { ==B $_
             $S T eq {
               [
                 { A B lt } {
@@ -7307,6 +7335,8 @@
         } rep } each
       ] cat =graph
 
+      graph len dump
+
       map ==computed
       graph [
         terms dom { ==term
@@ -7328,13 +7358,17 @@
             } rep
           } rep
         } each
-      ] cat ==graph
+      ] cat =graph
 
-      graph
-        { 3 dearray -201 -- neq } grep
-        map ==seen
-        { [| -01 { "$" } each |] _ seen .has -01 1 -01 seen =[] not } grep
-      =graph
+      graph len dump
+
+      map ==unique
+      graph { _ ==i 3 dearray ==to ==rel ==from
+        to from neq {
+          i [| to "$" rel "$" from |] unique =[]
+        } rep
+      } each
+      unique dom unique * =graph
 
       map ==numbers
       graph { 3 dearray ==A -- ==B
@@ -7342,23 +7376,42 @@
         B evaluateArithmetics { B numbers =[] } rep
       } each
 
+      /Numbers dump
+      numbers dom len dump
+
+      numbers dom { ==B ==A A numbers * B numbers * lt } order numbers dom * ==sortedNumbers
+
       graph [
-        numbers dom { _ ==Aexpr numbers * ==A
-          numbers dom { _ ==Bexpr numbers * ==B
+        "" ==Aexpr
+        sortedNumbers { ==Bexpr
+          Aexpr "" neq {
+            Aexpr numbers * ==A
+            Bexpr numbers * ==B
+
             A B lt { [ Aexpr "<" Bexpr "" { # =*pushStep
               [| Aexpr " < " Bexpr |] constructArithmetics
             } ] } rep
             A B eq { [ Aexpr "<_" Bexpr "" { # =*pushStep
               [| Aexpr " <_ " Bexpr |] constructArithmetics
             } ] } rep
-          } each
+          } rep
+          Bexpr =Aexpr
         } each
-      ] cat ==graph
+      ] cat =graph
+
+      graph len dump
+
+      map ==unique
+      graph { _ ==i 3 dearray ==to ==rel ==from
+        to from neq {
+          i [| to "$" rel "$" from |] unique =[]
+        } rep
+      } each
+      unique dom unique * =graph
+
+      /graph_complete dump
 
       graph
-        { 3 dearray -201 -- neq } grep
-        map ==seen
-        { [| -01 { "$" } each |] _ seen .has -01 1 -01 seen =[] not } grep
     } /buildRangeGraphImpl deffst
 
     [ ] ==lastGraph
