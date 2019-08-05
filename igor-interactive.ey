@@ -6065,6 +6065,10 @@
           1 neg open * =goal
         } rep
       } each
+
+      goal .isopen not {
+        goal openGoals |rewriteSimpler each
+      } rep
     } /rewriteSimpler deffst
 
     <
