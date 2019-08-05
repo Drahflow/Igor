@@ -1,6 +1,6 @@
 <
   # OPTIMIZATION ONLY
-  { "{ =*p [ -01 { _ p not \"--\" | rep }\" each ] } *" includeLine } /grep defq
+  { "{ =*p [ -01 { _ p not \"--\" | rep }' each ] } *" includeLine } /grep defq
   # END OF OPTIMIZATION
 
   { [ } "[|" deffd sys .asmroutines .|assemblestr "|]" deffd
@@ -4131,18 +4131,32 @@
               |pushStep right to transformConjunct
             }
             { 1 } {
-              to "( ps /\\ ch )" // {
-                $_ from $=ph
-                [ /jca$HERE1 $$ ] pushStep
+              [
+                { to "( ps /\\ ch )" // } {
+                  $_ from $=ph
+                  [ /jca$HERE1 $$ ] pushStep
 
-                $ps ==toLeft
-                $ch ==toRight
+                  |pushStep from $ps transformConjunct
+                  |pushStep from $ch transformConjunct
+                }
+                { to "( ps /\\ ch /\\ th )" // } {
+                  $_ from $=ph
+                  [ /3jca$HERE1 $$ ] pushStep
 
-                |pushStep from toLeft transformConjunct
-                |pushStep from toRight transformConjunct
-              } failed ? *
+                  |pushStep from $ps transformConjunct
+                  |pushStep from $ch transformConjunct
+                  |pushStep from $th transformConjunct
+                }
+                { 1 } failed
+              ] conds
             }
           ] conds
+        }
+        { to [| "( " from " /\\ " from " )" |] eq } {
+          [ /jca <$ from _ _ ==ph ==ps ==ch $> ] pushStep
+
+          [ /id <$ from ==ph $> ] pushStep
+          [ /id <$ from ==ph $> ] pushStep
         }
         { 1 } failed
       ] conds
@@ -5784,6 +5798,7 @@
 
           # |- ( requestedAnte -> child .thm )
           map ==lastGrammarMatch $_
+          requestedAnte $=ps
           child .thm $=ph
           [ /a1i$HERE7 $$ ] pushStep
 
@@ -5999,13 +6014,58 @@
           [| "Could not parse replacement pattern: " pattern |] err
         } ? *
       } {
-        [| "Desired rewrite pattern not shown to be true." |] err
+        pattern goal conclude
+
+        goal openGoals ==open
+        open len 0 gt {
+          pattern 1 neg open * rewrite
+        } rep
       } ? *
     } τrewrite /rewrite deffst
 
     { ==goal
       1 neg goal .antes * goal rewrite
     } /andRewrite deffst
+
+    { ==goal
+      [| goal .antes _ len dearray goal .thm |] ==allTxt
+
+      { ==expr
+        [
+          { expr parseNumber } { -- 5 }
+          { expr evaluateArithmetics } { -- 6 }
+          { 1 } { 999 }
+        ] conds
+      } /complexity deffst
+
+      map ==toRewrite
+      map ==rewriteWff
+
+      goal .antes { ==ante
+        ante "A = B" // { $_
+          $A complexity $B complexity gt {
+            $A toRewrite .has {
+              $A toRewrite * complexity $B complexity gt {
+                $B $A toRewrite =[]
+                ante $A rewriteWff =[]
+              } rep
+            } {
+              $B $A toRewrite =[]
+              ante $A rewriteWff =[]
+            } ? *
+          } rep
+        } rep
+      } each
+
+      rewriteWff dom { _ ==from rewriteWff * ==wff
+        # TODO: Verify the rewrite actually does anything
+        wff goal rewrite
+        goal openGoals ==open
+        open len 0 gt {
+          1 neg open * =goal
+        } rep
+      } each
+    } /rewriteSimpler deffst
 
     <
       { ==goal
@@ -7309,9 +7369,9 @@
 
       graph [
         terms dom { _ ==t "( T + A )" // { $A evaluateArithmetics } andif { ==A
-          $T ==T
+          $T ==T $A ==As
           T termsWithFirstPart * { _ ==s "( S + B )" // { $B evaluateArithmetics } andif { ==B $_
-            $S T eq {
+            $S T eq { $B ==Bs
               [
                 { A B lt } {
                   [ t "<" s "" { # =*pushStep
@@ -7322,11 +7382,17 @@
                   } ]
                 }
                 { B A lt } {
-                  [ s "<" t "" { # =*pushStep
-                    /TODO:ranges107 die
-                  } ]
+                  [ s "<" t [| "( " Bs " e. RR /\\ " As " e. RR /\\ " T " e. RR )" |] _ { ==stepAnte =*pushStep
+                    [ /mpd <$ stepAnte ==ph [| Bs " < " As |] ==ps [| s " < " t |] ==ch $> ] pushStep
+
+                    # stepAnte -> B < A
+                    [ /a1i <$ stepAnte ==ps [| Bs " < " As |] ==ph $> ] pushStep
+                    |pushStep [| Bs " < " As |] constructArithmetics
+
+                    [ /axltadd <$ Bs ==A As ==B T ==C $> ] pushStep
+                  }_ ]
                   [ s "<_" t "" { # =*pushStep
-                    /TODO:ranges107 die
+                    /TODO:ranges108 die
                   } ]
                 }
               ] conds
@@ -7859,7 +7925,7 @@
           { resolutionName collectedEHyps .has } {
             [
               resolution
-              resolution collectedEHyps *
+              [| resolutionName collectedEHyps * { " " } each -- |]
             ] proofTree .push
           }
           { resolutionName assertions .has } {
@@ -7901,7 +7967,9 @@
                       } rep
                     } rep
                     2 neg eHypResolution * "$" str .split 0 -01 * ==name
-                    name assertions .has not { name "?" neq } andif {
+                    name assertions .has not
+                        { name "?" neq } andif
+                        { name collectedEHyps .has not } andif {
                       step dump
                       [| "Attempt to resolve $e hypothesis by syntax construction: " hyp |] err
                     } rep
@@ -8405,6 +8473,7 @@
         { cmd "nondisj" eq { args "^(.*) <=> (.*)" regex } andif } { markNonDisj }
         { cmd "rewrite" eq } { args selectedGoal goals * rewrite } unlessSolved
         { cmd "and:rewrite" eq } { selectedGoal goals * andRewrite } unlessSolved
+        { cmd "rewrite:simpler" eq } { selectedGoal goals * rewriteSimpler } unlessSolved
         { cmd "take:any" eq } { selectedGoal goals * takeAny } unlessSolved
         { cmd "rename" eq { args "(.) to (.)" regex } andif } { selectedGoal goals * rename } unlessSolved
         { cmd "range" eq } { selectedGoal goals * ranges } unlessSolved
