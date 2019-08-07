@@ -5179,6 +5179,10 @@
     } τautomations /automations deffst
 
     { _ ==goal _ .thm ==thm .antes ==antes
+      sys .asm .remainingCallStack 1000 lt {
+        [| "Low call stack." |] err
+      } rep
+
       # meta variable expansion in-place
       [| thm " " str .split { "" neq } grep expandMeta { " " } each -- |] ==expandedThm
       thm expandedThm neq { expandedThm _ =thm /thm goal .set } rep
@@ -6070,6 +6074,21 @@
         goal openGoals |rewriteSimpler each
       } rep
     } /rewriteSimpler deffst
+
+    { ==goals
+      stack ==toRewrite
+      goals reverse { toRewrite .push } each
+      { toRewrite .has } {
+        toRewrite .pop ==goal
+        [| 0 goal .thm renderNicely "\n" |] out
+        goal normalizeGoal
+        goal .isopen {
+          goal rewriteSimpler
+        } {
+          goal openGoals reverse { toRewrite .push } each
+        } ? *
+      } loop
+    } /rewriteSimplerAll deffst
 
     <
       { ==goal
@@ -8478,6 +8497,7 @@
         { cmd "rewrite" eq } { args selectedGoal goals * rewrite } unlessSolved
         { cmd "and:rewrite" eq } { selectedGoal goals * andRewrite } unlessSolved
         { cmd "rewrite:simpler" eq } { selectedGoal goals * rewriteSimpler } unlessSolved
+        { cmd "rewrite:simpler:all" eq } { goals rewriteSimplerAll }
         { cmd "take:any" eq } { selectedGoal goals * takeAny } unlessSolved
         { cmd "rename" eq { args "(.) to (.)" regex } andif } { selectedGoal goals * rename } unlessSolved
         { cmd "range" eq } { selectedGoal goals * ranges } unlessSolved
