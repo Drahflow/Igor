@@ -7023,6 +7023,17 @@
           |pushStep [| "( " ph " -> " ch " )" |] constructRangeHelper
           |pushStep [| "( " ph " -> " th " )" |] constructRangeHelper
         }
+        { thm "( ph -> ( A e. RR /\\ B e. RR /\\ C e. RR ) )" // } { $_
+          $ph ==ph
+          [| $A " e. RR" |] ==ps
+          [| $B " e. RR" |] ==ch
+          [| $C " e. RR" |] ==th
+          [ /3jca <$ ph ==ph ps ==ps ch ==ch th ==th $> ] pushStep
+
+          |pushStep [| "( " ph " -> " ps " )" |] constructRangeHelper
+          |pushStep [| "( " ph " -> " ch " )" |] constructRangeHelper
+          |pushStep [| "( " ph " -> " th " )" |] constructRangeHelper
+        }
         { thm "( A e. RR -> A e. CC )" // } { $_
           [ /recn $$ ] pushStep
         }
@@ -7092,6 +7103,11 @@
         }
         { thm "( ph -> ph )" // } {
           [ /id $$ ] pushStep
+        }
+        { thm "( ph -> ps )" // } { $_
+          $ph splitConjunction $ps eq any {
+            |pushStep $ph $ps transformConjunct
+          } |todo ? *
         }
         { 1 } todo
       ] conds
@@ -7227,9 +7243,12 @@
                     { /TODO:strategyRange24 die }
                   ]
                   [
-                    orig "<_" [| "( " $A " + " result printNumber { " " } each -- " )" |]
-                    [| $A " e. RR" |]
-                    { /TODO:strategyRange25 die }
+                    orig "<_" [| "( " $A " + " result printNumber { " " } each -- " )" |] _ ==image
+                    [| $A " e. RR" |] _ ==stepAnte
+
+                    { # =*pushStep
+                      [| "( " stepAnte " -> " orig " <_ " image " )" |] constructRangeHelper
+                    }
                   ]
                   1 [| " + " result printNumber { " " } each -- |] offsets =[]
                 }
@@ -7297,8 +7316,6 @@
                 } ? * _ ==stepAnte
 
                 { =*pushStep
-                  3 o "" eq { /TODO:strategyRange25 die } rep
-
                   # |- stepAnte -> ( 0 o off ) <rel> ( 2 o off )
                   [ /mpbid <$
                     stepAnte ==ph
@@ -7307,8 +7324,12 @@
                   $> ] pushStep
 
                   # |- stepAnte -> [ 0 1 2 ] o
-                  [ /syl$HERE20 <$ stepAnte ==ph 3 o ==ps [| 0 o " " 1 o " " 2 o |] ==ch $> ] pushStep
-                  [ /simpl <$ 3 o ==ph [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps $> ] pushStep
+                  3 o "" eq {
+                    [ /a1i <$ stepAnte ==ps [| 0 o " " 1 o " " 2 o |] ==ph $> ] pushStep
+                  } {
+                    [ /syl$HERE20 <$ stepAnte ==ph 3 o ==ps [| 0 o " " 1 o " " 2 o |] ==ch $> ] pushStep
+                    [ /simpl <$ 3 o ==ph [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps $> ] pushStep
+                  } ? *
                   |o len 5 neq { |o dump /TODO:strategyRange die } rep
                   |pushStep 4 o *
 
@@ -7334,14 +7355,14 @@
                 0 o "<" [| "( " 0 o off " )" |]
                 [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
                 { =*pushStep
-                  /TODO:strategyRange47 die
+                  [ /ltaddrp <$ 0 o ==A 3 off str .postfix ==B $> ] pushStep
                 }
               ]
               [
                 2 o "<" [| "( " 2 o off " )" |]
                 [| "( " 2 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
                 { =*pushStep
-                  /TODO:strategyRange48 die
+                  [ /ltaddrp <$ 2 o ==A 3 off str .postfix ==B $> ] pushStep
                 }
               ]
             } each
@@ -7357,7 +7378,7 @@
                 } ? * _ ==stepAnte
 
                 { =*pushStep
-                  3 o "" eq { /TODO:strategyRange25 die } rep
+                  3 o "" eq { /TODO:strategyRange206 die } rep
 
                   # |- stepAnte -> ( 0 o off ) <rel> ( 2 o off )
                   [ /mpbid <$
@@ -7445,9 +7466,15 @@
             $S T eq { $B ==Bs
               [
                 { A B lt } {
-                  [ t "<" s "" { # =*pushStep
-                    /TODO:ranges105 die
-                  } ]
+                  [ t "<" s [| "( " As " e. RR /\\ " Bs " e. RR /\\ " T " e. RR )" |] _ { ==stepAnte =*pushStep
+                    [ /mpd <$ stepAnte ==ph [| As " < " Bs |] ==ps [| t " < " s |] ==ch $> ] pushStep
+
+                    # stepAnte -> A < B
+                    [ /a1i <$ stepAnte ==ps [| As " < " Bs |] ==ph $> ] pushStep
+                    |pushStep [| As " < " Bs |] constructArithmetics
+
+                    [ /axltadd <$ As ==A Bs ==B T ==C $> ] pushStep
+                  }_ ]
                   [ t "<_" s "" { # =*pushStep
                     /TODO:ranges106 die
                   } ]
