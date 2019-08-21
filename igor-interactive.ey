@@ -4015,6 +4015,14 @@
     { < map ==m { m $=[] } "==" =* }" "<$" deffst
     { m > -- }" "$>" deffst
 
+    # <$ [| "a b c" |] ==ph $> "$$$" viaForInterpolation ... $$$ph => "a" "b" "c"
+    { ==name =*map
+      { # ==var
+        map { " " } each --
+      }
+      name
+    } |deffst ; /viaForInterpolation deffst
+
     { lastGrammarMatch * [| -01 { " " } each -- |] } "$" deffst
     { lastGrammarMatch $=[] } "$=" deffst
     { lastGrammarMatch } "$$" deffst
@@ -4435,6 +4443,11 @@
         { thm "8 e. NN" // } { [ /8nn map ] pushStep }
         { thm "9 e. NN" // } { [ /9nn map ] pushStep }
         { thm "10 e. NN" // } { [ /10nn map ] pushStep }
+        { thm "( A + B ) e. RR" // } { $_
+          [ /readdcli $$ ] pushStep
+          |pushStep [| $A " e. RR" |] constructDecimal
+          |pushStep [| $B " e. RR" |] constructDecimal
+        }
         { thm "( B - A ) e. NN" // } { $_
           [ /mpbi <$ thm ==ps [| $A " < " $B |] ==ph $> ] pushStep
 
@@ -4762,6 +4775,16 @@
               } failed ? *
             } failed ? *
           } failed ? *
+        }
+        { thm "( A x. 0 ) = 0" // } { $_
+          [ /mul01i $$ ] pushStep
+
+          |pushStep [| $A " e. CC" |] constructDecimal
+        }
+        { thm "( 0 x. A ) = 0" // } { $_
+          [ /mul02i $$ ] pushStep
+
+          |pushStep [| $A " e. CC" |] constructDecimal
         }
         { thm "( ; A B x. ; C D ) = ; ; E F G" // } { $_
           [ [ /A /B /C /D /E /F /G ] { ==v
@@ -5676,6 +5699,7 @@
         /id
         /bicom1
         /eqcom
+        /eqid
         /imbi1d /imbi2d /imbi12d
         /bibi1d /bibi2d /bibi12d
         /eleq1d /eleq2d /eleq12d
@@ -5738,6 +5762,15 @@
         |pushStep [| "( " $A " = " $B " <-> " $B " = " $A " )" |] constructRewrite
       } rep
 
+      applied not { thm "( ps -> A = A )" // } andif {
+        1 =applied
+
+        [| $A " = " $A |] $=ph
+        [ /a1i $$ ] pushStep
+
+        |pushStep [| $A " = " $A |] constructRewrite
+      } rep
+
       applied not { thm "( ph -> A. x ph )" // } andif
                   { $ph " " str .split $x eq any not } andif {
         1 =applied
@@ -5751,8 +5784,8 @@
       } rep
 
       applied not {
+        [| "Failed to construct rewrite proof." |] err
         [| "\n" 0 thm renderNicely "\n" |] out
-        /TODO:constructRewrite die
       } rep
     } /constructRewrite deffst
 
@@ -6998,10 +7031,30 @@
 
           |pushStep [| $B " e. CC" |] constructDecimal
         }
+        { thm "( ( ph /\\ ps ) -> ps )" // } { $_
+          [ /simpr $$ ] pushStep
+        }
         { thm "( ph -> ( ps /\\ ch ) )" // } { $_
           [ /jca $$ ] pushStep
           |pushStep [| "( " $ph " -> " $ps " )" |] constructRangeHelper
           |pushStep [| "( " $ph " -> " $ch " )" |] constructRangeHelper
+        }
+        { thm "( ( ph /\\ ( ps /\\ ch ) ) -> ( ps /\\ ch /\\ th ) )" // } { $_
+          [ /mpbird <$
+            [| "( " $ph " /\\ ( " $ps " /\\ " $ch " ) )" |] ==ph
+            [| "( " $ps " /\\ " $ch " /\\ " $th " )" |] ==ps
+            [| "( ( " $ps " /\\ " $ch " ) /\\ " $th " )" |] ==ch
+          $> _ "$₁" viaForInterpolation ] pushStep
+
+          |pushStep [| "( " $₁ph " -> " $₁ch " )" |] constructRangeHelper
+          |pushStep [| "( " $₁ph " -> ( " $₁ps " <-> " $₁ch " ) )" |] constructRangeHelper
+        }
+        { thm "( th -> ( ( ph /\\ ps /\\ ch ) <-> ( ( ph /\\ ps ) /\\ ch ) ) )" // } { $_
+          [ /a1i <$
+            $th ==ps
+            [| "( ( " $ph " /\\ " $ps " /\\ " $ch " ) <-> ( ( " $ph " /\\ " $ps " ) /\\ " $ch ") )" |] ==ph
+          $> ] pushStep
+          [ /df-3an $$ ] pushStep
         }
         { thm "( ( A e. RR /\\ A = B ) -> A <_ B )" // } { $_
           [ /eqle $$ ] pushStep
@@ -7242,10 +7295,39 @@
                 } {
                   [| "( " 3 o " /\\ ( " 0 o " e. RR /\\ " 2 o " e. RR ) )" |]
                 } ? * _ ==stepAnte
+
                 { =*pushStep
-                  |o dump
-                  [ [| "( " 0 o off " )" |] 1 o [| "( " 2 o off " )" |] ] dump
-                  /TODO:strategyRange8 die
+                  3 o "" eq { /TODO:strategyRange25 die } rep
+
+                  # |- stepAnte -> ( 0 o off ) <rel> ( 2 o off )
+                  [ /mpbid <$
+                    stepAnte ==ph
+                    [| 0 o " " 1 o " " 2 o |] ==ps
+                    [| "( " 0 o off " ) " 1 o " ( " 2 o off " )" |] ==ch
+                  $> ] pushStep
+
+                  # |- stepAnte -> [ 0 1 2 ] o
+                  [ /syl$HERE20 <$ stepAnte ==ph 3 o ==ps [| 0 o " " 1 o " " 2 o |] ==ch $> ] pushStep
+                  [ /simpl <$ 3 o ==ph [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps $> ] pushStep
+                  |o len 5 neq { |o dump /TODO:strategyRange die } rep
+                  |pushStep 4 o *
+
+                  # |- stepAnte -> ( [ 0 1 2 ] o <-> this_step )
+                  [ /syl$HERE20 <$
+                    stepAnte ==ph
+                    [| "( " 0 o " e. RR /\\ " 2 o " e. RR /\\ " 3 off str .postfix " e. RR )" |] ==ps
+                    [| "( " 0 o " " 1 o " " 2 o " <-> ( " 0 o off " ) " 1 o " ( " 2 o off " ) )" |] ==ch
+                  $> ] pushStep
+
+                  # |- stepAnte -> ( 0 o e. RR /\ 2 o e. RR /\ 3 off str .postfix e. RR )
+                  |pushStep [| "( " stepAnte " -> ( " 0 o " e. RR /\\ " 2 o " e. RR /\\ " 3 off str .postfix " e. RR ) )" |] constructRangeHelper
+
+                  # |- ( 0 o e. RR /\ 2 o e. RR /\ 3 off str .postfix e. RR ) -> ...
+                  1 o "<_" eq {
+                    [ /leadd1 <$ 0 o ==A 2 o ==B 3 off str .postfix ==C $> ] pushStep
+                  } {
+                    [ /ltadd1 <$ 0 o ==A 2 o ==B 3 off str .postfix ==C $> ] pushStep
+                  } ? *
                 }
               ]
               [
@@ -7277,7 +7359,7 @@
                 { =*pushStep
                   3 o "" eq { /TODO:strategyRange25 die } rep
 
-                  # TODO: This is a huge bunch of ante reorganization. Helper methods would be good
+                  # |- stepAnte -> ( 0 o off ) <rel> ( 2 o off )
                   [ /mpbid <$
                     stepAnte ==ph
                     [| 0 o " " 1 o " " 2 o |] ==ps
@@ -7297,42 +7379,8 @@
                     [| "( " 0 o " " 1 o " " 2 o " <-> ( " 0 o off " ) " 1 o " ( " 2 o off " ) )" |] ==ch
                   $> ] pushStep
 
-                  # |- stepAnte -> ( 0 o e. RR /\ 1 o e. RR /\ 3 off str .postfix e. RR )
-                  [ /mpbird <$
-                    stepAnte ==ph
-                    [| "( ( " 0 o " e. RR /\\ " 2 o " e. RR ) /\\ " 3 off str .postfix " e. RR )" |] ==ch
-                    [| "( " 0 o " e. RR /\\ " 2 o " e. RR /\\ " 3 off str .postfix " e. RR )" |] ==ps
-                  $> ] pushStep
-
-                  # |- stepAnte -> ( ( 0 o e. RR /\ 1 o e. RR ) /\ 3 off str .postfix e. RR )
-                  [ /jctir <$
-                    stepAnte ==ph
-                    [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps
-                    [| 3 off str .postfix " e. RR" |] ==ch
-                  $> ] pushStep
-
-                  [ /simpr <$
-                    3 o ==ph
-                    [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps
-                  $> ] pushStep
-                  |pushStep [| 3 off str .postfix " e. RR" |] constructDecimal
-
-                  [ /a1i$HERE12 <$
-                    stepAnte ==ps
-                    [|
-                      "( "
-                        "( " 0 o " e. RR /\\ " 2 o " e. RR /\\ " 3 off str .postfix " e. RR )"
-                      " <-> "
-                        "( ( " 0 o " e. RR /\\ " 2 o " e. RR ) /\\ " 3 off str .postfix " e. RR )"
-                      " )"
-                    |] ==ph
-                  $> ] pushStep
-
-                  [ /df-3an <$
-                    [| 0 o " e. RR" |] ==ph
-                    [| 2 o " e. RR" |] ==ps
-                    [| 3 off str .postfix " e. RR" |] ==ch
-                  $> ] pushStep
+                  # |- stepAnte -> ( 0 o e. RR /\ 2 o e. RR /\ 3 off str .postfix e. RR )
+                  |pushStep [| "( " stepAnte " -> ( " 0 o " e. RR /\\ " 2 o " e. RR /\\ " 3 off str .postfix " e. RR ) )" |] constructRangeHelper
 
                   # |- ( 0 o e. RR /\ 2 o e. RR /\ 3 off str .postfix e. RR ) -> ...
                   1 o "<_" eq {
