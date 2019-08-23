@@ -8198,7 +8198,7 @@
       flatProof .data =flatProof
 
       # Checking, duplication detection + tagging
-      # Elements: [ "|- ph" <min proof step used> <final proof step> ]
+      # Elements: [ "|- ph" <index of first proof step used> <index of final proof step> ]
       stack ==proofState
       # From "|- ph" to proof step which first produced it
       map ==seenThms
@@ -8255,7 +8255,7 @@
             } each
 
             [| a .thm substitution applySubstitution { " " } each -- |] ==newThm
-            newThm seenThms .has {
+            newThm seenThms .has { newThm seenThms * flatProof * 1 -01 str .prefix "~" neq } andif {
               newThm seenThms * blockStart lt { blockStart i lt } andif {
                 [| "*" newThm |] i flatProof =[]
                 blockStart i range { ==j
