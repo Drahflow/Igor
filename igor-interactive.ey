@@ -4712,6 +4712,17 @@
           [ /dec0h $$ ] pushStep
           |pushStep [| $A " e. NN0" |] constructDecimal
         }
+        { thm "( A + B ) = ; 0 C" //
+            { $C parseNumber } andif { 10 lt } andif } { $_
+          [ /eqtri <$
+            [| "( " $A " + " $B " )" |] ==A
+            [| "; 0 " $C |] ==C
+            $C ==B
+          $> ] pushStep
+
+          |pushStep [| "( " $A " + " $B " ) = " $C |] constructArithmetics
+          |pushStep [| $C " = ; 0 " $C |] constructArithmetics
+        }
         { thm "( A + B ) = C" //
             { $A parseNumber } andif { 10 lt } andif
             { $B parseNumber } andif { 10 lt } andif } { $_
@@ -4861,16 +4872,6 @@
             } failed ? *
           } failed ? *
         }
-        { thm "C = ( A - B )" // } { $_
-          $A parseNumber { ==A
-            $B parseNumber { ==B
-              $C parseNumber { ==C
-                [ /eqcomi <$ $C ==B [| "( " $A " - " $B " )" |] ==A $> ] pushStep
-                |pushStep [| "( " $A " - " $B " ) = " $C |] constructArithmetics
-              } failed ? *
-            } failed ? *
-          } failed ? *
-        }
         { thm "A =/= B" // } { $_
           $A parseNumber { ==A
             $B parseNumber { ==B
@@ -4948,6 +4949,21 @@
               [ /posdifi $$ ] pushStep
               |pushStep [| $A " e. RR" |] constructDecimal
               |pushStep [| $B " e. RR" |] constructDecimal
+            } failed ? *
+          } failed ? *
+        }
+        { thm "A = B" // } { $_
+          $A evaluateArithmetics { ==A
+            $B evaluateArithmetics { ==B
+              [| A printNumber { " " } each -- |] ==result
+
+              [ /eqtr4i <$
+                $A ==A $B ==C
+                result ==B
+              $> ] pushStep
+
+              |pushStep [| $A " = " result |] constructArithmetics
+              |pushStep [| $B " = " result |] constructArithmetics
             } failed ? *
           } failed ? *
         }
@@ -5447,7 +5463,7 @@
           antesToGenerate reverse { ==ante
             $_
             availableAntes $=ph ante $=ps builtupThm $=ch
-            [ /mpd $$ ] pushStep
+            [ /mpd$HERE1 $$ ] pushStep
             [| "( " $ps " -> " $ch " )" |] =builtupThm
 
             |pushStep availableAntes ante transformConjunct
@@ -5540,7 +5556,7 @@
           antesToGenerate reverse { ==ante
             $_
             requestedAntes $=ph ante $=ps thm $=ch
-            [ /mpd $$ ] pushStep
+            [ /mpd$HERE2 $$ ] pushStep
             [| "( " $ps " -> " $ch " )" |] =thm
 
             { ==conjunction
@@ -5860,7 +5876,7 @@
           map ==lastGrammarMatch $_
           pattern $=ph [| "( " usedByChild " -> " goal .thm " )" |] $=ps
           [| "( " childAnte " -> " child .thm " )" |] $=ch
-          [ /mpbird $$ ] pushStep
+          [ /mpbird$HERE1 $$ ] pushStep
 
           # |- ( pattern -> ( childAnte -> child .thm ) )
           map ==lastGrammarMatch $_
@@ -7051,7 +7067,7 @@
           |pushStep [| "( " $ph " -> " $ch " )" |] constructRangeHelper
         }
         { thm "( ( ph /\\ ( ps /\\ ch ) ) -> ( ps /\\ ch /\\ th ) )" // } { $_
-          [ /mpbird <$
+          [ /mpbird$HERE2 <$
             [| "( " $ph " /\\ ( " $ps " /\\ " $ch " ) )" |] ==ph
             [| "( " $ps " /\\ " $ch " /\\ " $th " )" |] ==ps
             [| "( ( " $ps " /\\ " $ch " ) /\\ " $th " )" |] ==ch
@@ -7180,7 +7196,23 @@
               [ $A "<_" $B [| "( " $A " e. RR /\\ " ante " )" |] { =*pushStep
                 [ /eqle $$ ] pushStep
               } ]
-              [ $B "<_" $A ante ]
+              [ $B "<_" $A [| "( " $B " e. RR /\\ " ante " )" |] { =*pushStep
+                # B e. RR /\ A = B -> B <_ A
+                [ /sylan2 <$
+                  [| $B " e. RR" |] ==ps
+                  ante ==ph
+                  [| $B " <_ " $A |] ==th
+                  [| $B " = " $A |] ==ch
+                $> ] pushStep
+
+                # A = B -> B = A
+                [ /biimpi <$ [| $A " = " $B |] ==ph [| $B " = " $A |] ==ps $> ] pushStep
+                # A = B <-> B = A
+                [ /eqcom <$ $A ==A $B ==B $> ] pushStep
+
+                # ( ( B e. RR /\ B = A ) -> B <_ A )
+                [ /eqle <$ $B ==A $A ==B $> ] pushStep
+              } ]
             }
           ] conds
         } each
@@ -7467,7 +7499,7 @@
               [
                 { A B lt } {
                   [ t "<" s [| "( " As " e. RR /\\ " Bs " e. RR /\\ " T " e. RR )" |] _ { ==stepAnte =*pushStep
-                    [ /mpd <$ stepAnte ==ph [| As " < " Bs |] ==ps [| t " < " s |] ==ch $> ] pushStep
+                    [ /mpd$HERE3 <$ stepAnte ==ph [| As " < " Bs |] ==ps [| t " < " s |] ==ch $> ] pushStep
 
                     # stepAnte -> A < B
                     [ /a1i <$ stepAnte ==ps [| As " < " Bs |] ==ph $> ] pushStep
@@ -7481,7 +7513,7 @@
                 }
                 { B A lt } {
                   [ s "<" t [| "( " Bs " e. RR /\\ " As " e. RR /\\ " T " e. RR )" |] _ { ==stepAnte =*pushStep
-                    [ /mpd <$ stepAnte ==ph [| Bs " < " As |] ==ps [| s " < " t |] ==ch $> ] pushStep
+                    [ /mpd$HERE4 <$ stepAnte ==ph [| Bs " < " As |] ==ps [| s " < " t |] ==ch $> ] pushStep
 
                     # stepAnte -> B < A
                     [ /a1i <$ stepAnte ==ps [| Bs " < " As |] ==ph $> ] pushStep
@@ -7551,12 +7583,13 @@
           Aexpr "" neq {
             Aexpr numbers * ==A
             Bexpr numbers * ==B
+            Aexpr ==closureAexpr
 
-            A B lt { [ Aexpr "<" Bexpr "" { # =*pushStep
-              [| Aexpr " < " Bexpr |] constructArithmetics
+            A B lt { [ closureAexpr "<" Bexpr "" { # =*pushStep
+              [| closureAexpr " < " Bexpr |] constructArithmetics
             } ] } rep
-            A B eq { [ Aexpr "<_" Bexpr "" { # =*pushStep
-              [| Aexpr " <_ " Bexpr |] constructArithmetics
+            A B eq { [ closureAexpr "<_" Bexpr "" { # =*pushStep
+              [| closureAexpr " <_ " Bexpr |] constructArithmetics
             } ] } rep
           } rep
           Bexpr =Aexpr
@@ -7715,7 +7748,7 @@
         [
           { thm "A >_ B" // } { $_
             # ( usedAnte -> A >_ B )
-            [ /mpbird <$ usedAnte ==ph thm ==ps [| $B " <_ " $A |] ==ch $> ] pushStep
+            [ /mpbird$HERE3 <$ usedAnte ==ph thm ==ps [| $B " <_ " $A |] ==ch $> ] pushStep
 
             # |- ( usedAnte -> $B <_ $A )
             $B $A graph findLeLtPaths shortest =path
@@ -7737,7 +7770,7 @@
           }
           { thm "A > B" // } { $_
             # ( usedAnte -> A >_ B )
-            [ /mpbird <$ usedAnte ==ph thm ==ps [| $B " < " $A |] ==ch $> ] pushStep
+            [ /mpbird$HERE4 <$ usedAnte ==ph thm ==ps [| $B " < " $A |] ==ch $> ] pushStep
 
             # |- ( usedAnte -> $B < $A )
             $B $A graph findLeLtPaths grepLtPaths shortest =path 1 =needsLt
