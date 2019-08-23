@@ -8259,10 +8259,12 @@
               newThm seenThms * blockStart lt { blockStart i lt } andif {
                 [| "*" newThm |] i flatProof =[]
                 blockStart i range { ==j
-                  [| "~" j flatProof * |] j flatProof =[]
+                  j flatProof * 0 -01 * 0 "~" * neq {
+                    [| "~" j flatProof * |] j flatProof =[]
+                  } rep
                 } each
                 newThm seenThms * ==k
-                1 k flatProof * str .prefix "!" neq {
+                k flatProof * 0 -01 * 0 "!" * neq {
                   [| "!" k flatProof * "!" newThm |] k flatProof =[]
                 } rep
               } rep
