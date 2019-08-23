@@ -3,6 +3,25 @@
   { "{ =*p [ -01 { _ p not \"--\" | rep }' each ] } *" includeLine } /grep defq
   # END OF OPTIMIZATION
 
+  { =*p # ==input
+    map ==buffer 0 ==i
+    { _ p
+      {
+        i _ 1 add =i txt .produce .u buffer =[]
+      } "--" | ? *
+    } each
+
+    0 i range ==output
+
+    0 =i
+    buffer dom {
+      buffer * i output =[]
+      i 1 add =i
+    } each
+
+    output
+  } /largegrep deffst
+
   { [ } "[|" deffd sys .asmroutines .|assemblestr "|]" deffd
 
   emptyBlock ==renderContext
@@ -8284,7 +8303,8 @@
 
       # 0 proofState .top range proofState .data * dump
       # flatProof dump
-      flatProof { 1 -01 str .prefix "~" neq } grep =flatProof
+
+      flatProof { 1 -01 str .prefix "~" neq } largegrep =flatProof
       # flatProof dump
 
       # Creating name map
