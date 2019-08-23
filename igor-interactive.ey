@@ -4862,12 +4862,27 @@
 
                 |pushStep [| "( " $B " x. " $A " ) = " $C |] constructArithmetics
               } {
-                $C parseNumber { ==C
-                  [| $A "t" $B "e" C txt .produce .u |] ==name
-                  name assertions .has {
-                    [ name map ] pushStep
-                  } failed ? *
-                } failed ? *
+                [
+                  { $C "; 1 0" eq } {
+                    [ /eqtri <$
+                      [| "( " $A " x. " $B " )" |] ==A
+                      "10" ==B "; 1 0" ==C
+                    $> ] pushStep
+
+                    |pushStep [| "( " $A " x. " $B " ) = 10" |] constructArithmetics
+                    |pushStep "10 = ; 1 0" constructArithmetics
+                  }
+                  { $C "10" eq } {
+                    [ /5t2e10 map ] pushStep
+                  }
+                  { $C parseNumber } { ==C
+                    [| $A "t" $B "e" C txt .produce .u |] ==name
+                    name assertions .has {
+                      [ name map ] pushStep
+                    } failed ? *
+                  }
+                  { 1 } failed
+                ] conds
               } ? *
             } failed ? *
           } failed ? *
@@ -4951,6 +4966,9 @@
               |pushStep [| $B " e. RR" |] constructDecimal
             } failed ? *
           } failed ? *
+        }
+        { thm "10 = ; 1 0" // } { $_
+          [ /dec10 map ] pushStep
         }
         { thm "A = B" // } { $_
           $A evaluateArithmetics { ==A
@@ -5536,7 +5554,7 @@
                   $ps callChildren
                 }
                 { 1 } {
-                  [| "Failed to construct theorem formula." |] err
+                  [| "Failed to construct theorem formula. (1)" |] err
                   "Available antes:" dump
                   availableAntes dom dump
                   "Requested antes:" dump
@@ -5596,7 +5614,9 @@
                   $th callChildren
                 }
                 { 1 } {
-                  [| "Failed to construct theorem formula." |] err
+                  [| "Failed to construct theorem formula. (2)" |] err
+                  "Available antes:" dump
+                  availableAntes dom dump
                   "Requested antes:" dump
                   [| 0 requestedAntes renderNicely "\n" |] out
                   "Conjunction:" dump
