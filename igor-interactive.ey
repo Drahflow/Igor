@@ -3,20 +3,16 @@
   { "{ =*p [ -01 { _ p not \"--\" | rep }' each ] } *" includeLine } /grep defq
   # END OF OPTIMIZATION
 
-  { =*p # ==input
-    map ==buffer 0 ==i
-    { _ p
+  { =*p ==input
+    0 input len range ==buffer 0 ==i
+    input { _ p
       {
-        i _ 1 add =i txt .produce .u buffer =[]
+        i _ 1 add =i buffer =[]
       } "--" | ? *
     } each
 
-    0 i range ==output
-
-    0 =i
-    buffer dom {
-      buffer * i output =[]
-      i 1 add =i
+    0 i range _ ==output { ==j
+      j buffer * j output =[]
     } each
 
     output
@@ -8085,6 +8081,8 @@
       #   "|- ( ph -> ch )"
       # ]
       stack ==proofTree
+
+      map ==syntaxCache
       { proofSteps .has } {
         proofSteps .pop ==step
         step 2 dearray ==substitution ==resolution
@@ -8113,10 +8111,15 @@
                       [| "Required variable " var " was empty during processing " resolution "." |] err
                       [ "?" "?" ]
                     } {
-                      [
-                        var substitution * expandMeta type { } constructSyntax
-                        [| type " " var substitution * expandMeta { " " } each -- |]
-                      ]
+                      [| var substitution * expandMeta { " " } each type |] ==cacheKey
+                      cacheKey syntaxCache .has {
+                        cacheKey syntaxCache *
+                      } {
+                        [
+                          var substitution * expandMeta type { } constructSyntax
+                          [| type " " var substitution * expandMeta { " " } each -- |]
+                        ] _ cacheKey syntaxCache =[]
+                      } ? *
                     } ? *
                   } ? *
                 }
@@ -8223,14 +8226,14 @@
             map ==assignments
             map ==sources # DEBUGGING ONLY
             stepName assertions * ==a
-            [ a .hyps { } each ] reverse { ==hyp
+            [ a .hyps { } each ] _ ==hyps reverse { ==hyp
               proofState .pop 3 dearray
                 hyp sources =[]
                 =blockStart
                 hyp assignments =[]
             } each
 
-            [ a .hyps { } each ] { ==hyp
+            hyps { ==hyp
               [
                 { hyp a .ctx isFHyp } {
                   hyp a .ctx getFHyp ==expected
@@ -8258,13 +8261,50 @@
             newThm seenThms .has { newThm seenThms * flatProof * 1 -01 str .prefix "~" neq } andif {
               newThm seenThms * blockStart lt { blockStart i lt } andif {
                 [| "*" newThm |] i flatProof =[]
-                blockStart i range { ==j
-                  j flatProof * 0 -01 * 0 "~" * neq {
-                    [| "~" j flatProof * |] j flatProof =[]
-                  } rep
-                } each
+
+                # Mark steps [blockStart, i) as skipped
+                # Format: ~ 4-byte offset to end of skipped block
+                blockStart ==j
+                { j i lt } {
+                  j flatProof * ==jStep
+                  0 jStep * 126 eq {
+                    1 jStep *
+                    256 mul 2 jStep * add
+                    256 mul 3 jStep * add
+                    256 mul 4 jStep * add
+                    ==old
+
+                    i j sub ==delta
+                    [
+                      126
+                      delta 16777216 div
+                      delta 65536 div 256 mod
+                      delta 256 div 256 mod
+                      delta 256 mod
+                    ] str .fromArray j flatProof =[]
+
+                    old j add =j
+                  } {
+                    i j sub ==delta
+                    [
+                      126
+                      delta 16777216 div
+                      delta 65536 div 256 mod
+                      delta 256 div 256 mod
+                      delta 256 mod
+                    ] str .fromArray j flatProof =[]
+                    j 1 add =j
+                  } ? *
+                } loop
+
+                # Alternative brute-force version (without offset encoding)
+                # blockStart i range { ==j
+                #   0 j flatProof * * 126 neq { # ASCII 126: ~
+                #     [| "~" j flatProof * |] j flatProof =[]
+                #   } rep
+                # } each
                 newThm seenThms * ==k
-                k flatProof * 0 -01 * 0 "!" * neq {
+                0 k flatProof * * 33 neq { # ASCII 33: !
                   [| "!" k flatProof * "!" newThm |] k flatProof =[]
                 } rep
               } rep
