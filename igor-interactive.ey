@@ -6951,6 +6951,92 @@
 
     <
       { ==goal
+        0 goal .children * _ .strategy .usedAntecedent
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        map ==concluded
+        0 goal .children * .thm splitConjunction { 1 -01 concluded =[] } each
+
+        0 goal .children * _ .strategy .usedAntecedent ==firstAnte
+        1 goal .children * _ .strategy .usedAntecedent ==secondAnte
+
+        secondAnte "" eq {
+          [| "Explicit conclusion was not used (constructing anyway + throwing away):" |] warn
+          [| 0 0 goal .children * .thm renderNicely "\n" |] out
+        } rep
+
+        [
+          { firstAnte "" neq secondAnte "" neq and } {
+            # |- firstAnte -> goal .thm
+            [ /syl$HERE27 <$ firstAnte ==ph 0 goal .children * .thm ==ps goal .thm ==ch $> ] pushStep
+
+            # |- firstAnte -> child0 .thm
+            |pushStep 0 goal .children * _ .strategy .construct
+
+            # |- child0 .thm -> child1 .thm
+            # TODO: Optimize case of child0 .thm secondAnte eq
+            [ /syl$HERE28 <$
+              0 goal .children * .thm ==ph
+              secondAnte ==ps
+              goal .thm ==ch
+            $> ] pushStep
+
+            |pushStep 0 goal .children * .thm secondAnte transformConjunct
+            |pushStep 1 goal .children * _ .strategy .construct
+          }
+          { firstAnte "" neq } {
+            # |- firstAnte -> goal .thm
+            [ /syl$HERE29 <$ firstAnte ==ph 0 goal .children * .thm ==ps goal .thm ==ch $> ] pushStep
+
+            # |- firstAnte -> child0 .thm
+            |pushStep 0 goal .children * _ .strategy .construct
+
+            # |- child0 .thm -> child1 .thm
+            [ /a1i <$ 0 goal .children * .thm ==ps 1 goal .children * .thm ==ph $> ] pushStep
+
+            |pushStep 1 goal .children * _ .strategy .construct
+          }
+          { secondAnte "" neq } {
+            # |- goal .thm
+
+            [ /ax-mp <$ goal .thm ==ps 0 goal .children * .thm ==ph $> ] pushStep
+
+            |pushStep 0 goal .children * _ .strategy .construct
+
+            # |- child0 .thm -> child1 .thm
+            # TODO: Optimize case of child0 .thm secondAnte eq
+            [ /syl$HERE30 <$
+              0 goal .children * .thm ==ph
+              secondAnte ==ps
+              goal .thm ==ch
+            $> ] pushStep
+
+            |pushStep 0 goal .children * .thm secondAnte transformConjunct
+            |pushStep 1 goal .children * _ .strategy .construct
+          }
+          { 1 } {
+            |pushStep 1 goal .children * _ .strategy .construct
+          }
+        ] conds
+      } /construct deffst
+    > ==strategyConcludeOnly
+    { ==goal ==conclusion
+      [| conclusion " " str .split { "" neq } grep useLastMetas expandMeta { " " } each -- |] =conclusion
+      conclusion "ph" // {
+        "(concludeOnly)" /resolution goal .set
+        strategyConcludeOnly /strategy goal .set
+        [
+          goal .antes conclusion newGoal
+          conclusion splitConjunction goal .thm newGoal
+        ] /children goal .set
+      } {
+        [| "Desired conclusion is not a wff: " conclusion |] err
+      } ? *
+    } τconcludeOnly /concludeOnly deffst
+
+    <
+      { ==goal
         goal .resolution "\\(rename (.+) to (.+)\\)" regex -- ==from ==to
         0 goal .children * _ .strategy .usedAntecedent to from rewriteRecursive
       } /usedAntecedent deffst
@@ -8676,6 +8762,7 @@
         { cmd "match" eq } { args selectedGoal goals * match } unlessSolved
         { cmd "instantiate" eq { args "(.*) for (.*)" regex } andif } { selectedGoal goals * instantiate } unlessSolved
         { cmd "conclude" eq } { args selectedGoal goals * conclude } unlessSolved
+        { cmd "conclude:only" eq } { args selectedGoal goals * concludeOnly } unlessSolved
         { cmd "normalize:all" eq } { goals |normalizeGoal each }
         { cmd "deduce:full" eq { args "^(\\$.+)" regex } andif } { ==metaVar
           metaVar deduceFull
