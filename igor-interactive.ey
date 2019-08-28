@@ -4477,6 +4477,11 @@
           |pushStep [| $A " e. RR" |] constructDecimal
           |pushStep [| $B " e. RR" |] constructDecimal
         }
+        { thm "( A x. B ) e. RR" // } { $_
+          [ /remulcli $$ ] pushStep
+          |pushStep [| $A " e. RR" |] constructDecimal
+          |pushStep [| $B " e. RR" |] constructDecimal
+        }
         { thm "( A mod B ) e. RR" // } { $_
           [ /ax-mp$2 <$
             thm ==ps
@@ -4499,6 +4504,22 @@
           /TODO:constructDecimal die
         }
       ] conds
+    } /constructDecimalImpl deffst
+
+    # TODO: Push the trivial duplication through until proof deduplication
+    map ==constructDecimalCache
+    { ==thm =*pushStep
+      thm constructDecimalCache .has not {
+        stack ==buffer
+        { buffer .push } thm constructDecimalImpl
+        0 buffer .top range ==cached
+        0 buffer .top range { ==i
+          i buffer .data * i cached =[]
+        } each
+        cached thm constructDecimalCache =[]
+      } rep
+
+      thm constructDecimalCache * |pushStep each
     } /constructDecimal deffst
 
     <
@@ -8261,6 +8282,8 @@
       } loop
 
       # Flattening
+
+      # Just an array of metamath names
       stack ==flatProof
       { proofTree .has } {
         proofTree .pop ==top
