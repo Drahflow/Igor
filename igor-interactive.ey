@@ -6951,7 +6951,18 @@
             |pushStep 1 goal .children * _ .strategy .construct
           }
           { 1 } {
-            |pushStep 1 goal .children * _ .strategy .construct
+            rawSecondAnte "" eq {
+              |pushStep 1 goal .children * _ .strategy .construct
+            } {
+              # goal .thm
+              [ /ax-mp <$
+                0 goal .children * .thm ==ph
+                1 goal .children * .thm ==ps
+              $> ] pushStep
+
+              |pushStep 0 goal .children * _ .strategy .construct
+              |pushStep 1 goal .children * _ .strategy .construct
+            } ? *
           }
         ] conds
       } /construct deffst
