@@ -5049,6 +5049,9 @@
               } {
                 [| "Impossible subgoal:" |] warn
                 [| 0 thm renderNicely "\n" |] out
+                [| "The two sides have different values:" |] warn
+                [| $A " = " A printNumber { " " } each -- "\n" |] out
+                [| $B " = " B printNumber { " " } each -- "\n" |] out
               } ? *
             } rep
           } rep
