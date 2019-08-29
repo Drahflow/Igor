@@ -5903,7 +5903,7 @@
         childAnte "" eq {
           map ==lastGrammarMatch $_
           requestedAnte $=ph goal .thm $=ch child .thm $=ps
-          [ /mpbid $$ ] pushStep
+          [ /mpbid$HERE1 $$ ] pushStep
 
           # |- ( requestedAnte -> child .thm )
           map ==lastGrammarMatch $_
@@ -7277,7 +7277,9 @@
         goal .antes { ==ante
           [
             { ante "A < B" // } { $_
-              [ $A "<" $B ante ]
+              [ $A "<" $B ante { =*pushStep
+                [ /id <$ ante ==ph $> ] pushStep
+              } ]
             }
             { ante "A <_ B" // } { $_
               [ $A "<_" $B ante { =*pushStep
@@ -7289,7 +7291,7 @@
               { ==stepAnte =*pushStep
                 # |- ( A > B /\ ( A e. _V /\ B e. _V ) ) -> B < A
 
-                [ /mpbid <$
+                [ /mpbid$HERE2 <$
                   [| $B " < " $A |] ==ch stepAnte ==ph ante ==ps
                 $> ] pushStep
 
@@ -7314,7 +7316,7 @@
               { ==stepAnte =*pushStep
                 # |- ( A >_B /\ ( A e. _V /\ B e _V ) ) -> B <_ A
 
-                [ /mpbid <$
+                [ /mpbid$HERE3 <$
                   [| $B " <_ " $A |] ==ch stepAnte ==ph ante ==ps
                 $> ] pushStep
 
@@ -7450,21 +7452,62 @@
       graph len dump
 
       graph [
-        graph { 3 dearray ==right ==rel ==left
+        graph { 5 dearray =*origConstruct ==origAnte ==right ==rel ==left
           left "( A + B )" // {
-            [ $A rel [| "( " right " - " $B " )" |] "" ]
+            [ $A rel [| "( " right " - " $B " )" |] "" {
+              /TODO:strategyRange41 die
+            } ]
             1 [| " + " $B |] offsets =[]
           } rep
           left "( A - B )" // {
-            [ $A rel [| "( " right " + " $B " )" |] "" ]
+            [ $A rel [| "( " right " + " $B " )" |] "" {
+              /TODO:strategyRange42 die
+            } ]
             1 [| " - " $B |] offsets =[]
           } rep
           right "( A + B )" // {
-            [ [| "( " left " - " $B " )" |] rel $A "" ]
+            [ [| "( " left " - " $B " )" |] rel $A "" {
+              /TODO:strategyRange43 die
+            } ]
             1 [| " + " $B |] offsets =[]
           } rep
-          right "( A - B )" // {
-            [ [| "( " left " + " $B " )" |] rel $A "" ]
+          right "( C - B )" // { $_
+            [ [| "( " left " + " $B " )" |] rel $C
+              [| "( " origAnte " /\\ ( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR ) )" |] _ ==stepAnte
+              { =*pushStep
+                # stepAnte -> ( left + B ) rel C
+                [ /mpbird <$
+                  stepAnte ==ph
+                  [| "( " left " + " $B " ) " rel " " $C |] ==ps
+                  [| left " " rel " " right |] ==ch
+                $> ] pushStep
+
+                # stepAnte -> left rel ( C - B )
+                [ /adantr <$
+                  origAnte ==ph
+                  [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ch
+                  [| left " " rel " ( " $C " - " $B " )" |] ==ps
+                $> ] pushStep
+
+                # origAnte -> left rel ( C - B )
+                |pushStep origConstruct
+
+                # ( stepAnte -> ( ( left + B ) <_ C <-> left <_ ( C - B ) ) )
+                [ /adantl <$
+                  origAnte ==ch
+                  [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ph
+                  [| "( ( " left " + " $B " ) " rel " " $C " <-> " left " " rel " ( " $C " - " $B " ) )" |] ==ps
+                $> ] pushStep
+
+                rel "<_" eq {
+                  # ( ( left e. RR /\ B e. RR /\ C e. RR ) -> ( ( left + B ) <_ C <-> left <_ ( C - B ) ) )
+                  [ /leaddsub <$ left ==A $B ==B $C ==C $> ] pushStep
+                } {
+                  # ( ( left e. RR /\ B e. RR /\ C e. RR ) -> ( ( left + B ) < C <-> left < ( C - B ) ) )
+                  [ /ltaddsub <$ left ==A $B ==B $C ==C $> ] pushStep
+                } ? *
+              }
+            ]
             1 [| " - " $B |] offsets =[]
           } rep
         } each
@@ -7491,7 +7534,7 @@
 
                 { =*pushStep
                   # |- stepAnte -> ( 0 o off ) <rel> ( 2 o off )
-                  [ /mpbid <$
+                  [ /mpbid$HERE4 <$
                     stepAnte ==ph
                     [| 0 o " " 1 o " " 2 o |] ==ps
                     [| "( " 0 o off " ) " 1 o " ( " 2 o off " )" |] ==ch
@@ -7555,7 +7598,7 @@
                   3 o "" eq { /TODO:strategyRange206 die } rep
 
                   # |- stepAnte -> ( 0 o off ) <rel> ( 2 o off )
-                  [ /mpbid <$
+                  [ /mpbid$HERE5 <$
                     stepAnte ==ph
                     [| 0 o " " 1 o " " 2 o |] ==ps
                     [| "( " 0 o off " ) " 1 o " ( " 2 o off " )" |] ==ch
