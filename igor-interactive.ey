@@ -5770,6 +5770,24 @@
 
     { ==thm =*pushStep
       0 ==applied
+      applied not { thm "( A = B -> B = A )" // } andif {
+        1 =applied
+
+        [| $A " = " $B |] $=ph [| $B " = " $A |] $=ps
+        [ /biimpi $$ ] pushStep
+
+        |pushStep [| "( " $A " = " $B " <-> " $B " = " $A " )" |] constructRewrite
+      } rep
+
+      applied not { thm "( ps -> A = A )" // } andif {
+        1 =applied
+
+        [| $A " = " $A |] $=ph
+        [ /a1i $$ ] pushStep
+
+        |pushStep [| $A " = " $A |] constructRewrite
+      } rep
+
       [
         /id
         /bicom1
@@ -5827,24 +5845,6 @@
           } rep
         } rep
       } each
-
-      applied not { thm "( A = B -> B = A )" // } andif {
-        1 =applied
-
-        [| $A " = " $B |] $=ph [| $B " = " $A |] $=ps
-        [ /biimpi $$ ] pushStep
-
-        |pushStep [| "( " $A " = " $B " <-> " $B " = " $A " )" |] constructRewrite
-      } rep
-
-      applied not { thm "( ps -> A = A )" // } andif {
-        1 =applied
-
-        [| $A " = " $A |] $=ph
-        [ /a1i $$ ] pushStep
-
-        |pushStep [| $A " = " $A |] constructRewrite
-      } rep
 
       applied not { thm "( ph -> A. x ph )" // } andif
                   { $ph " " str .split $x eq any not } andif {
