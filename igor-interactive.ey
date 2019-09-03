@@ -7895,17 +7895,19 @@
         [
           { thm "A >_ B" // } { $_
             $B $A graph findLeLtPaths
-            [ [| $A " e. _V" |] [| $B " e. _V" |] ] =initialAntecedents
+            [ [| $A " e. _V" |] [| $B " e. _V" |] [| $A " e. RR" |] [| $B " e. RR" |] ] =initialAntecedents
           }
           { thm "A <_ B" // } { $_
             $A $B graph findLeLtPaths
+            [ [| $A " e. RR" |] [| $B " e. RR" |] ] =initialAntecedents
           }
           { thm "A > B" // } { $_
             $B $A graph findLeLtPaths grepLtPaths
-            [ [| $A " e. _V" |] [| $B " e. _V" |] ] =initialAntecedents
+            [ [| $A " e. _V" |] [| $B " e. _V" |] [| $A " e. RR" |] [| $B " e. RR" |] ] =initialAntecedents
           }
           { thm "A < B" // } { $_
             $A $B graph findLeLtPaths grepLtPaths
+            [ [| $A " e. RR" |] [| $B " e. RR" |] ] =initialAntecedents
           }
           { 1 } {
             /ASSERT:strategyRange1 die
@@ -8118,7 +8120,23 @@
             ] conds
           } ? *
         } /constructLtFromPath deffst
-        path needsLt |constructLtFromPath |constructLeFromPath ? *
+
+        path len 0 eq {
+          "" ==X
+          thm "A <_ A" // { $A =X } rep
+          thm "A >_ A" // { $A =X } rep
+
+          "" X eq {
+            [| "Failed to construct range-path for " thm |] err
+          } {
+            [ /syl <$ usedAnte ==ph [| X " e. RR" |] ==ps [| X " <_ " X |] ==ch $> ] pushStep
+
+            |pushStep usedAnte [| X " e. RR" |] transformConjunct
+            [ /leid <$ X ==A $> ] pushStep
+          } ? *
+        } {
+          path needsLt |constructLtFromPath |constructLeFromPath ? *
+        } ? *
 
         finish
       } /construct deffst
