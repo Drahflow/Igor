@@ -3781,7 +3781,7 @@
 
         _ /construct eq { ==name =*f
           { ==goal =*pushStep
-            [| debugIndent { " " } rep goal .resolution "\n" |] out
+            [| debugIndent { " " } rep goal .resolution " (free stack " sys .asm .remainingCallStack txt .produce .u ") \n" |] out
             { 2 add } |=debugIndent
             [ /sentinel
               |pushStep goal f
@@ -4507,19 +4507,19 @@
     } /constructDecimalImpl deffst
 
     # TODO: Push the trivial duplication through until proof deduplication
-    map ==constructDecimalCache
+    map ==constructCache
     { ==thm =*pushStep
-      thm constructDecimalCache .has not {
+      thm constructCache .has not {
         stack ==buffer
         { buffer .push } thm constructDecimalImpl
         0 buffer .top range ==cached
         0 buffer .top range { ==i
           i buffer .data * i cached =[]
         } each
-        cached thm constructDecimalCache =[]
+        cached thm constructCache =[]
       } rep
 
-      thm constructDecimalCache * |pushStep each
+      thm constructCache * |pushStep each
     } /constructDecimal deffst
 
     <
@@ -5023,6 +5023,21 @@
         }
         { 1 } todo
       ] conds
+    } /constructArithmeticsImpl deffst
+
+    # TODO: Push the trivial duplication through until proof deduplication
+    { ==thm =*pushStep
+      thm constructCache .has not {
+        stack ==buffer
+        { buffer .push } thm constructArithmeticsImpl
+        0 buffer .top range ==cached
+        0 buffer .top range { ==i
+          i buffer .data * i cached =[]
+        } each
+        cached thm constructCache =[]
+      } rep
+
+      thm constructCache * |pushStep each
     } /constructArithmetics deffst
     <
       { ==goal
