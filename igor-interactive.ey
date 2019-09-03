@@ -4960,6 +4960,14 @@
             } failed ? *
           } failed ? *
         }
+        { thm "A >_ B" // } { $_
+          [ /mpbir <$ [| $B " <_ " $A |] ==ps thm ==ph $> ] pushStep
+          |pushStep [| $B " <_ " $A |] constructArithmetics
+
+          [ /gte-lteh $$ ] pushStep
+          |pushStep [| $A " e. _V" |] constructDecimal
+          |pushStep [| $B " e. _V" |] constructDecimal
+        }
         { thm "A <_ A" // } {
           [ /leidi $$ ] pushStep
           |pushStep [| $A " e. RR" |] constructDecimal
