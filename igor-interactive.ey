@@ -6154,9 +6154,11 @@
       } {
         pattern goal conclude
 
-        goal openGoals ==open
-        open len 0 gt {
-          pattern 1 neg open * rewrite
+        goal .isopen not {
+          goal openGoals ==open
+          open len 0 gt {
+            pattern 1 neg open * rewrite
+          } rep
         } rep
       } ? *
     } τrewrite /rewrite deffst
@@ -7635,8 +7637,6 @@
                 } ? * _ ==stepAnte
 
                 { =*pushStep
-                  3 o "" eq { /TODO:strategyRange206 die } rep
-
                   # |- stepAnte -> ( 0 o off ) <rel> ( 2 o off )
                   [ /mpbid$HERE5 <$
                     stepAnte ==ph
@@ -7645,8 +7645,12 @@
                   $> ] pushStep
 
                   # |- stepAnte -> [ 0 1 2 ] o
-                  [ /syl$HERE19 <$ stepAnte ==ph 3 o ==ps [| 0 o " " 1 o " " 2 o |] ==ch $> ] pushStep
-                  [ /simpl <$ 3 o ==ph [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps $> ] pushStep
+                  3 o "" eq {
+                    [ /a1i <$ stepAnte ==ps [| 0 o " " 1 o " " 2 o |] ==ph $> ] pushStep
+                  } {
+                    [ /syl$HERE19 <$ stepAnte ==ph 3 o ==ps [| 0 o " " 1 o " " 2 o |] ==ch $> ] pushStep
+                    [ /simpl <$ 3 o ==ph [| "( " 0 o " e. RR /\\ " 2 o " e. RR )" |] ==ps $> ] pushStep
+                  } ? *
                   |o len 5 neq { |o dump /TODO:strategyRange die } rep
                   |pushStep 4 o *
 
