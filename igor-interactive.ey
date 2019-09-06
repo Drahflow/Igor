@@ -7313,7 +7313,7 @@
       ] conds
     } /constructRangeHelper deffst
     { ==goal
-      [| "Bulding graph for " goal .thm |] out
+      [| "Building graph for " goal .thm |] out
 
       [
         goal .antes { ==ante
@@ -8294,9 +8294,16 @@
       # ]
       stack ==proofTree
 
+      [| "$( Total non-syntax proof steps: " proofSteps .top txt .produce .u " $)\n" |] out
+
       map ==syntaxCache
       { proofSteps .has } {
         proofSteps .pop ==step
+
+        proofSteps .top 1000 mod 0 eq {
+          [| "$( Building tree: " proofSteps .top txt .produce .u "... $)\n" |] out
+        } rep
+
         step 2 dearray ==substitution ==resolution
         resolution "$" str .split ==splitResolution
         0 splitResolution * ==resolutionName
@@ -8392,8 +8399,13 @@
       stack ==flatProof
       { proofTree .has } {
         proofTree .pop ==top
+
         top sys .typed .type 1 eq {
           top flatProof .push
+
+          flatProof .top 1000 mod 0 eq {
+            [| "$( Flattening: " flatProof .top txt .produce .u "... $)\n" |] out
+          } rep
         } {
           1 ==last
           top reverse {
@@ -8405,6 +8417,8 @@
           } each
         } ? *
       } loop
+
+      [| "$( Total proof steps: " flatProof .top txt .produce .u " $)\n" |] out
 
       flatProof
     } /buildProof deffst
@@ -8426,6 +8440,10 @@
         # step dump
         step "$" str .split ==splitStep
         0 splitStep * ==stepName
+
+        i 1000 mod 0 eq {
+          [| "$( Deduplicating: " i txt .produce .u "... $)\n" |] out
+        } rep
 
         [
           { stepName collectedEHyps .has } {
@@ -8563,6 +8581,17 @@
       flatProof { 1 -01 str .prefix "~" neq } largegrep =flatProof
       # flatProof dump
 
+      [| "$( Steps after deduplication: " flatProof len txt .produce .u " $)\n" |] out
+
+      flatProof
+    } /deduplicateProof deffst
+
+    { ==flatProof
+      # flatProof an array of:
+      # "*<thm>": a deduplicated theorem already somewhere on the proof stack
+      # "!<name>!<thm>": a metamath theorem name, producing the specified re-used theorem
+      # "<name>": a metamath theorem name
+
       # Creating name map
       map ==nameMap
       map ==explicitNameMap
@@ -8657,11 +8686,11 @@
     } /exportProof deffst
 
     {
-      buildProof exportProof
+      buildProof deduplicateProof exportProof
     } /exportCompressed deffst
 
     {
-      buildProof ==proof
+      buildProof deduplicateProof ==proof
       [| "=== snip here for " proposition .name " ===\n" |] out
       [| "${" |] out
       exportDisjuncts
