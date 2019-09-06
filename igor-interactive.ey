@@ -7519,7 +7519,7 @@
                   [| "( " $A " + " $B " ) " rel right |] ==ps
                 $> ] pushStep
               } {
-                [ /a1i <$
+                [ /a1i$HERE74 <$
                   stepAnte ==ps
                   [| "( " $A " + " $B " ) " rel right |] ==ph
                 $> ] pushStep
@@ -7570,7 +7570,7 @@
                   [| "( " $A " - " $B " ) " rel right |] ==ps
                 $> ] pushStep
               } {
-                [ /a1i <$
+                [ /a1i$HERE75 <$
                   stepAnte ==ps
                   [| "( " $A " - " $B " ) " rel right |] ==ph
                 $> ] pushStep
@@ -7609,7 +7609,7 @@
               # stepAnte -> ( left - B ) rel C
               [ /mpbird <$
                 stepAnte ==ph
-                [| "( " left " - " $B " )" |] rel $C |] ==ps
+                [| "( " left " - " $B " )" rel $C |] ==ps
                 [| left " " rel " " right |] ==ch
               $> ] pushStep
 
@@ -7621,7 +7621,7 @@
                   [| left rel " ( " $C " + " $B " )" |] ==ps
                 $> ] pushStep
               } {
-                [ /a1i <$
+                [ /a1i$HERE76 <$
                   stepAnte ==ps
                   [| left rel " ( " $C " + " $B " )" |] ==ph
                 $> ] pushStep
@@ -7672,7 +7672,7 @@
                     [| left " " rel " ( " $C " - " $B " )" |] ==ps
                   $> ] pushStep
                 } {
-                  [ /a1i <$
+                  [ /a1i$HERE77 <$
                     stepAnte ==ps
                     [| left " " rel " ( " $C " - " $B " )" |] ==ph
                   $> ] pushStep
@@ -8202,6 +8202,7 @@
           residue len 0 gt {
             [| "Range step construction polluted stack." |] err
             |step dump
+            { dump } 4 step *
           } rep
         } /constructOneStepPath deffst
         { ==path
