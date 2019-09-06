@@ -8704,6 +8704,47 @@
       [| "=== /snip here for " proposition .name " ===\n" |] out
     } /exportTheorem deffst
 
+    { ==goal # ==filename
+      sys .file ":" via :creating :writeonly :open
+      [| nonDisj dom sort { ==x
+        x nonDisj * dom sort { ==y
+          [| "<=> " x " <=> " y "\n" |] :writeall
+        } each
+      } each "\n" |] out
+      [| disj dom sort { ==x
+        x disj * dom sort { ==y
+          [| "<!> " x " <!> " y "\n" |] :writeall
+        } each
+      } each "\n" |] out
+
+      goal .antes { ==ante
+        [| "* " ante "\n" |] :writeall
+      } each
+      [| "-------------------------------------------------\n" |] :writeall
+      [| "|- " goal .thm "\n" |] :writeall
+      :close
+    } /saveGoal deffst
+
+    { # ==filename
+      sys .file ":" via :readonly :open
+      map =disj map =nonDisj
+      [ ] ==antes
+      "" ==thm
+
+      { ==line
+        [
+          { line "^<!> (.*) <!> (.*)$" regex } |markDisj
+          { line "^<=> (.*) <=> (.*)$" regex } |markNonDisj
+          { line "^\\* (.*)$" regex } { [ -01 ] antes -01 cat =antes }
+          { line "^\\|- (.*)$" regex } { =thm }
+          { line "^----" regex } { }
+        ] conds
+      } :eachLine
+
+      antes thm newGoal =mainGoal
+      0 =allOpenGoalsValid
+    } /loadGoal deffst
+
     { ==thing ==indent
       [
         { thing "" eq } {
@@ -8944,6 +8985,8 @@
         { cmd "export:compressed" eq } { exportCompressed }
         { cmd "export:theorem" eq } { exportTheorem }
         { cmd "freeze" eq } { { _ { * }_ args sys .freeze * } !! * }
+        { cmd "save:goal" eq } { args selectedGoal goals * saveGoal } unlessSolved
+        { cmd "load:goal" eq } { args loadGoal }
         loadedCommands "*" | each
       ] conds
     ] _ ==residue len 0 gt {
