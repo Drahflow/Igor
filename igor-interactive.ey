@@ -4700,7 +4700,7 @@
           [| "( " $A " " $F " " $B " )" |] evaluateArithmetics {
             [| -01 printNumber { " " } each -- |] ==innerResult
 
-            [ /eqtri <$
+            [ /eqtri$HERE20 <$
               [| "( ( " $A " " $F " " $B " ) " $G " " $C " )" |] ==A
               [| "( " innerResult " " $G " " $C " )" |] ==B
               $D ==C
@@ -4722,7 +4722,7 @@
           [| "( " $B " " $G " " $C " )" |] evaluateArithmetics {
             [| -01 printNumber { " " } each -- |] ==innerResult
 
-            [ /eqtri <$
+            [ /eqtri$HERE21 <$
               [| "( " $A " " $F " ( " $B " " $G " " $C " ) )" |] ==A
               [| "( " $A " " $F " " innerResult " )" |] ==B
               $D ==C
@@ -4784,7 +4784,7 @@
         }
         { thm "( A + B ) = ; 0 C" //
             { $C parseNumber } andif { 10 lt } andif } { $_
-          [ /eqtri <$
+          [ /eqtri$HERE22 <$
             [| "( " $A " + " $B " )" |] ==A
             [| "; 0 " $C |] ==C
             $C ==B
@@ -4795,9 +4795,10 @@
         }
         { thm "( A + B ) = C" //
             { $A parseNumber } andif { 10 lt } andif
-            { $B parseNumber } andif { 10 lt } andif } { $_
+            { $B parseNumber } andif { 10 lt } andif
+            { $C parseNumber } andif { -- 1 } andif } { $_
           $A parseNumber -- $B parseNumber -- lt {
-            [ /eqtri <$
+            [ /eqtri$HERE23 <$
               [| "( " $A " + " $B " )" |] ==A
               [| "( " $B " + " $A " )" |] ==B
               $C ==C
@@ -4811,7 +4812,7 @@
           } {
             $C parseNumber { ==C
               $C "; 1 0" eq {
-                [ /eqtri <$
+                [ /eqtri$HERE24 <$
                   [| "( " $A " + " $B " )" |] ==A "10" ==B $C ==C
                 $> ] pushStep
               } rep
@@ -4843,19 +4844,20 @@
             } failed ? *
           } failed ? *
         }
-        { thm "( A - B ) = C" // } { $_
-          $A parseNumber { ==A
-            $B parseNumber { ==B
-              $C parseNumber { ==C
-                [ /subaddrii $$ ] pushStep
+        { thm "( A - B ) = C" //
+            { $A parseNumber } andif { -- 1 } andif
+            { $B parseNumber } andif { -- 1 } andif
+            { $C parseNumber } andif { -- 1 } andif } { $_
+          $A parseNumber -- ==A
+          $B parseNumber -- ==B
+          $C parseNumber -- ==C
 
-                |pushStep [| $A " e. CC" |] constructDecimal
-                |pushStep [| $B " e. CC" |] constructDecimal
-                |pushStep [| $C " e. CC" |] constructDecimal
-                |pushStep [| "( " $B " + " $C " ) = " $A |] constructArithmetics
-              } failed ? *
-            } failed ? *
-          } failed ? *
+          [ /subaddrii $$ ] pushStep
+
+          |pushStep [| $A " e. CC" |] constructDecimal
+          |pushStep [| $B " e. CC" |] constructDecimal
+          |pushStep [| $C " e. CC" |] constructDecimal
+          |pushStep [| "( " $B " + " $C " ) = " $A |] constructArithmetics
         }
         { thm "( A x. 0 ) = 0" // } { $_
           [ /mul01i $$ ] pushStep
@@ -4871,8 +4873,9 @@
           [ [ /A /B /C /D /E /F /G ] { ==v
             v $ parseNumber { v ==? }' { 0 v ==? 0 }' ? *
           }' each ] all {
-            { ==name ==value value name defvst
-                             [| value printNumber { " " } each -- |] name $= }' "$=#" deffst
+              { -1010 } |defvst ;
+              { ==name ==value [| value printNumber { " " } each -- |] name $= } ;
+            "$=#" deffst
 
             B D mul 10 div $=#H
             A D mul _ 10 div $=#I 10 mod $=#J
@@ -4911,51 +4914,53 @@
         { thm "( D x. E ) = ; 0 B" // } { $_
           [| "( " $D " x. " $E " )" |] $=A
           [| "; 0 " $B |] $=C
-          [ /eqtri $$ ] pushStep
+          [ /eqtri$HERE25 $$ ] pushStep
 
           |pushStep [| $A " = " $B |] constructArithmetics
           |pushStep [| $B " = " $C |] constructArithmetics
         }
-        { thm "( A x. B ) = C" // } { $_
-          $A parseNumber { ==A
-            $B parseNumber { ==B
-              A B lt {
-                [ /eqtri <$
+        { thm "( A x. B ) = C" //
+          { $A parseNumber } andif { -- 1 } andif
+          { $B parseNumber } andif { -- 1 } andif
+          { $C parseNumber { -- 1 } { $C "10" eq } ? * } andif } { $_
+          $A parseNumber -- ==A
+          $B parseNumber -- ==B
+
+          A B lt {
+            [ /eqtri$HERE26 <$
+              [| "( " $A " x. " $B " )" |] ==A
+              [| "( " $B " x. " $A " )" |] ==B
+              $C ==C
+            $> ] pushStep
+
+            [ /mulcomi $$ ] pushStep
+            |pushStep [| $A " e. CC" |] constructDecimal
+            |pushStep [| $B " e. CC" |] constructDecimal
+
+            |pushStep [| "( " $B " x. " $A " ) = " $C |] constructArithmetics
+          } {
+            [
+              { $C "; 1 0" eq } {
+                [ /eqtri$HERE27 <$
                   [| "( " $A " x. " $B " )" |] ==A
-                  [| "( " $B " x. " $A " )" |] ==B
-                  $C ==C
+                  "10" ==B "; 1 0" ==C
                 $> ] pushStep
 
-                [ /mulcomi $$ ] pushStep
-                |pushStep [| $A " e. CC" |] constructDecimal
-                |pushStep [| $B " e. CC" |] constructDecimal
-
-                |pushStep [| "( " $B " x. " $A " ) = " $C |] constructArithmetics
-              } {
-                [
-                  { $C "; 1 0" eq } {
-                    [ /eqtri <$
-                      [| "( " $A " x. " $B " )" |] ==A
-                      "10" ==B "; 1 0" ==C
-                    $> ] pushStep
-
-                    |pushStep [| "( " $A " x. " $B " ) = 10" |] constructArithmetics
-                    |pushStep "10 = ; 1 0" constructArithmetics
-                  }
-                  { $C "10" eq } {
-                    [ /5t2e10 map ] pushStep
-                  }
-                  { $C parseNumber } { ==C
-                    [| $A "t" $B "e" C txt .produce .u |] ==name
-                    name assertions .has {
-                      [ name map ] pushStep
-                    } failed ? *
-                  }
-                  { 1 } failed
-                ] conds
-              } ? *
-            } failed ? *
-          } failed ? *
+                |pushStep [| "( " $A " x. " $B " ) = 10" |] constructArithmetics
+                |pushStep "10 = ; 1 0" constructArithmetics
+              }
+              { $C "10" eq } {
+                [ /5t2e10 map ] pushStep
+              }
+              { $C parseNumber } { ==C
+                [| $A "t" $B "e" C txt .produce .u |] ==name
+                name assertions .has {
+                  [ name map ] pushStep
+                } failed ? *
+              }
+              { 1 } failed
+            ] conds
+          } ? *
         }
         { thm "A =/= B" // } { $_
           $A parseNumber { ==A
@@ -5060,8 +5065,14 @@
 
               |pushStep [| $A " = " result |] constructArithmetics
               |pushStep [| $B " = " result |] constructArithmetics
-            } failed ? *
-          } failed ? *
+            } {
+              failed *
+              [| "Could not evaluate second term." |] err
+            } ? *
+          } {
+            failed *
+            [| "Could not evaluate first term." |] err
+          } ? *
         }
         { 1 } todo
       ] conds
@@ -8517,6 +8528,9 @@
       # ]
       stack ==proofTree
 
+      # From theorem string to nested array showing that theorem
+      map ==proofNodeCache
+
       [| "Total non-syntax proof steps: " proofSteps .top txt .produce .u "\n" |] out
 
       map ==syntaxCache
@@ -8601,7 +8615,16 @@
 
               resolution
               [| a .thm substitution applySubstitution expandMeta { " " } each -- |]
-            ] proofTree .push
+            ] ==newNode
+
+            1 neg newNode * ==newThm
+            newThm proofNodeCache .has {
+              newThm proofNodeCache * =newNode
+            } {
+              newNode newThm proofNodeCache =[]
+            } ? *
+
+            newNode proofTree .push
           }
           { resolutionName "?" eq } {
             [
@@ -8616,6 +8639,10 @@
         ] conds
       } loop
 
+      proofTree
+    } /buildProof deffst
+
+    { ==proofTree
       # Flattening
 
       # Just an array of metamath names
@@ -8644,7 +8671,7 @@
       [| "Total proof steps: " flatProof .top txt .produce .u "\n" |] out
 
       flatProof
-    } /buildProof deffst
+    } /flattenProof deffst
 
     { ==flatProof
       # Just an array of metamath names
@@ -8909,11 +8936,11 @@
     } /exportProof deffst
 
     {
-      buildProof deduplicateProof exportProof
+      buildProof flattenProof deduplicateProof exportProof
     } /exportCompressed deffst
 
     {
-      buildProof deduplicateProof ==proof
+      buildProof flattenProof deduplicateProof ==proof
       [| "=== snip here for " proposition .name " ===\n" |] out
       [| "${" |] out
       exportDisjuncts
@@ -8929,16 +8956,24 @@
 
     { ==goal # ==filename
       sys .file ":" via :creating :writeonly :open
-      [| nonDisj dom sort { ==x
-        x nonDisj * dom sort { ==y
-          [| "<=> " x " <=> " y "\n" |] :writeall
-        } each
-      } each "\n" |] out
-      [| disj dom sort { ==x
-        x disj * dom sort { ==y
-          [| "<!> " x " <!> " y "\n" |] :writeall
-        } each
-      } each "\n" |] out
+      nonDisj dom len 50 gt {
+        [| "> 50 non-disjunction constraints...\n" |] out
+      } {
+        [| nonDisj dom sort { ==x
+          x nonDisj * dom sort { ==y
+            [| "<=> " x " <=> " y "\n" |] :writeall
+          } each
+        } each "\n" |] out
+      } ? *
+      disj dom len 50 gt {
+        [| "> 50 disjunction constraints...\n" |] out
+      } {
+        [| disj dom sort { ==x
+          x disj * dom sort { ==y
+            [| "<!> " x " <!> " y "\n" |] :writeall
+          } each
+        } each "\n" |] out
+      } ? *
 
       goal .antes { ==ante
         [| "* " ante "\n" |] :writeall
@@ -8952,7 +8987,7 @@
       sys .file ":" via :readonly :open
       map =disj map =nonDisj
       [ ] ==antes
-      "" ==thm
+      "F." ==thm
 
       { ==line
         [
@@ -8961,6 +8996,9 @@
           { line "^\\* (.*)$" regex } { [ -01 ] antes -01 cat =antes }
           { line "^\\|- (.*)$" regex } { =thm }
           { line "^----" regex } { }
+          { 1 } {
+            [| "Could not parse line: " line |] err
+          }
         ] conds
       } :eachLine
 
