@@ -4432,10 +4432,44 @@
             |pushStep [| $B " e. NN" |] constructDecimal
           } ? *
         }
+        { thm "( M + N ) e. NN" // } { $_
+          $M "0" eq {
+            [ /ax-mp <$ [| "( " $M " e. NN0 /\\ " $N " e. NN )" |] ==ph thm ==ps $> ] pushStep
+
+            [ /pm3.2i <$ [| $M " e. NN0" |] ==ph [| $N " e. NN" |] ==ps $> ] pushStep
+            |pushStep [| $M " e. NN0" |] constructDecimal
+            |pushStep [| $N " e. NN" |] constructDecimal
+
+            [ /nn0nnaddcl $$ ] pushStep
+          } {
+            [ /ax-mp <$ [| "( " $M " e. NN /\\ " $N " e. NN0 )" |] ==ph thm ==ps $> ] pushStep
+
+            [ /pm3.2i <$ [| $M " e. NN" |] ==ph [| $N " e. NN0" |] ==ps $> ] pushStep
+            |pushStep [| $M " e. NN" |] constructDecimal
+            |pushStep [| $N " e. NN0" |] constructDecimal
+
+            [ /nnnn0addcl $$ ] pushStep
+          } ? *
+        }
+        { thm "( A x. B ) e. NN" // } { $_
+          [ /nnmulcli $$ ] pushStep
+          |pushStep [| $A " e. NN0" |] constructDecimal
+          |pushStep [| $B " e. NN0" |] constructDecimal
+        }
         { thm "; A B e. NN0" // } { $_
           [ /deccl $$ ] pushStep
           |pushStep [| $A " e. NN0" |] constructDecimal
           |pushStep [| $B " e. NN0" |] constructDecimal
+        }
+        { thm "( M + N ) e. NN0" // } { $_
+          [ /nn0addcli $$ ] pushStep
+          |pushStep [| $M " e. NN0" |] constructDecimal
+          |pushStep [| $N " e. NN0" |] constructDecimal
+        }
+        { thm "( M x. N ) e. NN0" // } { $_
+          [ /nn0mulcli $$ ] pushStep
+          |pushStep [| $M " e. NN0" |] constructDecimal
+          |pushStep [| $N " e. NN0" |] constructDecimal
         }
         { thm "0 e. NN0" // } { [ /0nn0 map ] pushStep }
         { thm "1 e. NN0" // } { [ /1nn0 map ] pushStep }
@@ -7534,7 +7568,7 @@
 
       graph [
         graph { 5 dearray =*origConstruct ==origAnte ==right ==rel ==left
-          left "( A + B )" // {
+          left "( A + B )" // { $_
             [ $A rel [| "( " right " - " $B " )" |]
             origAnte "" eq {
               [| "( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR )" |]
@@ -7585,7 +7619,7 @@
             } ]
             1 [| " + " $B |] offsets =[]
           } rep
-          left "( A - B )" // {
+          left "( A - B )" // { $_
             [ $A rel [| "( " right " + " $B " )" |]
             origAnte "" eq {
               [| "( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR )" |]
@@ -8483,14 +8517,14 @@
       # ]
       stack ==proofTree
 
-      [| "$( Total non-syntax proof steps: " proofSteps .top txt .produce .u " $)\n" |] out
+      [| "Total non-syntax proof steps: " proofSteps .top txt .produce .u "\n" |] out
 
       map ==syntaxCache
       { proofSteps .has } {
         proofSteps .pop ==step
 
         proofSteps .top 1000 mod 0 eq {
-          [| "$( Building tree: " proofSteps .top txt .produce .u "... $)\n" |] out
+          [| "Building tree: " proofSteps .top txt .produce .u "...\n" |] out
         } rep
 
         step 2 dearray ==substitution ==resolution
@@ -8593,7 +8627,7 @@
           top flatProof .push
 
           flatProof .top 1000 mod 0 eq {
-            [| "$( Flattening: " flatProof .top txt .produce .u "... $)\n" |] out
+            [| "Flattening: " flatProof .top txt .produce .u "...\n" |] out
           } rep
         } {
           1 ==last
@@ -8607,7 +8641,7 @@
         } ? *
       } loop
 
-      [| "$( Total proof steps: " flatProof .top txt .produce .u " $)\n" |] out
+      [| "Total proof steps: " flatProof .top txt .produce .u "\n" |] out
 
       flatProof
     } /buildProof deffst
@@ -8631,7 +8665,7 @@
         0 splitStep * ==stepName
 
         i 1000 mod 0 eq {
-          [| "$( Deduplicating: " i txt .produce .u "... $)\n" |] out
+          [| "Deduplicating: " i txt .produce .u "...\n" |] out
         } rep
 
         [
@@ -8770,7 +8804,7 @@
       flatProof { 1 -01 str .prefix "~" neq } largegrep =flatProof
       # flatProof dump
 
-      [| "$( Steps after deduplication: " flatProof len txt .produce .u " $)\n" |] out
+      [| "Steps after deduplication: " flatProof len txt .produce .u "\n" |] out
 
       flatProof
     } /deduplicateProof deffst
