@@ -7496,26 +7496,166 @@
       graph [
         graph { 5 dearray =*origConstruct ==origAnte ==right ==rel ==left
           left "( A + B )" // {
-            [ $A rel [| "( " right " - " $B " )" |] "" {
-              /TODO:strategyRange41 die
+            [ $A rel [| "( " right " - " $B " )" |]
+            origAnte "" eq {
+              [| "( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR )" |]
+            } {
+              [| "( " origAnte " /\\ ( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR ) )" |]
+            } ? * _ ==stepAnte
+
+            { =*pushStep
+              # stepAnte -> A rel ( right - B )
+              [ /mpbid <$
+                stepAnte ==ph
+                [| left " " rel " " right |] ==ps
+                [| $A " " rel " ( " right " - " $B " )" |] ==ch
+              $> ] pushStep
+
+              # stepAnte -> ( A + B ) rel right
+              origAnte "" neq {
+                [ /adantr <$
+                  origAnte ==ph
+                  [| "( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR )" |] ==ch
+                  [| "( " $A " + " $B " ) " rel right |] ==ps
+                $> ] pushStep
+              } {
+                [ /a1i <$
+                  stepAnte ==ps
+                  [| "( " $A " + " $B " ) " rel right |] ==ph
+                $> ] pushStep
+              } ? *
+
+              # origAnte -> ( A + B ) rel right
+              |pushStep origConstruct
+
+              # stepAnte -> ( ( A + B ) rel right <-> A rel ( right - B ) )
+              origAnte "" neq {
+                [ /adantl <$
+                  origAnte ==ch
+                  [| "( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR )" |] ==ph
+                  [| "( " left " " rel " " right " ) <-> ( " $A " " rel " ( " right " - " $B " ) )" |] ==ps
+                $> ] pushStep
+              } rep
+
+              # ( ... e. RR ) -> ( ( A + B ) rel right <-> A rel ( right - B ) )
+              rel "<_" eq {
+                [ /leaddsub <$ $A ==A $B ==B right ==C $> ] pushStep
+              } {
+                [ /ltaddsub <$ $A ==A $B ==B right ==C $> ] pushStep
+              } ? *
             } ]
             1 [| " + " $B |] offsets =[]
           } rep
           left "( A - B )" // {
-            [ $A rel [| "( " right " + " $B " )" |] "" {
-              /TODO:strategyRange42 die
+            [ $A rel [| "( " right " + " $B " )" |]
+            origAnte "" eq {
+              [| "( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR )" |]
+            } {
+              [| "( " origAnte " /\\ ( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR ) )" |]
+            } ? * _ ==stepAnte
+
+            { =*pushStep
+              # stepAnte -> A rel ( right + B )
+              [ /mpbid <$
+                stepAnte ==ph
+                [| left " " rel " " right |] ==ps
+                [| $A " " rel " ( " right " + " $B " )" |] ==ch
+              $> ] pushStep
+
+              origAnte "" neq {
+                # stepAnte -> ( A - B ) rel right
+                [ /adantr <$
+                  origAnte ==ph
+                  [| "( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR )" |] ==ch
+                  [| "( " $A " - " $B " ) " rel right |] ==ps
+                $> ] pushStep
+              } {
+                [ /a1i <$
+                  stepAnte ==ps
+                  [| "( " $A " - " $B " ) " rel right |] ==ph
+                $> ] pushStep
+              } ? *
+
+              # origAnte -> ( A - B ) rel right
+              |pushStep origConstruct
+
+              # stepAnte -> ( ( A - B ) rel right <-> A rel ( right + B ) )
+              origAnte "" neq {
+                [ /adantl <$
+                  origAnte ==ch
+                  [| "( " $A " e. RR /\\ " $B " e. RR /\\ " right " e. RR )" |] ==ph
+                  [| "( " left " " rel " " right " ) <-> ( " $A " " rel " ( " right " + " $B " ) )" |] ==ps
+                $> ] pushStep
+              } rep
+
+              # ( ... e. RR ) -> ( ( A - B ) rel right <-> A rel ( right + B ) )
+              rel "<_" eq {
+                [ /lesubadd <$ $A ==A $B ==B right ==C $> ] pushStep
+              } {
+                [ /ltsubadd <$ $A ==A $B ==B right ==C $> ] pushStep
+              } ? *
             } ]
             1 [| " - " $B |] offsets =[]
           } rep
-          right "( A + B )" // {
-            [ [| "( " left " - " $B " )" |] rel $A "" {
-              /TODO:strategyRange43 die
+          right "( C + B )" // { $_
+            [ [| "( " left " - " $B " )" |] rel $C
+            origAnte "" eq {
+              [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |]
+            } {
+              [| "( " origAnte " /\\ ( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR ) )" |]
+            } ? * _ ==stepAnte
+
+            { =*pushStep
+              # stepAnte -> ( left - B ) rel C
+              [ /mpbird <$
+                stepAnte ==ph
+                [| "( " left " - " $B " )" |] rel $C |] ==ps
+                [| left " " rel " " right |] ==ch
+              $> ] pushStep
+
+              # stepAnte -> left rel ( C + B )
+              origAnte "" neq {
+                [ /adantr <$
+                  origAnte ==ph
+                  [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ch
+                  [| left rel " ( " $C " + " $B " )" |] ==ps
+                $> ] pushStep
+              } {
+                [ /a1i <$
+                  stepAnte ==ps
+                  [| left rel " ( " $C " + " $B " )" |] ==ph
+                $> ] pushStep
+              } ? *
+
+              # origAnte -> left rel ( C + B )
+              |pushStep origConstruct
+
+              # stepAnte -> ( ( left - B ) rel C <-> left rel ( C - B ) )
+              origAnte "" neq {
+                [ /adantl <$
+                  origAnte ==ch
+                  [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ph
+                  [| "( ( " left " - " $B " ) " rel " " $C " <-> " left " " rel " ( " $C " + " $B " ) )" |] ==ps
+                ] pushStep
+              } rep
+
+              # ( ... e. RR ) -> ( ( left - B ) rel C <-> left rel ( C - B ) )
+              rel "<_" eq {
+                [ /lesubadd <$ left ==A $B ==B $C ==C $> ] pushStep
+              } {
+                [ /ltsubadd <$ left ==A $B ==B $C ==C $> ] pushStep
+              } ? *
             } ]
             1 [| " + " $B |] offsets =[]
           } rep
           right "( C - B )" // { $_
             [ [| "( " left " + " $B " )" |] rel $C
-              [| "( " origAnte " /\\ ( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR ) )" |] _ ==stepAnte
+              origAnte "" eq {
+                [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |]
+              } {
+                [| "( " origAnte " /\\ ( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR ) )" |]
+              } ? * _ ==stepAnte
+
               { =*pushStep
                 # stepAnte -> ( left + B ) rel C
                 [ /mpbird <$
@@ -7525,21 +7665,30 @@
                 $> ] pushStep
 
                 # stepAnte -> left rel ( C - B )
-                [ /adantr <$
-                  origAnte ==ph
-                  [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ch
-                  [| left " " rel " ( " $C " - " $B " )" |] ==ps
-                $> ] pushStep
+                origAnte "" neq {
+                  [ /adantr <$
+                    origAnte ==ph
+                    [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ch
+                    [| left " " rel " ( " $C " - " $B " )" |] ==ps
+                  $> ] pushStep
+                } {
+                  [ /a1i <$
+                    stepAnte ==ps
+                    [| left " " rel " ( " $C " - " $B " )" |] ==ph
+                  $> ] pushStep
+                } ? *
 
                 # origAnte -> left rel ( C - B )
                 |pushStep origConstruct
 
                 # ( stepAnte -> ( ( left + B ) <_ C <-> left <_ ( C - B ) ) )
-                [ /adantl <$
-                  origAnte ==ch
-                  [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ph
-                  [| "( ( " left " + " $B " ) " rel " " $C " <-> " left " " rel " ( " $C " - " $B " ) )" |] ==ps
-                $> ] pushStep
+                origAnte "" neq {
+                  [ /adantl <$
+                    origAnte ==ch
+                    [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ph
+                    [| "( ( " left " + " $B " ) " rel " " $C " <-> " left " " rel " ( " $C " - " $B " ) )" |] ==ps
+                  $> ] pushStep
+                } rep
 
                 rel "<_" eq {
                   # ( ( left e. RR /\ B e. RR /\ C e. RR ) -> ( ( left + B ) <_ C <-> left <_ ( C - B ) ) )
