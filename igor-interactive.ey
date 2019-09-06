@@ -8956,24 +8956,16 @@
 
     { ==goal # ==filename
       sys .file ":" via :creating :writeonly :open
-      nonDisj dom len 50 gt {
-        [| "> 50 non-disjunction constraints...\n" |] out
-      } {
-        [| nonDisj dom sort { ==x
-          x nonDisj * dom sort { ==y
-            [| "<=> " x " <=> " y "\n" |] :writeall
-          } each
-        } each "\n" |] out
-      } ? *
-      disj dom len 50 gt {
-        [| "> 50 disjunction constraints...\n" |] out
-      } {
-        [| disj dom sort { ==x
-          x disj * dom sort { ==y
-            [| "<!> " x " <!> " y "\n" |] :writeall
-          } each
-        } each "\n" |] out
-      } ? *
+      [| nonDisj dom sort { ==x
+        x nonDisj * dom sort { ==y
+          [| "<=> " x " <=> " y "\n" |] :writeall
+        } each
+      } each "\n" |] out
+      [| disj dom sort { ==x
+        x disj * dom sort { ==y
+          [| "<!> " x " <!> " y "\n" |] :writeall
+        } each
+      } each "\n" |] out
 
       goal .antes { ==ante
         [| "* " ante "\n" |] :writeall
