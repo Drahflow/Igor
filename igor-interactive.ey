@@ -5811,6 +5811,22 @@
         |pushStep [| $A " = " $A |] constructRewrite
       } rep
 
+      applied not { thm "( ps -> x e. _V )" // } andif {
+        1 =applied
+
+        [| $x " e. _V" |] $=ph
+        [ /a1i $$ ] pushStep
+        [ /vex $$ ] pushStep
+      } rep
+
+      applied not { thm "( ps -> ( F ` A ) e. _V )" // } andif {
+        1 =applied
+
+        [| "( " $F " ` " $A " ) e. _V" |] $=ph
+        [ /a1i $$ ] pushStep
+        [ /fvex $$ ] pushStep
+      } rep
+
       [
         /id
         /bicom1
@@ -5854,6 +5870,11 @@
         /cnveqd
         /unieqd
         /ifeq1d /ifeq2d /ifbid /ifeq12d /ifbieq12d
+
+        # Some edge cases. The vex + fvex one look suspiciously like they should become children
+        # of the original goal instead.
+        /biidd
+        /vex /fvex
       ] { ==name
         applied not {
           name assertions * ==a
@@ -6541,6 +6562,24 @@
 
                 $ph constructSplit
                 $ps constructSplit
+              } ? *
+            }
+            { thm "( ps /\\ ch /\\ th )" // } { $_
+              goalAnte "" neq {
+                # |- ( goalAnte -> ( ps /\ ch /\ th ) )
+                goalAnte $=ph
+                [ /3jca$HERE3 $$ ] pushStep
+
+                $ps constructSplit
+                $ch constructSplit
+                $th constructSplit
+              } {
+                # |- ( ps /\ ch /\ th )
+                [ /3pm3.2i <$ $ps ==ph $ch ==ps $th ==ch $> ] pushStep
+
+                $ph constructSplit
+                $ps constructSplit
+                $th constructSplit
               } ? *
             }
             { 1 } {
@@ -7609,7 +7648,7 @@
               # stepAnte -> ( left - B ) rel C
               [ /mpbird <$
                 stepAnte ==ph
-                [| "( " left " - " $B " )" rel $C |] ==ps
+                [| "( " left " - " $B " ) " rel " " $C |] ==ps
                 [| left " " rel " " right |] ==ch
               $> ] pushStep
 
@@ -7618,12 +7657,12 @@
                 [ /adantr <$
                   origAnte ==ph
                   [| "( " left " e. RR /\\ " $B " e. RR /\\ " $C " e. RR )" |] ==ch
-                  [| left rel " ( " $C " + " $B " )" |] ==ps
+                  [| left " " rel " ( " $C " + " $B " )" |] ==ps
                 $> ] pushStep
               } {
                 [ /a1i$HERE76 <$
                   stepAnte ==ps
-                  [| left rel " ( " $C " + " $B " )" |] ==ph
+                  [| left " " rel " ( " $C " + " $B " )" |] ==ph
                 $> ] pushStep
               } ? *
 
