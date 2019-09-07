@@ -5439,39 +5439,6 @@
       ] conds
     } /typeOfVariable deffst
 
-    { =*wrapOut ==rootNonterminal ==toks
-      0 toks rootNonterminal logicParsers * * not {
-        [| "Could not generate parse for syntax-proof." |] err
-        [| toks { " " } each -- |] dump
-        "?" wrapOut
-      } { ==parse
-        parse logicNonTerminal _ ==builder "" eq {
-          [| rootNonterminal " " toks { " " } each -- |] ==fThm
-          fThm proofFHyps .has {
-            fThm proofFHyps * wrapOut
-          } {
-            [| "Could not find theorem for: " fThm |] err
-          } ? *
-        } {
-          builder assertions * ==a
-
-          parse toks a .thm 0 a .thm * 1 possibleSubstitutionsForParse ==substitutions
-          substitutions len 1 neq {
-            [| "No substitution found during syntax proof construction." |] err
-          } { 0 substitutions * =*substitution
-            a .hyps { ==h
-              h a .ctx isFHyp {
-                h a .ctx getFHyp 2 dearray ==var ==type
-                var substitution type |wrapOut constructSyntax
-              } rep
-            } each
-          } ? *
-
-          builder wrapOut
-        } ? *
-      } ? *
-    } /constructSyntax deffst
-
     { ==var
       [| "$" var "." nextMetaVariable _ 1 add =nextMetaVariable txt .produce .u |] ==newVar
       newVar var lastMetaVariables =[]
@@ -8563,57 +8530,150 @@
         [| "TODO: Top-level goal rendered with antecedents." |] err
       } rep
 
-      # Non-syntax proof steps in easy to generate order, elements: [ /thmName substitution ]
+      # Non-syntax proof steps are pushed in easy to generate order, elements: [ /thmName substitution ]
       # Example:
       # [ /syl <ph => ph, ch => ch> ]
       # [ ... (steps for syl.1) ... ]
       # [ ... (steps for syl.2) ... ]
       # To debug, add info after $, e.g. syl$DEBUG1
 
-      stack ==proofSteps
-      { proofSteps .push } mainGoal _ .strategy .construct
+      # From thm to index in flatProofBuffer where theorem is shown
+      map ==seenThms
 
-      # All proof steps in nested arrays and final order
-      # Example:
+      # flatProof an array of:
+      # "*<thm>": a deduplicated theorem already somewhere on the proof stack
+      # "!<name>!<thm>": a metamath theorem name, producing the specified re-used theorem
+      # "<name>": a metamath theorem name
+      stack ==flatProofBuffer
+
+      { ==rootNonterminal ==toks
+        [| rootNonterminal " " toks { " " } each -- |] ==thm
+
+        thm seenThms .has {
+          thm seenThms * ==index
+
+          index flatProofBuffer .data * ==original
+          0 original * 0 "!" * neq {
+            [| "!" original "!" thm |] index flatProofBuffer .data =[]
+          } rep
+
+          [| "*" thm |] flatProofBuffer .push
+        } {
+          0 toks rootNonterminal logicParsers * * not {
+            [| "Could not generate parse for syntax-proof." |] err
+            [| toks { " " } each -- |] dump
+            "?" flatProofBuffer .push
+          } { ==parse
+            parse logicNonTerminal _ ==builder "" eq {
+              [| rootNonterminal " " toks { " " } each -- |] ==fThm
+              fThm proofFHyps .has {
+                fThm proofFHyps * flatProofBuffer .push
+              } {
+                [| "Could not find theorem for: " fThm |] err
+              } ? *
+            } {
+              builder assertions * ==a
+
+              parse toks a .thm 0 a .thm * 1 possibleSubstitutionsForParse ==substitutions
+              substitutions len 1 neq {
+                [| "No substitution found during syntax proof construction." |] err
+              } { 0 substitutions * =*substitution
+                a .hyps { ==h
+                  h a .ctx isFHyp {
+                    h a .ctx getFHyp 2 dearray ==var ==type
+                    var substitution type constructSyntax
+                  } rep
+                } each
+              } ? *
+
+              builder flatProofBuffer .push
+
+              thm seenThms .has {
+                [| "Theorem shown twice!" |] err
+              } {
+                flatProofBuffer .top 1 sub thm seenThms =[]
+              } ? *
+            } ? *
+          } ? *
+        } ? *
+      } /constructSyntax deffst
+
+      # Elements look like this
       # [
-      #   [ /wph "wff ph" ]
-      #   [ /wps "wff ps" ]
-      #   [ /wch "wff ch" ]
-      #   [ ... proving ph -> ps "|- ( ph -> ps )" ]
-      #   [ ... proving ps -> ch "|- ( ps -> ch )" ]
       #   /syl
-      #   "|- ( ph -> ch )"
+      #   substitution
+      #   <number of remaining open $e-hyps>
+      #   <0 == needs real proof, 1 == theorem already seen ignore incoming steps>
       # ]
-      stack ==proofTree
+      stack ==proofState
+      { ==step
+        step 2 dearray ==substitution ==resolution
+        resolution "$" str .split 0 -01 * ==resolutionName
 
-      # From theorem string to nested array showing that theorem
-      map ==proofNodeCache
+        0 ==skippingInSeenThm
+        proofState .has {
+          proofState .pop ==top
+          top proofState .push
 
-      [| "Total non-syntax proof steps: " proofSteps .top txt .produce .u "\n" |] out
-
-      map ==syntaxCache
-      { proofSteps .has } {
-        proofSteps .pop ==step
-
-        proofSteps .top 1000 mod 0 eq {
-          [| "Building tree: " proofSteps .top txt .produce .u "...\n" |] out
+          3 top * =skippingInSeenThm
         } rep
 
-        step 2 dearray ==substitution ==resolution
-        resolution "$" str .split ==splitResolution
-        0 splitResolution * ==resolutionName
+        # DEBUGGING ONLY
+        "" ==requiredThm
+        "" ==requiredHyp
+        proofState .has {
+          proofState .pop ==top
+          top proofState .push
+
+          0 top * ==parentResolutionName
+          1 top * ==parentSubstitution
+
+          parentResolutionName assertions .has {
+            parentResolutionName assertions * ==a
+
+            a .hyps { a .ctx isEHyp } grep ==parentEHyps
+            2 top * neg parentEHyps * =requiredHyp
+
+            [| requiredHyp a .ctx getEHyp parentSubstitution applySubstitution expandMeta { " " } each -- |] =requiredThm
+          } {
+            [| "Parent step had non-assertion resolution." |] err
+          } ? *
+        } rep
+        # END DEBUGGING
 
         [
           { resolutionName collectedEHyps .has } {
-            [
-              resolution
-              [| resolutionName collectedEHyps * { " " } each -- |]
-            ] proofTree .push
+            [ resolutionName map 0 skippingInSeenThm ] proofState .push
           }
+
           { resolutionName assertions .has } {
             resolutionName assertions * ==a
 
-            [
+            [| a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
+            # DEBUGGING ONLY
+            requiredThm "" neq { requiredThm shownThm neq } andif {
+              step dump
+              [| "Incorrect result on $e-hyp: " requiredHyp |] err
+              [| "Required:\n" 0 requiredThm renderNicely "\n" |] out
+              [| "Proven (by " 0 step * "):\n" 0 shownThm renderNicely "\n" |] out
+              [| "Required (raw):\n" requiredThm "\n" |] out
+              [| "Proven (raw):\n" shownThm "\n" |] out
+            } rep
+            # END DEBUGGING
+
+            shownThm seenThms .has {
+              skippingInSeenThm not {
+                shownThm seenThms * ==index
+
+                index flatProofBuffer .data * ==original
+                0 original * 0 "!" * neq {
+                  [| "!" original "!" shownThm |] index flatProofBuffer .data =[]
+                } rep
+
+                [| "*" shownThm |] flatProofBuffer .push
+                1 =skippingInSeenThm
+              } rep
+            } {
               a .hyps { ==hyp [
                 { hyp a .ctx isFHyp } {
                   hyp a .ctx getFHyp 2 dearray ==var ==type
@@ -8625,274 +8685,88 @@
                       [| "Required variable " var " was empty during processing " resolution "." |] err
                       [ "?" "?" ]
                     } {
-                      [| var substitution * expandMeta { " " } each type |] ==cacheKey
-                      cacheKey syntaxCache .has {
-                        cacheKey syntaxCache *
-                      } {
-                        [
-                          var substitution * expandMeta type { } constructSyntax
-                          [| type " " var substitution * expandMeta { " " } each -- |]
-                        ] _ cacheKey syntaxCache =[]
-                      } ? *
+                      var substitution * expandMeta type constructSyntax
                     } ? *
                   } ? *
                 }
-
-                { hyp a .ctx isEHyp } {
-                  proofTree .has {
-                    proofTree .pop _ ==eHypResolution
-                    1 neg eHypResolution * ==result
-                    result "?" neq {
-                      [| hyp a .ctx getEHyp substitution applySubstitution expandMeta { " " } each -- |] ==required
-                      required result neq {
-                        step dump
-                        [| "Incorrect result on $e-hyp: " hyp |] err
-                        [| "Required:\n" 0 required renderNicely "\n" |] out
-                        [| "Proven (by " 2 neg eHypResolution * "):\n" 0 result renderNicely "\n" |] out
-                        [| "Required (raw):\n" required "\n" |] out
-                        [| "Proven (raw):\n" result "\n" |] out
-                      } rep
-                    } rep
-                    2 neg eHypResolution * "$" str .split 0 -01 * ==name
-                    name assertions .has not
-                        { name "?" neq } andif
-                        { name collectedEHyps .has not } andif {
-                      step dump
-                      [| "Attempt to resolve $e hypothesis by syntax construction: " hyp |] err
-                    } rep
-                  } {
-                    step dump
-                    [| "Stack underflow while creating proof." |] err
-                  } ? *
-                }
-
-                { 1 } {
-                  [| "Unknown theorem hypothesis during proof construction: " resolution |] err
-                }
               ] conds } each
-
-              resolution
-              [| a .thm substitution applySubstitution expandMeta { " " } each -- |]
-            ] ==newNode
-
-            1 neg newNode * ==newThm
-            newThm proofNodeCache .has {
-              newThm proofNodeCache * =newNode
-            } {
-              newNode newThm proofNodeCache =[]
             } ? *
 
-            newNode proofTree .push
+            0 ==numberOfEHyps
+            a .hyps { ==hyp [
+              { hyp a .ctx isFHyp } { }
+              { hyp a .ctx isEHyp } { numberOfEHyps 1 add =numberOfEHyps }
+
+              { 1 } {
+                [| "Unknown theorem hypothesis during proof construction: " resolution |] err
+              }
+            ] conds } each
+
+            [ resolutionName substitution numberOfEHyps skippingInSeenThm ] proofState .push
           }
           { resolutionName "?" eq } {
-            [
-              resolution
-              "?"
-            ] proofTree .push
+            [ resolutionName map 0 skippingInSeenThm ] proofState .push
           }
           { 1 } {
             step dump
             [| "Unknown resolution." |] err
           }
         ] conds
-      } loop
 
-      proofTree
-    } /buildProof deffst
+        1 ==emitting
+        { emitting } {
+          proofState .has not {
+            0 =emitting
+          } {
+            proofState .pop ==top
 
-    { ==proofTree
-      # Flattening
+            2 top * 0 eq {
+              3 top * not {
+                0 top * ==resolutionName
+                # Topmost element is completed (and in a real proof), emit it's resolutionName
+                0 top * flatProofBuffer .push
 
-      # Just an array of metamath names
-      stack ==flatProof
-      { proofTree .has } {
-        proofTree .pop ==top
+                resolutionName assertions .has {
+                  # We just showed a new theorem, record it into the list
+                  resolutionName assertions * ==a
 
-        top sys .typed .type 1 eq {
-          top flatProof .push
+                  1 top * ==substitution
+                  [| a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
 
-          flatProof .top 1000 mod 0 eq {
-            [| "Flattening: " flatProof .top txt .produce .u "...\n" |] out
-          } rep
-        } {
-          1 ==last
-          top reverse {
-            last {
-              0 =last --
-            } {
-              proofTree .push
-            } ? *
-          } each
-        } ? *
-      } loop
-
-      [| "Total proof steps: " flatProof .top txt .produce .u "\n" |] out
-
-      flatProof
-    } /flattenProof deffst
-
-    { ==flatProof
-      # Just an array of metamath names
-      flatProof .top ==flatProofMax
-      flatProof .data =flatProof
-
-      # Checking, duplication detection + tagging
-      # Elements: [ "|- ph" <index of first proof step used> <index of final proof step> ]
-      stack ==proofState
-      # From "|- ph" to proof step which first produced it
-      map ==seenThms
-
-      0 flatProofMax range { ==i
-        i flatProof * ==step
-        # 0 proofState .top range proofState .data * dump
-        # step dump
-        step "$" str .split ==splitStep
-        0 splitStep * ==stepName
-
-        i 1000 mod 0 eq {
-          [| "Deduplicating: " i txt .produce .u "...\n" |] out
-        } rep
-
-        [
-          { stepName collectedEHyps .has } {
-            [ [| stepName collectedEHyps * { " " } each -- |] i i ] proofState .push
-          }
-          { stepName collectedFHyps .has } {
-            [ [| stepName collectedFHyps * { " " } each -- |] i i ] proofState .push
-          }
-          { stepName assertions .has } {
-            i ==blockStart
-            map ==substitution
-            map ==assignments
-            map ==sources # DEBUGGING ONLY
-            stepName assertions * ==a
-            [ a .hyps { } each ] _ ==hyps reverse { ==hyp
-              proofState .pop 3 dearray
-                hyp sources =[]
-                =blockStart
-                hyp assignments =[]
-            } each
-
-            hyps { ==hyp
-              [
-                { hyp a .ctx isFHyp } {
-                  hyp a .ctx getFHyp ==expected
-                  hyp assignments * " " str .split ==toks
-
-                  0 toks * 0 expected * neq {
-                    [| "Broken proof: Could not unify $f-hyp: " hyp " of " step |] err
-                  } rep
-
-                  1 toks len range toks * 1 hyp a .ctx getFHyp * substitution =[]
-                }
-                { hyp a .ctx isEHyp } {
-                  [| hyp a .ctx getEHyp substitution applySubstitution { " " } each -- |] ==expected
-                  hyp assignments * expected neq {
-                    [| "Broken proof: Could not unify $e-hyp: " hyp " of " step |] err
-                    [| "On the stack:\n" 0 hyp assignments * renderNicely "\n" |] out
-                    [| "Expected:\n" 0 expected renderNicely "\n" |] out
-                    [| "Generated by: " hyp sources * flatProof * |] dump
-                  } rep
-                }
-              ] conds
-            } each
-
-            [| a .thm substitution applySubstitution { " " } each -- |] ==newThm
-            newThm seenThms .has { newThm seenThms * flatProof * 1 -01 str .prefix "~" neq } andif {
-              newThm seenThms * blockStart lt { blockStart i lt } andif {
-                [| "*" newThm |] i flatProof =[]
-
-                # Mark steps [blockStart, i) as skipped
-                # Format: ~ 4-byte offset to end of skipped block
-                blockStart ==j
-                { j i lt } {
-                  j flatProof * ==jStep
-                  0 jStep * 126 eq {
-                    1 jStep *
-                    256 mul 2 jStep * add
-                    256 mul 3 jStep * add
-                    256 mul 4 jStep * add
-                    ==old
-
-                    i j sub ==delta
-                    [
-                      126
-                      delta 16777216 div
-                      delta 65536 div 256 mod
-                      delta 256 div 256 mod
-                      delta 256 mod
-                    ] str .fromArray j flatProof =[]
-
-                    old j add =j
+                  shownThm seenThms .has {
+                    [| "Theorem shown twice!" |] warn
                   } {
-                    i j sub ==delta
-                    [
-                      126
-                      delta 16777216 div
-                      delta 65536 div 256 mod
-                      delta 256 div 256 mod
-                      delta 256 mod
-                    ] str .fromArray j flatProof =[]
-                    j 1 add =j
+                    flatProofBuffer .top 1 sub shownThm seenThms =[]
                   } ? *
-                } loop
-
-                # Alternative brute-force version (without offset encoding)
-                # blockStart i range { ==j
-                #   0 j flatProof * * 126 neq { # ASCII 126: ~
-                #     [| "~" j flatProof * |] j flatProof =[]
-                #   } rep
-                # } each
-                newThm seenThms * ==k
-                0 k flatProof * * 33 neq { # ASCII 33: !
-                  [| "!" k flatProof * "!" newThm |] k flatProof =[]
                 } rep
               } rep
+
+              proofState .has 0 neq {
+                proofState .pop ==parent
+                2 parent * 1 sub 2 parent =[]
+                parent proofState .push
+              } rep
             } {
-              i newThm seenThms =[]
+              0 =emitting
+              top proofState .push
             } ? *
+          } ? *
+        } loop
+      } mainGoal _ .strategy .construct
 
-            [ newThm blockStart i ] proofState .push
-          }
-          { stepName "?" eq } {
-            [ "?" i i ] proofState .push
-          }
-          { 1 } {
-            [| "Unresolved name during proof checking: " step |] err
-          }
-        ] conds
+      proofState .top 0 neq {
+        [| "Garbage left on proof stack after construction." |] err
+        0 proofState .top range {
+          proofState .data dump
+        } each
+      } rep
+
+      0 flatProofBuffer .top range _ ==flatProof { ==i
+        i flatProofBuffer .data * i flatProof =[]
       } each
-
-      # Remove debugging $-suffixes
-      0 flatProofMax range { ==i
-        i flatProof * ==step
-
-        1 step str .prefix ==t
-        [
-          { t "*" eq } { }
-          { t "!" eq } {
-            1 step str .postfix "!" str .split 2 dearray ==thm ==name
-            [| "!" name "$" str .split 0 -01 * "!" thm |] i flatProof =[]
-          }
-          { step "?" eq } { }
-          { 1 } {
-            step "$" str .split 0 -01 * i flatProof =[]
-          }
-        ] conds
-      } each
-
-      flatProofMax flatProof len range { "~" -01 flatProof =[] } each
-
-      # 0 proofState .top range proofState .data * dump
-      # flatProof dump
-
-      flatProof { 1 -01 str .prefix "~" neq } largegrep =flatProof
-      # flatProof dump
-
-      [| "Steps after deduplication: " flatProof len txt .produce .u "\n" |] out
 
       flatProof
-    } /deduplicateProof deffst
+    } /buildProof deffst
 
     { ==flatProof
       # flatProof an array of:
@@ -8994,11 +8868,11 @@
     } /exportProof deffst
 
     {
-      buildProof flattenProof deduplicateProof exportProof
+      buildProof exportProof
     } /exportCompressed deffst
 
     {
-      buildProof flattenProof deduplicateProof ==proof
+      buildProof ==proof
       [| "=== snip here for " proposition .name " ===\n" |] out
       [| "${" |] out
       exportDisjuncts
