@@ -8530,6 +8530,9 @@
         [| "TODO: Top-level goal rendered with antecedents." |] err
       } rep
 
+      # Number of total steps emitted into serializer
+      0 ==statIncomingSteps
+
       # Non-syntax proof steps are pushed in easy to generate order, elements: [ /thmName substitution ]
       # Example:
       # [ /syl <ph => ph, ch => ch> ]
@@ -8607,6 +8610,8 @@
       # ]
       stack ==proofState
       { ==step
+        statIncomingSteps 1 add =statIncomingSteps
+
         step 2 dearray ==substitution ==resolution
         resolution "$" str .split 0 -01 * ==resolutionName
 
@@ -8764,6 +8769,9 @@
       0 flatProofBuffer .top range _ ==flatProof { ==i
         i flatProofBuffer .data * i flatProof =[]
       } each
+
+      [| "Steps received by serializer: " statIncomingSteps txt .produce .u "\n" |] out
+      [| "Proof steps after deduplication: " flatProof len txt .produce .u "\n" |] out
 
       flatProof
     } /buildProof deffst
