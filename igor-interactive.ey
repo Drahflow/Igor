@@ -3751,33 +3751,33 @@
       0 ==debugIndent
 
       {
-        _ /usedAntecedent eq { ==name =*f
-          { ==goal
-            [
-              goal f ==result
-            ] len 0 neq {
-              [| "Stack polluted by " goal .resolution |] err
-            } rep
-            map ==antes goal .antes { 1 -01 antes =[] } each
-            result splitConjunction { antes .has not } grep _ ==error len 0 neq {
-              [| "--- goal requested invalid ante ---" |] err
-              goal .resolution dump
-              [| "proving:\n" |] out
-              [| 0 goal .thm renderNicely "\n" |] out
-              [| "from:\n" |] out
-              goal .antes { ==ante
-                [| 0 ante renderNicely "\n" |] out
-              } each
-              [| "... but actual request was also for ...\n" |] out
-              error { ==ante
-                [| 0 ante renderNicely "\n" |] out
-              } each
-              /aborting die
-            } rep
+        # _ /usedAntecedent eq { ==name =*f
+        #   { ==goal
+        #     [
+        #       goal f ==result
+        #     ] len 0 neq {
+        #       [| "Stack polluted by " goal .resolution |] err
+        #     } rep
+        #     map ==antes goal .antes { 1 -01 antes =[] } each
+        #     result splitConjunction { antes .has not } grep _ ==error len 0 neq {
+        #       [| "--- goal requested invalid ante ---" |] err
+        #       goal .resolution dump
+        #       [| "proving:\n" |] out
+        #       [| 0 goal .thm renderNicely "\n" |] out
+        #       [| "from:\n" |] out
+        #       goal .antes { ==ante
+        #         [| 0 ante renderNicely "\n" |] out
+        #       } each
+        #       [| "... but actual request was also for ...\n" |] out
+        #       error { ==ante
+        #         [| 0 ante renderNicely "\n" |] out
+        #       } each
+        #       /aborting die
+        #     } rep
 
-            result
-          } name
-        } rep
+        #     result
+        #   } name
+        # } rep
 
         _ /construct eq { ==name =*f
           { ==goal =*pushStep
@@ -4344,7 +4344,11 @@
           /TODO:strategyUnusedVariable die
         }
       ] conds
+    } /constructUnusedImpl deffst
+    { ==thm =*pushStep
+      [ "*" thm { |pushStep thm constructUnusedImpl } ] pushStep
     } /constructUnused deffst
+
     <
       { ==goal
         ""
@@ -4587,21 +4591,8 @@
         }
       ] conds
     } /constructDecimalImpl deffst
-
-    # TODO: Push the trivial duplication through until proof deduplication
-    map ==constructCache
     { ==thm =*pushStep
-      thm constructCache .has not {
-        stack ==buffer
-        { buffer .push } thm constructDecimalImpl
-        0 buffer .top range ==cached
-        0 buffer .top range { ==i
-          i buffer .data * i cached =[]
-        } each
-        cached thm constructCache =[]
-      } rep
-
-      thm constructCache * |pushStep each
+      [ "*" thm { |pushStep thm constructDecimalImpl } ] pushStep
     } /constructDecimal deffst
 
     <
@@ -5125,21 +5116,10 @@
         { 1 } todo
       ] conds
     } /constructArithmeticsImpl deffst
-
-    # TODO: Push the trivial duplication through until proof deduplication
     { ==thm =*pushStep
-      thm constructCache .has not {
-        stack ==buffer
-        { buffer .push } thm constructArithmeticsImpl
-        0 buffer .top range ==cached
-        0 buffer .top range { ==i
-          i buffer .data * i cached =[]
-        } each
-        cached thm constructCache =[]
-      } rep
-
-      thm constructCache * |pushStep each
+      [ "*" thm { |pushStep thm constructArithmeticsImpl } ] pushStep
     } /constructArithmetics deffst
+
     <
       { ==goal
         ""
@@ -5966,6 +5946,9 @@
         [| "Failed to construct rewrite proof." |] err
         [| "\n" 0 thm renderNicely "\n" |] out
       } rep
+    } /constructRewriteImpl deffst
+    { ==thm =*pushStep
+      [ "*" thm { |pushStep thm constructRewriteImpl } ] pushStep
     } /constructRewrite deffst
 
     <
@@ -7420,7 +7403,11 @@
         }
         { 1 } todo
       ] conds
+    } /constructRangeHelperImpl deffst
+    { ==thm =*pushStep
+      [ "*" thm { |pushStep thm constructRangeHelperImpl } ] pushStep
     } /constructRangeHelper deffst
+
     { ==goal
       [| "Building graph for " goal .thm |] out
 
@@ -8538,7 +8525,11 @@
       # [ /syl <ph => ph, ch => ch> ]
       # [ ... (steps for syl.1) ... ]
       # [ ... (steps for syl.2) ... ]
-      # To debug, add info after $, e.g. syl$DEBUG1
+      # To debug, add info after $ into resolution names, e.g. syl$DEBUG1
+      #
+      # Where construction is fully dependent on a theorem statement, the entire construction can easily
+      # been skipped if the theorem is known. To signal this capability, instead this is pushed:
+      # [ "*" "<thm without |- prefix>" { <closure calling pushStep as needed to proof> } ]
 
       # From thm to index in flatProofBuffer where theorem is shown
       map ==seenThms
@@ -8556,7 +8547,7 @@
           thm seenThms * ==index
 
           index flatProofBuffer .data * ==original
-          0 original * 0 "!" * neq {
+          0 original * 33 neq { # 33 = ASCII '!'
             [| "!" original "!" thm |] index flatProofBuffer .data =[]
           } rep
 
@@ -8606,14 +8597,14 @@
       #   /syl
       #   substitution
       #   <number of remaining open $e-hyps>
-      #   <0 == needs real proof, 1 == theorem already seen ignore incoming steps>
+      #   <
+      #     0 == needs real proof
+      #     1 == theorem already seen ignore incoming steps (and don't emit this resolution)
+      #   >
       # ]
       stack ==proofState
       { ==step
         statIncomingSteps 1 add =statIncomingSteps
-
-        step 2 dearray ==substitution ==resolution
-        resolution "$" str .split 0 -01 * ==resolutionName
 
         0 ==skippingInSeenThm
         proofState .has {
@@ -8623,100 +8614,123 @@
           3 top * =skippingInSeenThm
         } rep
 
-        # DEBUGGING ONLY
-        "" ==requiredThm
-        "" ==requiredHyp
-        proofState .has {
-          proofState .pop ==top
-          top proofState .push
+        0 step * "*" eq {
+          [| "|- " 1 step * |] ==availableThm
+          availableThm seenThms .has {
+            skippingInSeenThm not {
+              availableThm seenThms * ==index
 
-          0 top * ==parentResolutionName
-          1 top * ==parentSubstitution
-
-          parentResolutionName assertions .has {
-            parentResolutionName assertions * ==a
-
-            a .hyps { a .ctx isEHyp } grep ==parentEHyps
-            2 top * neg parentEHyps * =requiredHyp
-
-            [| requiredHyp a .ctx getEHyp parentSubstitution applySubstitution expandMeta { " " } each -- |] =requiredThm
-          } {
-            [| "Parent step had non-assertion resolution." |] err
-          } ? *
-        } rep
-        # END DEBUGGING
-
-        [
-          { resolutionName collectedEHyps .has } {
-            [ resolutionName map 0 skippingInSeenThm ] proofState .push
-          }
-
-          { resolutionName assertions .has } {
-            resolutionName assertions * ==a
-
-            [| a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
-            # DEBUGGING ONLY
-            requiredThm "" neq { requiredThm shownThm neq } andif {
-              step dump
-              [| "Incorrect result on $e-hyp: " requiredHyp |] err
-              [| "Required:\n" 0 requiredThm renderNicely "\n" |] out
-              [| "Proven (by " 0 step * "):\n" 0 shownThm renderNicely "\n" |] out
-              [| "Required (raw):\n" requiredThm "\n" |] out
-              [| "Proven (raw):\n" shownThm "\n" |] out
-            } rep
-            # END DEBUGGING
-
-            shownThm seenThms .has {
-              skippingInSeenThm not {
-                shownThm seenThms * ==index
-
-                index flatProofBuffer .data * ==original
-                0 original * 0 "!" * neq {
-                  [| "!" original "!" shownThm |] index flatProofBuffer .data =[]
-                } rep
-
-                [| "*" shownThm |] flatProofBuffer .push
-                1 =skippingInSeenThm
+              index flatProofBuffer .data * ==original
+              0 original * 33 neq { # 33 = ASCII '!'
+                [| "!" original "!" availableThm |] index flatProofBuffer .data =[]
               } rep
-            } {
-              a .hyps { ==hyp [
-                { hyp a .ctx isFHyp } {
-                  hyp a .ctx getFHyp 2 dearray ==var ==type
-                  var substitution .has not {
-                    [| "Required variable " var " was undefined during processing " resolution "." |] err
-                    [ "?" "?" ]
-                  } {
-                    var substitution * "" eq any {
-                      [| "Required variable " var " was empty during processing " resolution "." |] err
+
+              [| "*" availableThm |] flatProofBuffer .push
+            } rep
+
+            [ "*" map 0 1 ] proofState .push
+          } {
+            2 step * *
+          } ? *
+        } {
+          step 2 dearray ==substitution ==resolution
+          resolution "$" str .split 0 -01 * ==resolutionName
+
+          # DEBUGGING ONLY
+          # "" ==requiredThm
+          # "" ==requiredHyp
+          # proofState .has {
+          #   proofState .pop ==top
+          #   top proofState .push
+
+          #   0 top * ==parentResolutionName
+          #   1 top * ==parentSubstitution
+
+          #   parentResolutionName assertions .has {
+          #     parentResolutionName assertions * ==a
+
+          #     a .hyps { a .ctx isEHyp } grep ==parentEHyps
+          #     2 top * neg parentEHyps * =requiredHyp
+
+          #     [| requiredHyp a .ctx getEHyp parentSubstitution applySubstitution expandMeta { " " } each -- |] =requiredThm
+          #   } {
+          #     [| "Parent step had non-assertion resolution." |] err
+          #   } ? *
+          # } rep
+          # END DEBUGGING
+
+          [
+            { resolutionName collectedEHyps .has } {
+              [ resolutionName map 0 skippingInSeenThm ] proofState .push
+            }
+
+            { resolutionName assertions .has } {
+              resolutionName assertions * ==a
+
+              [| a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
+              # DEBUGGING ONLY
+              # requiredThm "" neq { requiredThm shownThm neq } andif {
+              #   step dump
+              #   [| "Incorrect result on $e-hyp: " requiredHyp |] err
+              #   [| "Required:\n" 0 requiredThm renderNicely "\n" |] out
+              #   [| "Proven (by " 0 step * "):\n" 0 shownThm renderNicely "\n" |] out
+              #   [| "Required (raw):\n" requiredThm "\n" |] out
+              #   [| "Proven (raw):\n" shownThm "\n" |] out
+              # } rep
+              # END DEBUGGING
+
+              shownThm seenThms .has {
+                skippingInSeenThm not {
+                  shownThm seenThms * ==index
+
+                  index flatProofBuffer .data * ==original
+                  0 original * 33 neq { # 33 = ASCII '!'
+                    [| "!" original "!" shownThm |] index flatProofBuffer .data =[]
+                  } rep
+
+                  [| "*" shownThm |] flatProofBuffer .push
+                  1 =skippingInSeenThm
+                } rep
+              } {
+                a .hyps { ==hyp [
+                  { hyp a .ctx isFHyp } {
+                    hyp a .ctx getFHyp 2 dearray ==var ==type
+                    var substitution .has not {
+                      [| "Required variable " var " was undefined during processing " resolution "." |] err
                       [ "?" "?" ]
                     } {
-                      var substitution * expandMeta type constructSyntax
+                      var substitution * "" eq any {
+                        [| "Required variable " var " was empty during processing " resolution "." |] err
+                        [ "?" "?" ]
+                      } {
+                        var substitution * expandMeta type constructSyntax
+                      } ? *
                     } ? *
-                  } ? *
+                  }
+                ] conds } each
+              } ? *
+
+              0 ==numberOfEHyps
+              a .hyps { ==hyp [
+                { hyp a .ctx isFHyp } { }
+                { hyp a .ctx isEHyp } { numberOfEHyps 1 add =numberOfEHyps }
+
+                { 1 } {
+                  [| "Unknown theorem hypothesis during proof construction: " resolution |] err
                 }
               ] conds } each
-            } ? *
 
-            0 ==numberOfEHyps
-            a .hyps { ==hyp [
-              { hyp a .ctx isFHyp } { }
-              { hyp a .ctx isEHyp } { numberOfEHyps 1 add =numberOfEHyps }
-
-              { 1 } {
-                [| "Unknown theorem hypothesis during proof construction: " resolution |] err
-              }
-            ] conds } each
-
-            [ resolutionName substitution numberOfEHyps skippingInSeenThm ] proofState .push
-          }
-          { resolutionName "?" eq } {
-            [ resolutionName map 0 skippingInSeenThm ] proofState .push
-          }
-          { 1 } {
-            step dump
-            [| "Unknown resolution." |] err
-          }
-        ] conds
+              [ resolutionName substitution numberOfEHyps skippingInSeenThm ] proofState .push
+            }
+            { resolutionName "?" eq } {
+              [ resolutionName map 0 skippingInSeenThm ] proofState .push
+            }
+            { 1 } {
+              step dump
+              [| "Unknown resolution." |] err
+            }
+          ] conds
+        } ? *
 
         1 ==emitting
         { emitting } {
