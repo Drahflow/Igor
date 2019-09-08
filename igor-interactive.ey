@@ -8535,23 +8535,23 @@
       map ==seenThms
 
       # flatProof an array of:
-      # "*<thm>": a deduplicated theorem already somewhere on the proof stack
-      # "!<name>!<thm>": a metamath theorem name, producing the specified re-used theorem
+      # "<thm>": a deduplicated theorem already somewhere on the proof stack
+      # "!<name><thm>": a metamath theorem name, producing the specified re-used theorem
       # "<name>": a metamath theorem name
       stack ==flatProofBuffer
 
       { ==rootNonterminal ==toks
-        [| rootNonterminal " " toks { " " } each -- |] ==thm
+        [| "" rootNonterminal " " toks { " " } each -- |] ==thm
 
         thm seenThms .has {
           thm seenThms * ==index
 
           index flatProofBuffer .data * ==original
           0 original * 33 neq { # 33 = ASCII '!'
-            [| "!" original "!" thm |] index flatProofBuffer .data =[]
+            [| "!" original thm |] index flatProofBuffer .data =[]
           } rep
 
-          [| "*" thm |] flatProofBuffer .push
+          thm flatProofBuffer .push
         } {
           0 toks rootNonterminal logicParsers * * not {
             [| "Could not generate parse for syntax-proof." |] err
@@ -8615,17 +8615,17 @@
         } rep
 
         0 step * "*" eq {
-          [| "|- " 1 step * |] ==availableThm
+          [| "|- " 1 step * |] ==availableThm
           availableThm seenThms .has {
             skippingInSeenThm not {
               availableThm seenThms * ==index
 
               index flatProofBuffer .data * ==original
               0 original * 33 neq { # 33 = ASCII '!'
-                [| "!" original "!" availableThm |] index flatProofBuffer .data =[]
+                [| "!" original availableThm |] index flatProofBuffer .data =[]
               } rep
 
-              [| "*" availableThm |] flatProofBuffer .push
+              availableThm flatProofBuffer .push
             } rep
 
             [ "*" map 0 1 ] proofState .push
@@ -8667,8 +8667,9 @@
             { resolutionName assertions .has } {
               resolutionName assertions * ==a
 
-              [| a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
+              [| "" a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
               # DEBUGGING ONLY
+              # DEBUGGING REENABLE: shownThm without  in the following code:
               # requiredThm "" neq { requiredThm shownThm neq } andif {
               #   step dump
               #   [| "Incorrect result on $e-hyp: " requiredHyp |] err
@@ -8685,10 +8686,10 @@
 
                   index flatProofBuffer .data * ==original
                   0 original * 33 neq { # 33 = ASCII '!'
-                    [| "!" original "!" shownThm |] index flatProofBuffer .data =[]
+                    [| "!" original shownThm |] index flatProofBuffer .data =[]
                   } rep
 
-                  [| "*" shownThm |] flatProofBuffer .push
+                  shownThm flatProofBuffer .push
                   1 =skippingInSeenThm
                 } rep
               } {
@@ -8750,7 +8751,7 @@
                   resolutionName assertions * ==a
 
                   1 top * ==substitution
-                  [| a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
+                  [| "" a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
 
                   shownThm seenThms .has {
                     [| "Theorem shown twice!" |] warn
@@ -8804,9 +8805,9 @@
       flatProof { ==step
         1 step str .prefix ==t
         [
-          { t "*" eq } { }
+          { t "" eq } { }
           { t "!" eq } {
-            1 step str .postfix "!" str .split 2 dearray ==thm ==name
+            1 step str .postfix "" str .split 2 dearray ==thm ==name
             name nameCount .has { name nameCount * } { 0 } ? * 1 add name nameCount =[]
           }
           { step "?" eq } {
@@ -8870,11 +8871,11 @@
           { step "?" eq } {
             "?" wrapOut
           }
-          { t "*" eq } {
+          { t "" eq } {
             1 step str .postfix taggedThms * encodeNumber |wrapOut each
           }
           { t "!" eq } {
-            1 step str .postfix "!" str .split 2 dearray ==thm ==name
+            1 step str .postfix "" str .split 2 dearray ==thm ==name
             name nameMap * encodeNumber |wrapOut each
             encodeTag
             totalMappedNames _ 1 add =totalMappedNames thm taggedThms =[]
