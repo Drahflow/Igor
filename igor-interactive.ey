@@ -41,6 +41,10 @@
                   data *
     } /pop deffst
 
+    {
+      top 1 sub data *
+    } /peek deffst
+
     { top } /has deffst
   > } /stack deffst
 
@@ -8608,9 +8612,7 @@
 
         0 ==skippingInSeenThm
         proofState .has {
-          proofState .pop ==top
-          top proofState .push
-
+          proofState .peek ==top
           3 top * =skippingInSeenThm
         } rep
 
@@ -8738,9 +8740,11 @@
           proofState .has not {
             0 =emitting
           } {
-            proofState .pop ==top
+            proofState .peek ==top
 
             2 top * 0 eq {
+              proofState .pop --
+
               3 top * not {
                 0 top * ==resolutionName
                 # Topmost element is completed (and in a real proof), emit it's resolutionName
@@ -8762,13 +8766,11 @@
               } rep
 
               proofState .has 0 neq {
-                proofState .pop ==parent
+                proofState .peek ==parent
                 2 parent * 1 sub 2 parent =[]
-                parent proofState .push
               } rep
             } {
               0 =emitting
-              top proofState .push
             } ? *
           } ? *
         } loop
