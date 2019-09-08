@@ -8669,21 +8669,21 @@
             { resolutionName assertions .has } {
               resolutionName assertions * ==a
 
-              [| "" a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
-              # DEBUGGING ONLY
-              # DEBUGGING REENABLE: shownThm without  in the following code:
-              # requiredThm "" neq { requiredThm shownThm neq } andif {
-              #   step dump
-              #   [| "Incorrect result on $e-hyp: " requiredHyp |] err
-              #   [| "Required:\n" 0 requiredThm renderNicely "\n" |] out
-              #   [| "Proven (by " 0 step * "):\n" 0 shownThm renderNicely "\n" |] out
-              #   [| "Required (raw):\n" requiredThm "\n" |] out
-              #   [| "Proven (raw):\n" shownThm "\n" |] out
-              # } rep
-              # END DEBUGGING
+              skippingInSeenThm not {
+                [| "" a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
+                # DEBUGGING ONLY
+                # DEBUGGING REENABLE: shownThm without  in the following code:
+                # requiredThm "" neq { requiredThm shownThm neq } andif {
+                #   step dump
+                #   [| "Incorrect result on $e-hyp: " requiredHyp |] err
+                #   [| "Required:\n" 0 requiredThm renderNicely "\n" |] out
+                #   [| "Proven (by " 0 step * "):\n" 0 shownThm renderNicely "\n" |] out
+                #   [| "Required (raw):\n" requiredThm "\n" |] out
+                #   [| "Proven (raw):\n" shownThm "\n" |] out
+                # } rep
+                # END DEBUGGING
 
-              shownThm seenThms .has {
-                skippingInSeenThm not {
+                shownThm seenThms .has {
                   shownThm seenThms * ==index
 
                   index flatProofBuffer .data * ==original
@@ -8693,25 +8693,25 @@
 
                   shownThm flatProofBuffer .push
                   1 =skippingInSeenThm
-                } rep
-              } {
-                a .hyps { ==hyp [
-                  { hyp a .ctx isFHyp } {
-                    hyp a .ctx getFHyp 2 dearray ==var ==type
-                    var substitution .has not {
-                      [| "Required variable " var " was undefined during processing " resolution "." |] err
-                      [ "?" "?" ]
-                    } {
-                      var substitution * "" eq any {
-                        [| "Required variable " var " was empty during processing " resolution "." |] err
+                } {
+                  a .hyps { ==hyp [
+                    { hyp a .ctx isFHyp } {
+                      hyp a .ctx getFHyp 2 dearray ==var ==type
+                      var substitution .has not {
+                        [| "Required variable " var " was undefined during processing " resolution "." |] err
                         [ "?" "?" ]
                       } {
-                        var substitution * expandMeta type constructSyntax
+                        var substitution * "" eq any {
+                          [| "Required variable " var " was empty during processing " resolution "." |] err
+                          [ "?" "?" ]
+                        } {
+                          var substitution * expandMeta type constructSyntax
+                        } ? *
                       } ? *
-                    } ? *
-                  }
-                ] conds } each
-              } ? *
+                    }
+                  ] conds } each
+                } ? *
+              } rep
 
               0 ==numberOfEHyps
               a .hyps { ==hyp [
