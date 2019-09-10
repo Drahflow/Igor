@@ -5602,6 +5602,134 @@
       } /construct deffst
     > ==strategyUseEHyp
 
+    { ==children ==requestedAntes ==thm ==goalThm =*pushStep
+      map ==availableAntes
+      1 children len range children * { _ .thm availableAntes =[] } each
+
+      [ { thm "( ph -> ps )" // } { $ps =thm $ph } loop ] { ==ante
+        [| ante " " str .split expandMeta { " " } each -- |]
+      } '*0.0 ==antesToGenerate
+      thm ==thmConclusion
+
+      # |- ( requestedAntes -> goalThm )
+      thmConclusion goalThm neq {
+        map ==lastGrammarMatch $_
+        requestedAntes $=ph thmConclusion $=ps goalThm $=ch
+        [ /syl$HERE2 $$ ] pushStep
+      } rep
+
+      # |- ( requestedAntes -> thmConclusion )
+      requestedAntes "" eq {
+        # |- thmConclusion
+        antesToGenerate reverse { ==ante
+          # |- thm
+          [ /ax-mp$4444 <$ ante ==ph thm ==ps $> ] pushStep
+
+          # |- ante
+          { ==conjunction
+            [
+              { conjunction availableAntes .has } {
+                conjunction availableAntes * ==child
+                |pushStep child _ .strategy .construct
+              }
+              { conjunction "( ph /\\ ps )" // } { $_
+                [ /pm3.2i $$ ] pushStep
+
+                # TODO: Optimize case of trivial child
+                $ph callChildren
+                $ps callChildren
+              }
+              { 1 } {
+                [| "Failed to construct theorem formula. (1)" |] err
+                "Available antes:" dump
+                availableAntes dom dump
+                "Requested antes:" dump
+                [| 0 requestedAntes renderNicely "\n" |] out
+                "Conjunction:" dump
+                [| 0 conjunction renderNicely "\n" |] out
+                [ "?" map ] pushStep
+              }
+            ] conds
+          } /callChildren deffst
+          ante callChildren
+
+          # |- ante -> thm
+          [| "( " ante " -> " thm " )" |] =thm
+        } each
+      } {
+        antesToGenerate reverse { ==ante
+          $_
+          requestedAntes $=ph ante $=ps thm $=ch
+          [ /mpd$HERE2 $$ ] pushStep
+          [| "( " $ps " -> " $ch " )" |] =thm
+
+          { ==conjunction
+            [
+              { conjunction availableAntes .has } {
+                # TODO: Optimize case of trivial child
+
+                conjunction availableAntes * ==child
+                child _ .strategy .usedAntecedent ==childAnte
+                childAnte "" neq {
+                  map ==lastGrammarMatch $_
+                  requestedAntes $=ph conjunction $=ch childAnte $=ps
+                  [ /syl$HERE3 $$ ] pushStep
+
+                  |pushStep requestedAntes childAnte transformConjunct
+                } {
+                  map ==lastGrammarMatch $_
+                  requestedAntes $=ps conjunction $=ph
+                  [ /a1i$HERE5 $$ ] pushStep
+                } ? *
+
+                |pushStep child _ .strategy .construct
+              }
+              { conjunction "( ps /\\ ch )" // } { $_
+                requestedAntes $=ph
+                [ /jca$HERE2 $$ ] pushStep
+
+                $ps callChildren
+                $ch callChildren
+              }
+              { conjunction "( ps /\\ ch /\\ th )" // } { $_
+                requestedAntes $=ph
+                [ /3jca$HERE7 $$ ] pushStep
+
+                $ps callChildren
+                $ch callChildren
+                $th callChildren
+              }
+              { 1 } {
+                [| "Failed to construct theorem formula. (2)" |] err
+                "Available antes:" dump
+                availableAntes dom dump
+                "Requested antes:" dump
+                [| 0 requestedAntes renderNicely "\n" |] out
+                "Conjunction:" dump
+                [| 0 conjunction renderNicely "\n" |] out
+                "Children:" dump
+                children { ==child
+                  [| 0 child .thm renderNicely "\n" |] out
+                } each
+              }
+            ] conds
+          } /callChildren deffst
+          ante callChildren
+        } each
+
+        $_
+        requestedAntes $=ps thm $=ph
+        [ /a1i$HERE6 $$ ] pushStep
+      } ? *
+
+      |pushStep 0 children * _ .strategy .construct
+
+      thmConclusion goalThm neq {
+      # |- ( thmConclusion -> goal .thm )
+        |pushStep thmConclusion goalThm transformConjunct
+      } rep
+    } /useTheoremHelper deffst
+
     <
       { ==goal
         map ==usedAntes
@@ -5623,133 +5751,62 @@
 
         goal _ .strategy .usedAntecedent ==requestedAntes
 
-        map ==availableAntes
-        1 goal .children len range goal .children * { _ .thm availableAntes =[] } each
-
-        [ { thm "( ph -> ps )" // } { $ps =thm $ph } loop ] { ==ante
-          [| ante " " str .split expandMeta { " " } each -- |]
-        } '*0.0 ==antesToGenerate
-        thm ==thmConclusion
-
-        # |- ( requestedAntes -> goal .thm )
-        thmConclusion goal .thm neq {
-          map ==lastGrammarMatch $_
-          requestedAntes $=ph thmConclusion $=ps goal .thm $=ch
-          [ /syl$HERE2 $$ ] pushStep
-        } rep
-
-        # |- ( requestedAntes -> thmConclusion )
-        requestedAntes "" eq {
-          # |- thmConclusion
-          antesToGenerate reverse { ==ante
-            # |- thm
-            [ /ax-mp$4444 <$ ante ==ph thm ==ps $> ] pushStep
-
-            # |- ante
-            { ==conjunction
-              [
-                { conjunction availableAntes .has } {
-                  conjunction availableAntes * ==child
-                  |pushStep child _ .strategy .construct
-                }
-                { conjunction "( ph /\\ ps )" // } { $_
-                  [ /pm3.2i $$ ] pushStep
-
-                  # TODO: Optimize case of trivial child
-                  $ph callChildren
-                  $ps callChildren
-                }
-                { 1 } {
-                  [| "Failed to construct theorem formula. (1)" |] err
-                  "Available antes:" dump
-                  availableAntes dom dump
-                  "Requested antes:" dump
-                  [| 0 requestedAntes renderNicely "\n" |] out
-                  "Conjunction:" dump
-                  [| 0 conjunction renderNicely "\n" |] out
-                  [ "?" map ] pushStep
-                }
-              ] conds
-            } /callChildren deffst
-            ante callChildren
-
-            # |- ante -> thm
-            [| "( " ante " -> " thm " )" |] =thm
-          } each
-        } {
-          antesToGenerate reverse { ==ante
-            $_
-            requestedAntes $=ph ante $=ps thm $=ch
-            [ /mpd$HERE2 $$ ] pushStep
-            [| "( " $ps " -> " $ch " )" |] =thm
-
-            { ==conjunction
-              [
-                { conjunction availableAntes .has } {
-                  # TODO: Optimize case of trivial child
-
-                  conjunction availableAntes * ==child
-                  child _ .strategy .usedAntecedent ==childAnte
-                  childAnte "" neq {
-                    map ==lastGrammarMatch $_
-                    requestedAntes $=ph conjunction $=ch childAnte $=ps
-                    [ /syl$HERE3 $$ ] pushStep
-
-                    |pushStep requestedAntes childAnte transformConjunct
-                  } {
-                    map ==lastGrammarMatch $_
-                    requestedAntes $=ps conjunction $=ph
-                    [ /a1i$HERE5 $$ ] pushStep
-                  } ? *
-
-                  |pushStep child _ .strategy .construct
-                }
-                { conjunction "( ps /\\ ch )" // } { $_
-                  requestedAntes $=ph
-                  [ /jca$HERE2 $$ ] pushStep
-
-                  $ps callChildren
-                  $ch callChildren
-                }
-                { conjunction "( ps /\\ ch /\\ th )" // } { $_
-                  requestedAntes $=ph
-                  [ /3jca$HERE7 $$ ] pushStep
-
-                  $ps callChildren
-                  $ch callChildren
-                  $th callChildren
-                }
-                { 1 } {
-                  [| "Failed to construct theorem formula. (2)" |] err
-                  "Available antes:" dump
-                  availableAntes dom dump
-                  "Requested antes:" dump
-                  [| 0 requestedAntes renderNicely "\n" |] out
-                  "Conjunction:" dump
-                  [| 0 conjunction renderNicely "\n" |] out
-                  "Children:" dump
-                  goal .children { ==child
-                    [| 0 child .thm renderNicely "\n" |] out
-                  } each
-                }
-              ] conds
-            } /callChildren deffst
-            ante callChildren
-          } each
-
-          $_
-          requestedAntes $=ps thm $=ph
-          [ /a1i$HERE6 $$ ] pushStep
-        } ? *
-
-        |pushStep 0 goal .children * _ .strategy .construct
-
-        thmConclusion goal .thm neq {
-        # |- ( thmConclusion -> goal .thm )
-          |pushStep thmConclusion goal .thm transformConjunct
-        } rep
+        |pushStep goal .thm thm requestedAntes goal .children useTheoremHelper
       } /construct deffst
     > ==strategyUseTheorem
+
+    <
+      { ==goal
+        map ==usedAntes
+        1 goal .children len range goal .children * { ==child
+          child _ .strategy .usedAntecedent splitConjunction { ==ante
+            1 ante usedAntes =[]
+          } each
+        } each
+
+        usedAntes dom makeConjunction
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        goal _ .strategy .usedAntecedent ==usedAnte
+
+        # usedAnte -> goal .thm
+        goal .helper ==helper
+        [
+          { /mpbid helper eq } {
+            # usedAnte -> goal .thm
+            1 neg goal .children * ==lastChild
+            [ /mpbid$HERE90 <$ usedAnte ==ph goal .thm ==ch lastChild .thm ==ps $> ] pushStep
+
+            # usedAnte -> lastChild .thm
+            lastChild _ .strategy .usedAntecedent ==requiredAnte
+            requiredAnte "" neq {
+              [ /syl$HERE91 <$ usedAnte ==ph requiredAnte ==ps lastChild .thm ==ch $> ] pushStep
+              |pushStep usedAnte requiredAnte transformConjunct
+            } {
+              [ /a1i$HERE92 <$ usedAnte ==ps lastChild .thm ==ph $> ] pushStep
+            } ? *
+            |pushStep lastChild _ .strategy .construct
+
+            # usedAnte -> ( lastChild .thm <-> goal .thm )
+            [|
+              2 neg goal .resolution str .prefix assertions * .thm
+              goal .substitution applySubstitution
+              { " " } each --
+            |] 3 -01 str .postfix ==thm
+
+            [| "Thm: " thm |] dump
+              |pushStep [| "( " lastChild .thm " <-> " goal .thm " )" |] thm usedAnte
+              0 goal .children len 1 sub range goal .children *
+            useTheoremHelper
+          }
+          { 1 } {
+            [| "Unknown helper theorem in strategyUseTheoremAsTransformation: " helper |] err
+            [ "?" map ] pushStep
+          }
+        ] conds
+      } /construct deffst
+    > ==strategyUseTheoremAsTransformation
 
     { ==goal ==thmName
       [
@@ -5788,49 +5845,97 @@
 
           [ { thm "( ph -> ps )" // } { $ps =thm $ph splitConjunction _ len dearray } loop ] ==allAntes
 
-          1 ==legit
-
             goal .thm splitConjunction makeConjunction " " str .split
             thm splitConjunction makeConjunction " " str .split
           /wff 0 possibleSubstitutionsForToks ==possibleSubstitutions
 
-          possibleSubstitutions len 1 neq { 0 =legit
-            [| "No possible substitution found." |] err
-              goal .thm splitConjunction makeConjunction " " str .split
-              thm splitConjunction makeConjunction " " str .split
-              /wff 0
-            debugPossibleSubstitutionsForToks
-          } rep
+          [
+            { possibleSubstitutions len 1 eq } {
+              0 possibleSubstitutions * ==substitution
 
-          legit {
-            0 possibleSubstitutions * ==substitution
+              a substitution introduceMetaVariables
+              a substitution hasDisjunctionViolations not {
+                a substitution markDisjunctions
 
-            a substitution introduceMetaVariables
-            a substitution hasDisjunctionViolations not {
-              a substitution markDisjunctions
+                thmName "++" cat /resolution goal .set
+                [
+                    [ ] rawThm " " str .split [| -01 substitution applySubstitution { " " } each -- |]
+                  newGoal
 
-              thmName "++" cat /resolution goal .set
-              [
-                  [ ] rawThm " " str .split [| -01 substitution applySubstitution { " " } each -- |]
-                newGoal
+                  allAntes { ==ante
+                      goal .antes ante " " str .split [| -01 substitution applySubstitution { " " } each -- |]
+                    newGoal _ normalizeGoal
+                  } each
+                ] /children goal .set
 
-                allAntes { ==ante
-                    goal .antes ante " " str .split [| -01 substitution applySubstitution { " " } each -- |]
-                  newGoal _ normalizeGoal
-                } each
-              ] /children goal .set
+                strategyUseTheorem /strategy goal .set
+                substitution /substitution goal .setExtra
 
-              strategyUseTheorem /strategy goal .set
-              substitution /substitution goal .setExtra
+                0 goal .children * ==executionGoal
+                {
+                  executionGoal .thm "$" str .split len 1 eq {
+                    thmName executionGoal useTheoremLiterally
+                  } rep
+                } /delayedResolution executionGoal .setExtra
+              } rep
+            }
+            { thm "( ph <-> ps )" // } { $_
+                goal .thm splitConjunction makeConjunction " " str .split
+                $ps splitConjunction makeConjunction " " str .split
+              /wff 0 possibleSubstitutionsForToks =possibleSubstitutions
 
-              0 goal .children * ==executionGoal
-              {
-                executionGoal .thm "$" str .split len 1 eq {
-                  thmName executionGoal useTheoremLiterally
+              possibleSubstitutions len 1 eq {
+                0 possibleSubstitutions * ==substitution
+
+                a substitution introduceMetaVariables
+                a substitution hasDisjunctionViolations not {
+                  a substitution markDisjunctions
+
+                  thmName "+~" cat /resolution goal .set
+                  [
+                      [ ] rawThm " " str .split [| -01 substitution applySubstitution { " " } each -- |]
+                    newGoal
+
+                    allAntes { ==ante
+                        goal .antes ante " " str .split [| -01 substitution applySubstitution { " " } each -- |]
+                      newGoal _ normalizeGoal
+                    } each
+
+                      goal .antes $ph " " str .split [| -01 substitution applySubstitution { " " } each -- |]
+                    newGoal _ normalizeGoal
+                  ] /children goal .set
+
+                  strategyUseTheoremAsTransformation /strategy goal .set
+                  substitution /substitution goal .setExtra
+                  /mpbid /helper goal .setExtra
+
+                  0 goal .children * ==executionGoal
+                  {
+                    executionGoal .thm "$" str .split len 1 eq {
+                      thmName executionGoal useTheoremLiterally
+                    } rep
+                  } /delayedResolution executionGoal .setExtra
                 } rep
-              } /delayedResolution executionGoal .setExtra
-            } rep
-          } rep
+              } {
+                [| "No possible substitution found." |] err
+                  goal .thm splitConjunction makeConjunction " " str .split
+                  thm splitConjunction makeConjunction " " str .split
+                  /wff 0
+                debugPossibleSubstitutionsForToks
+                  goal .thm splitConjunction makeConjunction " " str .split
+                  $ps splitConjunction makeConjunction " " str .split
+                  /wff 0
+                debugPossibleSubstitutionsForToks
+              } ? *
+            }
+            { 1 } {
+              [| "No possible substitution found." |] err
+                goal .thm splitConjunction makeConjunction " " str .split
+                thm splitConjunction makeConjunction " " str .split
+                /wff 0
+              debugPossibleSubstitutionsForToks
+            }
+          ] conds
         }
       ] conds
     } τuseTheorem /useTheorem deffst
@@ -6293,6 +6398,20 @@
         } ? *
       } loop
     } /rewriteSimplerAll deffst
+
+    { ==goal ==name
+      name assertions .has {
+        [| name assertions * .thm { " " } each -- |] 3 -01 str .postfix ==thm
+        thm goal rewrite
+        goal openGoals ==open
+        open len 2 ge {
+          name 0 open * useTheoremLiterally
+          1 neg open * andRewrite
+        } rep
+      } {
+        [| "No such theorem or axiom: " name |] err
+      } ? *
+    } /expand deffst
 
     <
       { ==goal
@@ -8639,26 +8758,28 @@
           resolution "$" str .split 0 -01 * ==resolutionName
 
           # DEBUGGING ONLY
-          # "" ==requiredThm
-          # "" ==requiredHyp
-          # proofState .has {
-          #   proofState .pop ==top
-          #   top proofState .push
+          "" ==requiredThm
+          "" ==requiredHyp
+          "" ==parentResolutionName
+          "" ==parentSubstitution
+          proofState .has {
+            proofState .pop ==top
+            top proofState .push
 
-          #   0 top * ==parentResolutionName
-          #   1 top * ==parentSubstitution
+            0 top * =parentResolutionName
+            1 top * =parentSubstitution
 
-          #   parentResolutionName assertions .has {
-          #     parentResolutionName assertions * ==a
+            parentResolutionName assertions .has {
+              parentResolutionName assertions * ==a
 
-          #     a .hyps { a .ctx isEHyp } grep ==parentEHyps
-          #     2 top * neg parentEHyps * =requiredHyp
+              a .hyps { a .ctx isEHyp } grep ==parentEHyps
+              2 top * neg parentEHyps * =requiredHyp
 
-          #     [| requiredHyp a .ctx getEHyp parentSubstitution applySubstitution expandMeta { " " } each -- |] =requiredThm
-          #   } {
-          #     [| "Parent step had non-assertion resolution." |] err
-          #   } ? *
-          # } rep
+              [| requiredHyp a .ctx getEHyp parentSubstitution applySubstitution expandMeta { " " } each -- |] =requiredThm
+            } {
+              [| "Parent step had non-assertion resolution." |] err
+            } ? *
+          } rep
           # END DEBUGGING
 
           [
@@ -8672,15 +8793,14 @@
               skippingInSeenThm not {
                 [| "" a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
                 # DEBUGGING ONLY
-                # DEBUGGING REENABLE: shownThm without  in the following code:
-                # requiredThm "" neq { requiredThm shownThm neq } andif {
-                #   step dump
-                #   [| "Incorrect result on $e-hyp: " requiredHyp |] err
-                #   [| "Required:\n" 0 requiredThm renderNicely "\n" |] out
-                #   [| "Proven (by " 0 step * "):\n" 0 shownThm renderNicely "\n" |] out
-                #   [| "Required (raw):\n" requiredThm "\n" |] out
-                #   [| "Proven (raw):\n" shownThm "\n" |] out
-                # } rep
+                requiredThm "" neq { requiredThm 1 shownThm str .postfix neq } andif {
+                  step dump
+                  [| "Incorrect result on $e-hyp: " requiredHyp " (of " parentResolutionName ")" |] err
+                  [| "Required:\n" 0 requiredThm renderNicely "\n" |] out
+                  [| "Proven (by " 0 step * "):\n" 0 1 shownThm str .postfix renderNicely "\n" |] out
+                  [| "Required (raw):\n" requiredThm "\n" |] out
+                  [| "Proven (raw):\n" 1 shownThm str .postfix "\n" |] out
+                } rep
                 # END DEBUGGING
 
                 shownThm seenThms .has {
@@ -9183,6 +9303,7 @@
         { cmd "and:rewrite" eq } { selectedGoal goals * andRewrite } unlessSolved
         { cmd "rewrite:simpler" eq } { selectedGoal goals * rewriteSimpler } unlessSolved
         { cmd "rewrite:simpler:all" eq } { goals rewriteSimplerAll }
+        { cmd "expand" eq } { args selectedGoal goals * expand } unlessSolved
         { cmd "take:any" eq } { selectedGoal goals * takeAny } unlessSolved
         { cmd "rename" eq { args "(.) to (.)" regex } andif } { selectedGoal goals * rename } unlessSolved
         { cmd "range" eq } { selectedGoal goals * ranges } unlessSolved
