@@ -5809,7 +5809,6 @@
               { " " } each --
             |] 3 -01 str .postfix ==thm
 
-            [| "Thm: " thm |] dump
               |pushStep [| "( " lastChild .thm " <-> " goal .thm " )" |] thm usedAnte
               0 goal .children len 1 sub range goal .children *
             useTheoremHelper
