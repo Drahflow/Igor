@@ -8706,7 +8706,8 @@
               builder flatProofBuffer .push
 
               thm seenThms .has {
-                [| "Theorem shown twice!" |] err
+                [| "Theorem shown twice (during syntax construction):" |] err
+                1 thm str .postfix out
               } {
                 flatProofBuffer .top 1 sub thm seenThms =[]
               } ? *
@@ -8878,7 +8879,9 @@
                   [| "" a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
 
                   shownThm seenThms .has {
-                    [| "Theorem shown twice!" |] warn
+                    [| "Theorem shown from itself:" |] warn
+                    [| 0 1 shownThm str .postfix renderNicely "\n" |] out
+                    [| "By: " resolutionName "\n" |] out
                   } {
                     flatProofBuffer .top 1 sub shownThm seenThms =[]
                   } ? *
