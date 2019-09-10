@@ -5670,19 +5670,31 @@
 
                 conjunction availableAntes * ==child
                 child _ .strategy .usedAntecedent ==childAnte
-                childAnte "" neq {
-                  map ==lastGrammarMatch $_
-                  requestedAntes $=ph conjunction $=ch childAnte $=ps
-                  [ /syl$HERE3 $$ ] pushStep
 
-                  |pushStep requestedAntes childAnte transformConjunct
-                } {
-                  map ==lastGrammarMatch $_
-                  requestedAntes $=ps conjunction $=ph
-                  [ /a1i$HERE5 $$ ] pushStep
-                } ? *
+                [
+                  { childAnte conjunction eq } {
+                    |pushStep requestedAntes conjunction transformConjunct
+                  }
+                  { childAnte "" neq requestedAntes childAnte eq and } {
+                    |pushStep child _ .strategy .construct
+                  }
+                  { childAnte "" neq } {
+                    map ==lastGrammarMatch $_
+                    requestedAntes $=ph conjunction $=ch childAnte $=ps
+                    [ /syl$HERE3 $$ ] pushStep
 
-                |pushStep child _ .strategy .construct
+                    |pushStep requestedAntes childAnte transformConjunct
+                    |pushStep child _ .strategy .construct
+                  }
+                  { childAnte "" eq } {
+                    map ==lastGrammarMatch $_
+                    requestedAntes $=ps conjunction $=ph
+                    [ /a1i$HERE5 $$ ] pushStep
+
+                    |pushStep child _ .strategy .construct
+                  }
+                  { 1 } { "Errornous case reached during strategyUseTheorem.construct." die }
+                ] conds
               }
               { conjunction "( ps /\\ ch )" // } { $_
                 requestedAntes $=ph
@@ -5781,8 +5793,10 @@
             # usedAnte -> lastChild .thm
             lastChild _ .strategy .usedAntecedent ==requiredAnte
             requiredAnte "" neq {
-              [ /syl$HERE91 <$ usedAnte ==ph requiredAnte ==ps lastChild .thm ==ch $> ] pushStep
-              |pushStep usedAnte requiredAnte transformConjunct
+              usedAnte requiredAnte neq {
+                [ /syl$HERE91 <$ usedAnte ==ph requiredAnte ==ps lastChild .thm ==ch $> ] pushStep
+                |pushStep usedAnte requiredAnte transformConjunct
+              } rep
             } {
               [ /a1i$HERE92 <$ usedAnte ==ps lastChild .thm ==ph $> ] pushStep
             } ? *
