@@ -5813,6 +5813,34 @@
               0 goal .children len 1 sub range goal .children *
             useTheoremHelper
           }
+          { /mpbird helper eq } {
+            # usedAnte -> goal .thm
+            1 neg goal .children * ==lastChild
+            [ /mpbird$HERE100 <$ usedAnte ==ph goal .thm ==ps lastChild .thm ==ch $> ] pushStep
+
+            # usedAnte -> lastChild .thm
+            lastChild _ .strategy .usedAntecedent ==requiredAnte
+            requiredAnte "" neq {
+              usedAnte requiredAnte neq {
+                [ /syl$HERE101 <$ usedAnte ==ph requiredAnte ==ps lastChild .thm ==ch $> ] pushStep
+                |pushStep usedAnte requiredAnte transformConjunct
+              } rep
+            } {
+              [ /a1i$HERE102 <$ usedAnte ==ps lastChild .thm ==ph $> ] pushStep
+            } ? *
+            |pushStep lastChild _ .strategy .construct
+
+            # usedAnte -> ( goal .thm <-> lastChild .thm )
+            [|
+              2 neg goal .resolution str .prefix assertions * .thm
+              goal .substitution applySubstitution
+              { " " } each --
+            |] 3 -01 str .postfix ==thm
+
+              |pushStep [| "( " goal .thm " <-> " lastChild .thm " )" |] thm usedAnte
+              0 goal .children len 1 sub range goal .children *
+            useTheoremHelper
+          }
           { 1 } {
             [| "Unknown helper theorem in strategyUseTheoremAsTransformation: " helper |] err
             [ "?" map ] pushStep
@@ -5930,15 +5958,53 @@
                   } /delayedResolution executionGoal .setExtra
                 } rep
               } {
-                [| "No possible substitution found." |] err
                   goal .thm splitConjunction makeConjunction " " str .split
-                  thm splitConjunction makeConjunction " " str .split
-                  /wff 0
-                debugPossibleSubstitutionsForToks
-                  goal .thm splitConjunction makeConjunction " " str .split
-                  $ps splitConjunction makeConjunction " " str .split
-                  /wff 0
-                debugPossibleSubstitutionsForToks
+                  $ph splitConjunction makeConjunction " " str .split
+                /wff 0 possibleSubstitutionsForToks =possibleSubstitutions
+
+                possibleSubstitutions len 1 eq {
+                  0 possibleSubstitutions * ==substitution
+
+                  a substitution introduceMetaVariables
+                  a substitution hasDisjunctionViolations not {
+                    a substitution markDisjunctions
+
+                    thmName "+~" cat /resolution goal .set
+                    [
+                        [ ] rawThm " " str .split [| -01 substitution applySubstitution { " " } each -- |]
+                      newGoal
+
+                      allAntes { ==ante
+                          goal .antes ante " " str .split [| -01 substitution applySubstitution { " " } each -- |]
+                        newGoal _ normalizeGoal
+                      } each
+
+                        goal .antes $ps " " str .split [| -01 substitution applySubstitution { " " } each -- |]
+                      newGoal _ normalizeGoal
+                    ] /children goal .set
+
+                    strategyUseTheoremAsTransformation /strategy goal .set
+                    substitution /substitution goal .setExtra
+                    /mpbird /helper goal .setExtra
+
+                    0 goal .children * ==executionGoal
+                    {
+                      executionGoal .thm "$" str .split len 1 eq {
+                        thmName executionGoal useTheoremLiterally
+                      } rep
+                    } /delayedResolution executionGoal .setExtra
+                  } rep
+                } {
+                  [| "No possible substitution found." |] err
+                    goal .thm splitConjunction makeConjunction " " str .split
+                    thm splitConjunction makeConjunction " " str .split
+                    /wff 0
+                  debugPossibleSubstitutionsForToks
+                    goal .thm splitConjunction makeConjunction " " str .split
+                    $ps splitConjunction makeConjunction " " str .split
+                    /wff 0
+                  debugPossibleSubstitutionsForToks
+                } ? *
               } ? *
             }
             { 1 } {
