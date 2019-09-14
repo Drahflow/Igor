@@ -5241,10 +5241,13 @@
 
     <
       { ==goal
-        /TODO:strategyFromAntes die
+        goal .thm
       } /usedAntecedent deffst
+
       { ==goal =*pushStep
-        /TODO:strategyFromAntes die
+        # goal .thm -> goal .thm
+
+        [ /id <$ goal .thm ==ph $> ] pushStep
       } /construct deffst
     > ==strategyFromAntes
     { ==goal
@@ -6152,7 +6155,9 @@
                 [| "( " $ph unrewrite " /\\ " $ps unrewrite " )" |]
               }
               { 1 } {
-                goal .antes { goal .from goal .to rewriteRecursive expr eq } grep ==src
+                goal .antes {
+                  goal .from goal .to rewriteRecursive splitConjunction expr eq any
+                } grep ==src
                 src len 1 lt {
                   [| "Could not find requested ante in unrewritten upstream." |] err
                   [| 0 expr renderNicely "\n" |] out
@@ -6388,7 +6393,11 @@
               [
                 goal .antes { ==ante
                   ante from to rewriteRecursive ==newAnte
-                  newAnte ante neq newAnte ante ?
+                  newAnte ante neq {
+                    newAnte splitConjunction _ len dearray
+                  } {
+                    ante
+                  } ? *
                 } each
               ]
                 goal .thm from to rewriteRecursive ==newThm
