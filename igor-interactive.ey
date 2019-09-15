@@ -7076,7 +7076,32 @@
               |pushStep [| "( " $x " = " $A " -> ( " $ph " <-> " $ps " ) )" |] constructRewrite
             } ? *
           } {
-            /TODO:strategyInstantiateRestricted1 die
+            # |- universal -> deduced
+            goal .universal "A. x e. B ph" // -- $_
+
+            [ /mpi <$
+              [| goal .value " e. " restriction |] ==ps goal .universal ==ph deduced ==ch
+            $> ] pushStep
+
+            # |- value e. restriction
+            |pushStep 0 goal .children * _ .strategy .construct
+
+            goal .value $x eq {
+              # |- ( universal -> ( value e. restriction -> deduced ) )
+              [ /ra4 <$ $B ==A $x ==x $ph ==ph $> ] pushStep
+            } {
+              # |- ( universal -> ( value e. restriction -> deduced ) )
+              [ /com12 <$
+                [| goal .value " e. " restriction |] ==ph goal .universal ==ps deduced ==ch
+              $> ] pushStep
+
+              # |- ( value e. restriction -> ( universal -> deduced ) )
+              goal .value $=A deduced $=ps
+              [ /rcla4 $$ ] pushStep
+
+              |pushStep [| "( " $ps " -> A. " $x " " $ps " )" |] constructUnused
+              |pushStep [| "( " $x " = " $A " -> ( " $ph " <-> " $ps " ) )" |] constructRewrite
+            } ? *
           } ? *
         } /constructDeducedInstance deffst
 
