@@ -6212,24 +6212,30 @@
           [ /imp $$ ] pushStep
 
           # |- ( pattern -> ( usedByChild -> goal .thm ) )
+          usedByChild goal .from goal .to rewriteRecursive ==usedByChildRewritten
           map ==lastGrammarMatch $_
           pattern $=ph [| "( " usedByChild " -> " goal .thm " )" |] $=ps
-          [| "( " childAnte " -> " child .thm " )" |] $=ch
+          [| "( " usedByChildRewritten " -> " child .thm " )" |] $=ch
           [ /mpbird$HERE1 $$ ] pushStep
 
-          # |- ( pattern -> ( childAnte -> child .thm ) )
+          # |- ( pattern -> ( usedByChildRewritten -> child .thm ) )
           map ==lastGrammarMatch $_
           pattern $=ps
-          [| "( " childAnte " -> " child .thm " )" |] $=ph
+          [| "( " usedByChildRewritten " -> " child .thm " )" |] $=ph
           [ /a1i$HERE8 $$ ] pushStep
+
+          usedByChildRewritten childAnte neq {
+            [ /syl$HERE217 <$ usedByChildRewritten ==ph childAnte ==ps child .thm ==ch $> ] pushStep
+            |pushStep usedByChildRewritten childAnte transformConjunct
+          } rep
 
           |pushStep child _ .strategy .construct
 
-          # |- ( pattern -> ( ( usedByChild -> goal .thm ) <-> ( childAnte -> child .thm ) ) )
+          # |- ( pattern -> ( ( usedByChild -> goal .thm ) <-> ( usedByChildRewritten -> child .thm ) ) )
             |pushStep
             [| "( " pattern " -> "
                  "( ( " usedByChild " -> " goal .thm " ) <-> "
-                 "( " childAnte " -> " child .thm " ) ) )" |]
+                 "( " usedByChildRewritten " -> " child .thm " ) ) )" |]
           constructRewrite
         } ? *
       } /construct deffst
