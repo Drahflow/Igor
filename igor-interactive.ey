@@ -5163,6 +5163,7 @@
       [
         { thm "x e. _V" // } { [ /vex $$ ] pushStep }
         { thm "A = A" // } { [ /eqid $$ ] pushStep }
+        { thm "( ph <-> ph )" // } { [ /biid $$ ] pushStep }
       ] conds
     } /constructTrivialities deffst
     <
