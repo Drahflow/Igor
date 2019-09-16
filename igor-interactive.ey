@@ -6613,7 +6613,21 @@
           } each
 
           needsRename {
-            [| "TODO:take:any" |] err
+            /cbvralcsf goal useTheorem
+            [| "( " goal .antes makeConjunction " -> " goal .thm " )" |] 2 freshVariables ==w ==x
+            [ x ] "$x" let
+            $A " " str .split "$A" let
+            $ph $x x rewriteRecursive " " str .split "$ph" let
+
+            goal openGoals |normalizeGoal each
+            [ w ] "$w" let
+            goal openGoals |normalizeGoal each
+
+            goal openGoals ==open
+            open len 0 gt {
+              0 open * andRewrite
+              1 neg open * takeAny
+            } rep
           } {
             goal .antes { ==ante
               $x ante requiredDisjuncts { $x markDisj } each
