@@ -5181,6 +5181,7 @@
         { thm "x e. _V" // } { [ /vex $$ ] pushStep }
         { thm "A = A" // } { [ /eqid $$ ] pushStep }
         { thm "( ph <-> ph )" // } { [ /biid $$ ] pushStep }
+        { thm "( ph \\/ -. ph )" // } { [ /exmid $$ ] pushStep }
       ] conds
     } /constructTrivialities deffst
     <
@@ -6665,6 +6666,132 @@
         }
       ] conds
     } τtakeAny /takeAny deffst
+
+    <
+      { ==goal
+        0 goal .children * _ .strategy .usedAntecedent ==ante0
+        1 goal .children * _ .strategy .usedAntecedent ==ante1
+        [
+          { ante0 len ante1 len and } { [| "( " ante0 " /\\ " ante1 " )" |] }
+          { ante0 len } { ante0 }
+          { ante1 len } { ante1 }
+          { 1 } { "" }
+        ] conds
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        goal _ .strategy .usedAntecedent ==usedAnte
+        0 goal .children * _ .strategy .usedAntecedent ==ante0
+        1 goal .children * _ .strategy .usedAntecedent ==ante1
+
+        [
+          { goal .thm "E. x e. B ph" // } { $_
+            [
+              { ante0 len ante1 len and } {
+                # |- ( child0 .usedAntecedent /\ child1 .usedAntecedent ) -> goal .thm
+                [ /syl2an <$
+                  ante0 ==ph
+                  ante1 ==ta
+                  0 goal .children * .thm ==ps
+                  1 goal .children * .thm ==ch
+                  goal .thm ==th
+                $> ] pushStep
+
+                |pushStep 0 goal .children * _ .strategy .construct
+                |pushStep 1 goal .children * _ .strategy .construct
+              }
+              { ante0 len ante1 len or } {
+                # usedAntecedent -> goal .thm
+                [ /syl <$
+                  usedAnte ==ph goal .thm ==ch
+                  [| "( " 0 goal .children * .thm " /\\ " 1 goal .children * .thm " )" |] ==ps
+                $> ] pushStep
+
+                # usedAnte -> ( child0 .thm /\ child1 .thm )
+                [ /jca <$
+                  usedAnte ==ph
+                  0 goal .children * .thm ==ps
+                  1 goal .children * .thm ==ch
+                $> ] pushStep
+
+                # usedAnte -> child0 .thm
+                ante0 len not {
+                  [ /a1i <$ usedAnte ==ps 0 goal .children * .thm ==ph $> ] pushStep
+                } rep
+                |pushStep 0 goal .children * _ .strategy .construct
+
+                # usedAnte -> child1 .thm
+                ante1 len not {
+                  [ /a1i <$ usedAnte ==ps 1 goal .children * .thm ==ph $> ] pushStep
+                } rep
+                |pushStep 1 goal .children * _ .strategy .construct
+              }
+              { 1 } {
+                # goal .thm
+                [ /ax-mp <$
+                  goal .thm ==ps
+                  [| "( " 0 goal .children * .thm " /\\ " 1 goal .children * .thm " )" |] ==ph
+                $> ] pushStep
+
+                # ( child0 .thm /\ child1 .thm )
+                [ /pm3.2i <$
+                  0 goal .children * .thm ==ph
+                  1 goal .children * .thm ==ps
+                $> ] pushStep
+
+                |pushStep 0 goal .children * _ .strategy .construct
+                |pushStep 1 goal .children * _ .strategy .construct
+              }
+            ] conds
+
+            # ( child0 .thm /\ child1 .thm ) -> goal .thm
+            [ /rcla4e <$
+              goal .value ==A
+              $B ==B
+              1 goal .children * .thm ==ps
+              $x ==x
+              $ph ==ph
+            $> ] pushStep
+
+            |pushStep [| "( " 1 goal .children * .thm " -> A. " $x " " 1 goal .children * .thm " )" |] constructUnused
+            |pushStep [| "( "
+              $x " = " goal .value
+            " -> ( "
+              $ph " <-> " 1 goal .children * .thm
+            " ) )" |] constructRewrite
+          }
+          { 1 } {
+            [| "TODO:strategyNamely" |] err
+            [ "?" map ] pushStep
+          }
+        ] conds
+      } /construct deffst
+    > ==strategyNamely
+    { ==goal ==value
+      value "A" // {
+        [
+          { goal .thm "E. x ph" // } { $_
+            [| "TODO:namely" |] err
+          }
+          { goal .thm "E. x e. A ph" // } { $_
+            [
+              [
+                goal .antes [| value " e. " $A |] newGoal
+                goal .antes $ph $x value rewriteRecursive newGoal
+            ] /children goal .set
+
+            /namely /resolution goal .set
+            strategyNamely /strategy goal .set
+            value /value goal .setExtra
+          }
+          { 1 } {
+            [| "Goal not in E. x e. A ph / E. x ph format." |] err
+          }
+        ] conds
+      } {
+        [| "Not a valid class: " value |] err
+      } ? *
+    } τnamely /namely deffst
 
     {
       [| "\n" |] out
@@ -9464,6 +9591,7 @@
         { cmd "rewrite:simpler:all" eq } { goals rewriteSimplerAll }
         { cmd "expand" eq } { args selectedGoal goals * expand } unlessSolved
         { cmd "take:any" eq } { selectedGoal goals * takeAny } unlessSolved
+        { cmd "namely" eq } { args selectedGoal goals * namely } unlessSolved
         { cmd "rename" eq { args "(.) to (.)" regex } andif } { selectedGoal goals * rename } unlessSolved
         { cmd "range" eq } { selectedGoal goals * ranges } unlessSolved
         { cmd "drop" eq { args "all matching (.*)" regex } andif } { selectedGoal goals * dropMatching } unlessSolved
