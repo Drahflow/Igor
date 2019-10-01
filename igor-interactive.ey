@@ -5546,7 +5546,7 @@
 
           [ "|-" ] goal .thm " " str .split cat thmToks /wff 1 possibleSubstitutionsForToks ==possibleSubstitutions
           possibleSubstitutions len 1 neq { 0 =legit
-            [| "No possible substitution found." |] err
+            [| "No possible substitution found for " thmName "." |] err
               [ "|-" ] goal .thm " " str .split cat
               thmToks
               /wff 1
@@ -6017,7 +6017,7 @@
                     } /delayedResolution executionGoal .setExtra
                   } rep
                 } {
-                  [| "No possible substitution found." |] err
+                  [| "No possible substitution found for " thmName "." |] err
                     goal .thm splitConjunction makeConjunction " " str .split
                     thm splitConjunction makeConjunction " " str .split
                     /wff 0
@@ -6030,7 +6030,7 @@
               } ? *
             }
             { 1 } {
-              [| "No possible substitution found." |] err
+              [| "No possible substitution found for " thmName "." |] err
                 goal .thm splitConjunction makeConjunction " " str .split
                 thm splitConjunction makeConjunction " " str .split
                 /wff 0
@@ -6792,6 +6792,84 @@
         [| "Not a valid class: " value |] err
       } ? *
     } τnamely /namely deffst
+
+    <
+      { ==goal
+        ""
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        0 goal .children * ==child
+        goal .thm "( x e. A |-> B ) : A --> C" // -- $_
+
+        # |- ( x e. A |-> B ) : A --> C
+        [ /mpbir2an <$
+          goal .thm ==ph
+          [| "( " $x " e. " $A " |-> " $B " ) Fn " $A |] ==ps
+          [| "ran ( " $x " e. " $A " |-> " $B " ) C_ " $C |] ==ch
+        $> ] pushStep
+
+        # |- ( x e. A |-> B ) Fn A
+        [ /mpbir2an <$
+          [| "( " $x " e. " $A " |-> " $B " ) Fn " $A |] ==ph
+          [| "Fun ( " $x " e. " $A " |-> " $B " )" |] ==ps
+          [| "dom ( " $x " e. " $A " |-> " $B " ) = " $A |] ==ch
+        $> ] pushStep
+
+        # |- Fun ( x e. A |-> B )
+        [ /funmpt <$ $x ==x $A ==A $B ==B $> ] pushStep
+
+        # |- dom ( x e. A |-> B ) = A
+        [ /ax-mp <$
+          [| "A. " $x " e. " $A " " $B " e. " $C |] ==ph
+          [| "dom ( " $x " e. " $A " |-> " $B " ) = " $A |] ==ps
+        $> ] pushStep
+
+        # |- A. x e. A B e. C
+        [ /rgen <$ $x ==x $A ==A [| $B " e. " $C |] ==ph $> ] pushStep
+
+        # |- ( x e. A -> B e. C )
+        child _ .strategy .usedAntecedent len not {
+          [ /a1i <$ [| $x " e. " $A |] ==ps [| $B " e. " $C |] ==ph $> ] pushStep
+        } rep
+        |pushStep child _ .strategy .construct
+
+        # |- ( A. x e. A B e. C -> dom ( x e. A |-> B ) = A
+        [ /dmmptg <$ $x ==x $A ==A $B ==B $C ==V $> ] pushStep
+
+        # |- ( ( x e. A |-> B ) Fn C <-> ( Fun A /\ dom A = C ) )
+        [ /df-fn <$
+          [| "( " $x " e. " $A " |-> " $B " )" |] ==A
+          $A ==B
+        $> ] pushStep
+
+        # |- ran ( x e. A |-> B ) C_ C
+        [ /rnmptss <$ $x ==x $A ==B $B ==C $C ==A $> ] pushStep
+
+        child _ .strategy .usedAntecedent len not {
+          [ /a1i <$ [| $x " e. " $A |] ==ps [| $B " e. " $C |] ==ph $> ] pushStep
+        } rep
+        |pushStep child _ .strategy .construct
+
+        # |- ( goal .thm <-> ( ( x e. A |-> B ) Fn A /\ ran ( x e. A |-> B ) C_ C ) )
+        [ /df-f <$
+          [| "( " $x " e. " $A " |-> " $B " )" |] ==F
+          $A ==A
+          $C ==B
+        $> ] pushStep
+      } /construct deffst
+    > ==strategyFunctionType
+    { _ ==goal .thm ==thm
+      thm "( x e. A |-> B ) : A --> C" // { $_
+        [
+          [ [| $x " e. " $A |] ] [| $B " e. " $C |] newGoal
+        ] /children goal .set
+        /functionType /resolution goal .set
+        strategyFunctionType /strategy goal .set
+      } {
+        [| "Goal not in ( x e. A |-> B ) : A --> C format." |] err
+      } ? *
+    } τfunctionType /functionType deffst
 
     {
       [| "\n" |] out
@@ -9375,9 +9453,27 @@
           "A. " $x renderName " "
           indent 5 add $ph renderNicely
         }
+        { thing "E. x ph" // } {
+          "E. " $x renderName " "
+          indent 5 add $ph renderNicely
+        }
         { thing "( ph /\\ ps )" // } { $_
           "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
           "/\\ " indent 3 add $ps renderNicely " )"
+        }
+        { thing "( ph /\\ ps /\\ ch )" // } { $_
+          "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
+          "/\\ " indent 3 add $ps renderNicely "\n" indent { " " } rep
+          "/\\ " indent 3 add $ch renderNicely " )"
+        }
+        { thing "( ph \\/ ps )" // } { $_
+          "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
+          "\\/ " indent 3 add $ps renderNicely " )"
+        }
+        { thing "( ph \\/ ps \\/ ch )" // } { $_
+          "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
+          "\\/ " indent 3 add $ps renderNicely "\n" indent { " " } rep
+          "\\/ " indent 3 add $ch renderNicely " )"
         }
         { thing "( ph -> ps )" // } { $_
           "(  " indent 3 add $ph renderNicely "\n" indent { " " } rep
@@ -9386,6 +9482,14 @@
         { thing "A. x e. A ph" // } { $_
           "A. " $x renderName " e. " indent 8 add $A renderNicely "\n" indent 3 add { " " } rep
           indent 3 add $ph renderNicely
+        }
+        { thing "E. x e. A ph" // } { $_
+          "E. " $x renderName " e. " indent 8 add $A renderNicely "\n" indent 3 add { " " } rep
+          indent 3 add $ph renderNicely
+        }
+        { thing "[ A / x ] ph" // } { $_
+          "[ " $A renderName " / " $x renderName " ] "
+          indent 2 add $ph renderNicely
         }
         { thing "ph" // } { $_
           thing " " str .split { _ "" eq { -- } { renderName } ? * " " } each --
@@ -9594,6 +9698,7 @@
         { cmd "namely" eq } { args selectedGoal goals * namely } unlessSolved
         { cmd "rename" eq { args "(.) to (.)" regex } andif } { selectedGoal goals * rename } unlessSolved
         { cmd "range" eq } { selectedGoal goals * ranges } unlessSolved
+        { cmd "function:type" eq } { selectedGoal goals * functionType } unlessSolved
         { cmd "drop" eq { args "all matching (.*)" regex } andif } { selectedGoal goals * dropMatching } unlessSolved
         { cmd "drop" eq } { args selectedGoal goals * drop } unlessSolved
         { cmd "load" eq } { args load }
