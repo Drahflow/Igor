@@ -5182,6 +5182,7 @@
         { thm "A = A" // } { [ /eqid $$ ] pushStep }
         { thm "( ph <-> ph )" // } { [ /biid $$ ] pushStep }
         { thm "( ph \\/ -. ph )" // } { [ /exmid $$ ] pushStep }
+        { thm "( A F B ) e. _V" // } { [ /ovex $$ ] pushStep }
       ] conds
     } /constructTrivialities deffst
     <
@@ -6515,6 +6516,33 @@
         } ? *
       } loop
     } /rewriteSimplerAll deffst
+
+    { ==goal ==function
+      [| function " " str .split useLastMetas expandMeta { " " } each -- |] =function
+
+      [
+        { function "( ( x e. A |-> B ) ` C )" // } { $_
+          [| function " = " $B $x $C rewriteRecursive |] goal rewrite
+          0 goal .children * .isopen {
+            /fvmpt 0 goal .children * useTheorem
+            $A " " str .split "$D" let
+            0 goal .children * openGoals |normalizeGoal each
+            [ $x ] "$x" let
+            $B " " str .split "$B" let
+            0 goal .children * openGoals |normalizeGoal each
+            0 goal .children * openGoals ==open
+            open len 0 gt {
+              0 open * .antes _ dump [| $x " = " $C |] eq _ dump all _ dump {
+                0 open * andRewrite
+              } rep
+            } rep
+          } rep
+        }
+        { 1 } {
+          [| "No known pattern for function: " function |] err
+        }
+      ] conds
+    } /rewriteFunction deffst
 
     { ==goal ==name
       name assertions .has {
@@ -9693,6 +9721,7 @@
         { cmd "and:rewrite" eq } { selectedGoal goals * andRewrite } unlessSolved
         { cmd "rewrite:simpler" eq } { selectedGoal goals * rewriteSimpler } unlessSolved
         { cmd "rewrite:simpler:all" eq } { goals rewriteSimplerAll }
+        { cmd "rewrite:function" eq } { args selectedGoal goals * rewriteFunction } unlessSolved
         { cmd "expand" eq } { args selectedGoal goals * expand } unlessSolved
         { cmd "take:any" eq } { selectedGoal goals * takeAny } unlessSolved
         { cmd "namely" eq } { args selectedGoal goals * namely } unlessSolved
