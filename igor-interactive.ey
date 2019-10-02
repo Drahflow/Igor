@@ -5183,6 +5183,7 @@
         { thm "( ph <-> ph )" // } { [ /biid $$ ] pushStep }
         { thm "( ph \\/ -. ph )" // } { [ /exmid $$ ] pushStep }
         { thm "( A F B ) e. _V" // } { [ /ovex $$ ] pushStep }
+        { thm "( F ` A ) e. _V" // } { [ /fvex $$ ] pushStep }
       ] conds
     } /constructTrivialities deffst
     <
@@ -6384,6 +6385,14 @@
         { expr "if ( ph , A , B )" // } { $_
           [| "if ( " $ph ... " , " $A ... " , " $B ... " )" |]
         }
+        { expr "( x e. A |-> B )" // } { $_
+          from " " str .split $x eq any
+          to " " str .split $x eq any or {
+            expr
+          } {
+            [| "( " $x " e. " $A ... " |-> " $B ... " )" |]
+          } ? *
+        }
         { expr "A =/= B" // } { $_
           [| $A ... " =/= " $B ... |]
         }
@@ -6532,7 +6541,7 @@
             0 goal .children * openGoals |normalizeGoal each
             0 goal .children * openGoals ==open
             open len 0 gt {
-              0 open * .antes _ dump [| $x " = " $C |] eq _ dump all _ dump {
+              0 open * .antes [| $x " = " $C |] eq all {
                 0 open * andRewrite
               } rep
             } rep
@@ -6543,6 +6552,59 @@
         }
       ] conds
     } /rewriteFunction deffst
+
+    { ==goal ==substitution
+      [| substitution " " str .split useLastMetas expandMeta { " " } each -- |] =substitution
+
+      [
+        { substitution "[ A / x ] ph" // } { $_
+          [| "( " substitution " <-> " $ph $x $A rewriteRecursive " )" |] goal rewrite
+          0 goal .children * .isopen {
+            /sbcie 0 goal .children * useTheorem
+            0 goal .children * openGoals |normalizeGoal each
+            0 goal .children * openGoals ==open
+            open len 0 gt {
+              0 open * .antes [| $x " = " $A |] eq all {
+                0 open * andRewrite
+              } rep
+            } rep
+          } rep
+        }
+        { 1 } {
+          [| "No known pattern for substitution: " substitution |] err
+        }
+      ] conds
+    } /rewriteSubstitution deffst
+
+    { ==goal ==extracted ==var ==expr
+      expr extracted var rewriteRecursive ==extractedExpr
+
+      [
+        { expr "ph" // } {
+          [| "( " expr " <-> [ " extracted " / " var " ] " extractedExpr " )" |] goal rewrite
+          goal openGoals |normalizeGoal each
+          goal openGoals ==open
+          open len 0 gt {
+            /bicom 0 open * useTheorem
+            0 open * openGoals |normalizeGoal each
+            0 open * openGoals ==open2
+            open2 len 0 gt {
+              /sbcie 0 open2 * useTheorem
+              0 open2 * openGoals |normalizeGoal each
+              0 open2 * openGoals ==open3
+              open3 len 0 gt {
+                0 open3 * .antes [| var " = " extracted |] eq all {
+                  0 open3 * andRewrite
+                } rep
+              } rep
+            } rep
+          } rep
+        }
+        { 1 } {
+          [| "Only wff expressions currently supported by rewrite:as:substitution." |] err
+        }
+      ] conds
+    } /rewriteAsSubstitution deffst
 
     { ==goal ==name
       name assertions .has {
@@ -9722,6 +9784,12 @@
         { cmd "rewrite:simpler" eq } { selectedGoal goals * rewriteSimpler } unlessSolved
         { cmd "rewrite:simpler:all" eq } { goals rewriteSimplerAll }
         { cmd "rewrite:function" eq } { args selectedGoal goals * rewriteFunction } unlessSolved
+        { cmd "rewrite:substitution" eq } { args selectedGoal goals * rewriteSubstitution } unlessSolved
+        { cmd "rewrite:as:substitution" eq
+            { args "(.*) as (.) in (.*)" regex } andif } {
+          # ==extracted  ==var ==expr
+          selectedGoal goals * rewriteAsSubstitution
+        } unlessSolved
         { cmd "expand" eq } { args selectedGoal goals * expand } unlessSolved
         { cmd "take:any" eq } { selectedGoal goals * takeAny } unlessSolved
         { cmd "namely" eq } { args selectedGoal goals * namely } unlessSolved
