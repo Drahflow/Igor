@@ -5806,70 +5806,119 @@
       { ==goal =*pushStep
         goal _ .strategy .usedAntecedent ==usedAnte
 
-        # usedAnte -> goal .thm
-        goal .helper ==helper
-        [
-          { /mpbid helper eq } {
-            # usedAnte -> goal .thm
-            1 neg goal .children * ==lastChild
-            [ /mpbid$HERE90 <$ usedAnte ==ph goal .thm ==ch lastChild .thm ==ps $> ] pushStep
+        usedAnte "" eq {
+          # |- goal .thm
+          goal .helper ==helper
+          [
+            { /mpbid helper eq } {
+              # |- goal .thm
+              1 neg goal .children * ==lastChild
+              [ /mpbi$HERE90 <$ goal .thm ==ps lastChild .thm ==ph $> ] pushStep
 
-            # usedAnte -> lastChild .thm
-            lastChild _ .strategy .usedAntecedent ==requiredAnte
-            requiredAnte "" neq {
-              usedAnte requiredAnte neq {
-                [ /syl$HERE91 <$ usedAnte ==ph requiredAnte ==ps lastChild .thm ==ch $> ] pushStep
-                |pushStep usedAnte requiredAnte transformConjunct
-              } rep
-            } {
-              [ /a1i$HERE92 <$ usedAnte ==ps lastChild .thm ==ph $> ] pushStep
-            } ? *
-            |pushStep lastChild _ .strategy .construct
+              # |- lastChild .thm
+              |pushStep lastChild _ .strategy .construct
 
-            # usedAnte -> ( lastChild .thm <-> goal .thm )
-            [|
-              2 neg goal .resolution str .prefix assertions * .thm
-              goal .substitution applySubstitution
-              { " " } each --
-            |] 3 -01 str .postfix ==thm
+              # |- ( lastChild .thm <-> goal .thm )
+              [|
+                2 neg goal .resolution str .prefix assertions * .thm
+                goal .substitution applySubstitution
+                { " " } each --
+              |] 3 -01 str .postfix ==thm
 
-              |pushStep [| "( " lastChild .thm " <-> " goal .thm " )" |] thm usedAnte
-              0 goal .children len 1 sub range goal .children *
-            useTheoremHelper
-          }
-          { /mpbird helper eq } {
-            # usedAnte -> goal .thm
-            1 neg goal .children * ==lastChild
-            [ /mpbird$HERE100 <$ usedAnte ==ph goal .thm ==ps lastChild .thm ==ch $> ] pushStep
+                |pushStep [| "( " lastChild .thm " <-> " goal .thm " )" |] thm usedAnte
+                0 goal .children len 1 sub range goal .children *
+              useTheoremHelper
+            }
+            { /mpbird helper eq } {
+              # |- goal .thm
+              1 neg goal .children * ==lastChild
+              [ /mpbir$HERE100 <$ goal .thm ==ph lastChild .thm ==ps $> ] pushStep
 
-            # usedAnte -> lastChild .thm
-            lastChild _ .strategy .usedAntecedent ==requiredAnte
-            requiredAnte "" neq {
-              usedAnte requiredAnte neq {
-                [ /syl$HERE101 <$ usedAnte ==ph requiredAnte ==ps lastChild .thm ==ch $> ] pushStep
-                |pushStep usedAnte requiredAnte transformConjunct
-              } rep
-            } {
-              [ /a1i$HERE102 <$ usedAnte ==ps lastChild .thm ==ph $> ] pushStep
-            } ? *
-            |pushStep lastChild _ .strategy .construct
+              # |- lastChild .thm
+              |pushStep lastChild _ .strategy .construct
 
-            # usedAnte -> ( goal .thm <-> lastChild .thm )
-            [|
-              2 neg goal .resolution str .prefix assertions * .thm
-              goal .substitution applySubstitution
-              { " " } each --
-            |] 3 -01 str .postfix ==thm
+              # |- ( goal .thm <-> lastChild .thm )
+              [|
+                2 neg goal .resolution str .prefix assertions * .thm
+                goal .substitution applySubstitution
+                { " " } each --
+              |] 3 -01 str .postfix ==thm
 
-              |pushStep [| "( " goal .thm " <-> " lastChild .thm " )" |] thm usedAnte
-              0 goal .children len 1 sub range goal .children *
-            useTheoremHelper
-          }
-          { 1 } {
-            [| "Unknown helper theorem in strategyUseTheoremAsTransformation: " helper |] err
-            [ "?" map ] pushStep
-          }
-        ] conds
+                |pushStep [| "( " goal .thm " <-> " lastChild .thm " )" |] thm usedAnte
+                0 goal .children len 1 sub range goal .children *
+              useTheoremHelper
+            }
+            { 1 } {
+              [| "Unknown helper theorem in strategyUseTheoremAsTransformation(2): " helper |] err
+              [ "?" map ] pushStep
+            }
+          ] conds
+        } {
+          # |- usedAnte -> goal .thm
+          goal .helper ==helper
+          [
+            { /mpbid helper eq } {
+              # |- usedAnte -> goal .thm
+              1 neg goal .children * ==lastChild
+              [ /mpbid$HERE90 <$ usedAnte ==ph goal .thm ==ch lastChild .thm ==ps $> ] pushStep
+
+              # |- usedAnte -> lastChild .thm
+              lastChild _ .strategy .usedAntecedent ==requiredAnte
+              requiredAnte "" neq {
+                usedAnte requiredAnte neq {
+                  [ /syl$HERE91 <$ usedAnte ==ph requiredAnte ==ps lastChild .thm ==ch $> ] pushStep
+                  |pushStep usedAnte requiredAnte transformConjunct
+                } rep
+              } {
+                [ /a1i$HERE92 <$ usedAnte ==ps lastChild .thm ==ph $> ] pushStep
+              } ? *
+              |pushStep lastChild _ .strategy .construct
+
+              # |- usedAnte -> ( lastChild .thm <-> goal .thm )
+              [|
+                2 neg goal .resolution str .prefix assertions * .thm
+                goal .substitution applySubstitution
+                { " " } each --
+              |] 3 -01 str .postfix ==thm
+
+                |pushStep [| "( " lastChild .thm " <-> " goal .thm " )" |] thm usedAnte
+                0 goal .children len 1 sub range goal .children *
+              useTheoremHelper
+            }
+            { /mpbird helper eq } {
+              # |- usedAnte -> goal .thm
+              1 neg goal .children * ==lastChild
+              [ /mpbird$HERE100 <$ usedAnte ==ph goal .thm ==ps lastChild .thm ==ch $> ] pushStep
+
+              # |- usedAnte -> lastChild .thm
+              lastChild _ .strategy .usedAntecedent ==requiredAnte
+              requiredAnte "" neq {
+                usedAnte requiredAnte neq {
+                  [ /syl$HERE101 <$ usedAnte ==ph requiredAnte ==ps lastChild .thm ==ch $> ] pushStep
+                  |pushStep usedAnte requiredAnte transformConjunct
+                } rep
+              } {
+                [ /a1i$HERE102 <$ usedAnte ==ps lastChild .thm ==ph $> ] pushStep
+              } ? *
+              |pushStep lastChild _ .strategy .construct
+
+              # |- usedAnte -> ( goal .thm <-> lastChild .thm )
+              [|
+                2 neg goal .resolution str .prefix assertions * .thm
+                goal .substitution applySubstitution
+                { " " } each --
+              |] 3 -01 str .postfix ==thm
+
+                |pushStep [| "( " goal .thm " <-> " lastChild .thm " )" |] thm usedAnte
+                0 goal .children len 1 sub range goal .children *
+              useTheoremHelper
+            }
+            { 1 } {
+              [| "Unknown helper theorem in strategyUseTheoremAsTransformation(2): " helper |] err
+              [ "?" map ] pushStep
+            }
+          ] conds
+        } ? *
       } /construct deffst
     > ==strategyUseTheoremAsTransformation
 
@@ -6043,7 +6092,7 @@
       ] conds
     } τuseTheorem /useTheorem deffst
 
-    { ==thm =*pushStep
+    { ==thm ==pattern =*pushStep
       0 ==applied
       applied not { thm "( A = B -> B = A )" // } andif {
         1 =applied
@@ -6127,7 +6176,9 @@
         # of the original goal instead.
         /biidd
         /vex /fvex
-      ] { ==name
+      ] ==theoremsToTry
+
+      theoremsToTry { ==name
         applied not {
           name assertions * ==a
           thm [| a .thm { " " } each -- |] 3 -01 str .postfix // { $_
@@ -6136,11 +6187,55 @@
             [ name $$ ] pushStep
             a .hyps { a .ctx isEHyp } grep { ==hyp
               [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==child
-              |pushStep child constructRewrite
+              |pushStep pattern child constructRewrite
             } each
           } rep
         } rep
       } each
+
+      pattern _ .strategy .usedAntecedent ==patternAnte
+      thm "( ph -> ps )" // { $ph patternAnte eq } andif {
+        $ps ==conclusion
+        [| "( " pattern .thm " -> " $ps " )" |] ==thmWithPattern
+
+        theoremsToTry { ==name
+          applied not {
+            name assertions * ==a
+            thmWithPattern [| a .thm { " " } each -- |] 3 -01 str .postfix // { $_
+              1 =applied
+
+              # patternAnte -> conclusion
+              [ /syl$HERE99 <$
+                patternAnte ==ph
+                pattern .thm ==ps
+                conclusion ==ch
+              $> ] pushStep
+
+              # patternAnte -> pattern .thm
+              patternAnte "" eq {
+                [ /a1i <$ patternAnte ==ps pattern .thm ==ph $> ] pushStep
+              } rep
+              |pushStep pattern _ .strategy .construct
+
+              # pattern .thm -> conclusion
+              [ name $$ ] pushStep
+              a .hyps { a .ctx isEHyp } grep { ==hyp
+                [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==child
+                |pushStep pattern child constructRewrite
+              } each
+            } rep
+          } rep
+        } each
+      } rep
+
+      applied not {
+        thm [| "( T. -> " pattern .thm " )" |] // {
+          1 =applied
+
+          [ /a1i <$ "T." ==ps pattern .thm ==ph $> ] pushStep
+          |pushStep pattern _ .strategy .construct
+        } rep
+      } rep
 
       applied not { thm "( ph -> A. x ph )" // } andif
                   { $ph " " str .split $x eq any not } andif {
@@ -6159,14 +6254,14 @@
         [| "\n" 0 thm renderNicely "\n" |] out
       } rep
     } /constructRewriteImpl deffst
-    { ==thm =*pushStep
-      [ "*" thm { |pushStep thm constructRewriteImpl } ] pushStep
+    { ==thm ==pattern =*pushStep
+      [ "*" thm { |pushStep pattern thm constructRewriteImpl } ] pushStep
     } /constructRewrite deffst
 
     <
       { ==goal
-        1 goal .resolution ":" str .split * 1 neg -01 str .prefix ==pattern
-        0 goal .children * ==child
+        0 goal .children * _ .strategy .usedAntecedent ==patternAnte
+        1 goal .children * ==child
 
           child _ .strategy .usedAntecedent _ ==usedByChild
         "" neq {
@@ -6177,7 +6272,7 @@
               }
               { 1 } {
                 goal .antes {
-                  goal .from goal .to rewriteRecursive splitConjunction expr eq any
+                  map -01 goal .from goal .to rewriteRecursiveFull splitConjunction expr eq any
                 } grep ==src
                 src len 1 lt {
                   [| "Could not find requested ante in unrewritten upstream." |] err
@@ -6191,74 +6286,85 @@
           } /unrewrite deffst
 
           usedByChild unrewrite =usedByChild
+        } rep
 
-          [| "( " pattern " /\\ " usedByChild " )" |]
-        } {
-          pattern
-        } ? *
+        [
+          { patternAnte "" neq usedByChild "" neq and } { [| "( " patternAnte " /\\ " usedByChild " )" |] }
+          { usedByChild "" neq } { usedByChild }
+          { patternAnte "" neq } { patternAnte }
+          { 1 } { "" }
+        ] conds
       } /usedAntecedent deffst
 
       { ==goal =*pushStep
         goal _ .strategy .usedAntecedent ==requestedAnte
-        0 goal .children * _ _ ==child .strategy .usedAntecedent ==childAnte
-        1 goal .resolution ":" str .split * 1 neg -01 str .prefix ==pattern
+        0 goal .children * _ _ ==pattern .strategy .usedAntecedent ==patternAnte
+        1 goal .children * _ _ ==child .strategy .usedAntecedent ==childAnte
+        "" ==usedByChild
 
-        # |- ( requestedAnte -> goal .thm )
-        childAnte "" eq {
-          map ==lastGrammarMatch $_
-          requestedAnte $=ph goal .thm $=ch child .thm $=ps
-          [ /mpbid$HERE1 $$ ] pushStep
+        [
+          { patternAnte "" neq childAnte "" neq and } {
+            # |- ( ( patternAnte /\ usedByChild ) -> goal .thm )
+            [| "( " requestedAnte " -> " goal .thm " )" |] "( ( ph /\\ ps ) -> ch )" // -- $_
+            [ /imp$HERE105 $$ ] pushStep
+            $ps =usedByChild
+          }
+          { childAnte "" neq } {
+            # |- ( usedByChild -> goal .thm )
+            requestedAnte =usedByChild
+            [ /ax-mp$HERE109 <$ [| "( " usedByChild " -> " goal .thm " )" |] ==ps "T." ==ph $> ] pushStep
+            [ /tru map ] pushStep
+            "T." =patternAnte
+          }
+          { patternAnte "" neq } {
+            # |- ( patternAnte -> goal .thm )
+            [ /mpi$HERE110 <$ patternAnte ==ph "T." ==ps goal .thm ==ch $> ] pushStep
+            [ /tru map ] pushStep
+            "T." =usedByChild
+          }
+          { 1 } {
+            # |- goal .thm
+            [ /ax-mp$HERE111 <$ goal .thm ==ps "T." ==ph $> ] pushStep
+            [ /tru map ] pushStep
+            "T." =usedByChild
 
-          # |- ( requestedAnte -> child .thm )
-          map ==lastGrammarMatch $_
-          requestedAnte $=ps
-          child .thm $=ph
-          [ /a1i$HERE7 $$ ] pushStep
+            [ /ax-mp$HERE112 <$ [| "( " usedByChild " -> " goal .thm " )" |] ==ps "T." ==ph $> ] pushStep
+            [ /tru map ] pushStep
+            "T." =patternAnte
+          }
+        ] conds
 
-          |pushStep child _ .strategy .construct
+        # |- ( patternAnte -> ( usedByChild -> goal .thm ) )
+        usedByChild goal .from goal .to rewriteRecursive ==usedByChildRewritten
+        [ /mpbird$HERE1 <$
+          patternAnte ==ph [| "( " usedByChild " -> " goal .thm " )" |] ==ps
+          [| "( " usedByChildRewritten " -> " child .thm " )" |] ==ch
+        $> ] pushStep
 
-          # |- ( requestedAnte -> ( child .thm <-> goal .thm ) )
-          map ==lastGrammarMatch $_
-          requestedAnte $=ph pattern $=ps [| "( " child .thm " <-> " goal .thm " )" |] $=ch
-          [ /syl$HERE4 $$ ] pushStep
+        # |- ( patternAnte -> ( usedByChildRewritten -> child .thm ) )
+        [ /a1i$HERE8 <$
+          patternAnte ==ps
+          [| "( " usedByChildRewritten " -> " child .thm " )" |] ==ph
+        $> ] pushStep
 
-          |pushStep requestedAnte pattern transformConjunct
-
-          # |- ( pattern -> ( child .thm <-> goal .thm ) )
-          |pushStep [| "( " pattern " -> ( " child .thm " <-> " goal .thm " ) )" |] constructRewrite
-        } {
-          # |- ( ( pattern /\ usedByChild ) -> goal .thm )
-          [| "( " requestedAnte " -> " goal .thm " )" |] "( ( ph /\\ ps ) -> ch )" // -- $_
-          $ps ==usedByChild
-          [ /imp $$ ] pushStep
-
-          # |- ( pattern -> ( usedByChild -> goal .thm ) )
-          usedByChild goal .from goal .to rewriteRecursive ==usedByChildRewritten
-          map ==lastGrammarMatch $_
-          pattern $=ph [| "( " usedByChild " -> " goal .thm " )" |] $=ps
-          [| "( " usedByChildRewritten " -> " child .thm " )" |] $=ch
-          [ /mpbird$HERE1 $$ ] pushStep
-
-          # |- ( pattern -> ( usedByChildRewritten -> child .thm ) )
-          map ==lastGrammarMatch $_
-          pattern $=ps
-          [| "( " usedByChildRewritten " -> " child .thm " )" |] $=ph
-          [ /a1i$HERE8 $$ ] pushStep
-
-          usedByChildRewritten childAnte neq {
+        [
+          { childAnte "" eq } {
+            [ /a1i <$ usedByChildRewritten ==ps child .thm ==ph $> ] pushStep
+          }
+          { usedByChildRewritten childAnte neq } {
             [ /syl$HERE217 <$ usedByChildRewritten ==ph childAnte ==ps child .thm ==ch $> ] pushStep
             |pushStep usedByChildRewritten childAnte transformConjunct
-          } rep
+          }
+        ] conds
+        |pushStep child _ .strategy .construct
 
-          |pushStep child _ .strategy .construct
-
-          # |- ( pattern -> ( ( usedByChild -> goal .thm ) <-> ( usedByChildRewritten -> child .thm ) ) )
-            |pushStep
-            [| "( " pattern " -> "
-                 "( ( " usedByChild " -> " goal .thm " ) <-> "
-                 "( " usedByChildRewritten " -> " child .thm " ) ) )" |]
-          constructRewrite
-        } ? *
+        # |- ( patternAnte -> ( ( usedByChild -> goal .thm ) <-> ( usedByChildRewritten -> child .thm ) ) )
+          |pushStep
+          pattern
+          [| "( " patternAnte " -> "
+               "( ( " usedByChild " -> " goal .thm " ) <-> "
+               "( " usedByChildRewritten " -> " child .thm " ) ) )" |]
+        constructRewrite
       } /construct deffst
     > ==strategyRewrite
 
@@ -6411,51 +6517,175 @@
       ] conds
     } '000.0 /rewriteRecursive deffst
 
-    { ==goal ==pattern
-      goal .antes pattern eq any {
-        "" ==from "" ==to
-        [
-          { pattern "( ph <-> ps )" // } {
-            $ph =from $ps =to
-          }
-          { pattern "A = B" // } {
-            $A =from $B =to
-          }
-        ] conds
+    { ==to ==from ==expr ==nonfreeVars
+      { nonfreeVars -01 from to rewriteRecursiveFull } "..." deffst
 
-        from "" neq {
-          [
-              [
-                goal .antes { ==ante
-                  ante from to rewriteRecursive ==newAnte
-                  newAnte ante neq {
-                    newAnte splitConjunction _ len dearray
-                  } {
-                    ante
-                  } ? *
+      [
+        { expr from eq } {
+          to
+        }
+        { expr constants .has } {
+          expr
+        }
+        { expr variables .has } {
+          from expr mayDisjunct not ==symbolicRewrite
+
+          symbolicRewrite {
+            from " " str .split len 1 eq {
+              [| "[ " to " / " from " ] " expr |]
+            } {
+              expr
+            } ? *
+          } {
+            from " " str .split { ==x
+              x variables .has {
+                expr " " str .split { ==y
+                  y variables .has {
+                    x y markDisj
+                  } rep
                 } each
-              ]
-                goal .thm from to rewriteRecursive ==newThm
-              newThm goal .thm neq newThm goal .thm ?
-            newGoal
-          ] /children goal .set
+              } rep
+            } each
 
-          [| "(rewrite:" pattern ")" |] /resolution goal .set
-          strategyRewrite /strategy goal .set
-          from /from goal .setExtra
-          to /to goal .setExtra
-        } {
-          [| "Could not parse replacement pattern: " pattern |] err
-        } ? *
+            expr
+          } ? *
+        }
+        { expr "( ph <-> ps )" // } { $_
+          [| "( " $ph ... " <-> " $ps ... " )" |]
+        }
+        { expr "( ph -> ps )" // } { $_
+          [| "( " $ph ... " -> " $ps ... " )" |]
+        }
+        { expr "( ph /\\ ps )" // } { $_
+          [| "( " $ph ... " /\\ " $ps ... " )" |]
+        }
+        { expr "( ph /\\ ps /\\ ch )" // } { $_
+          [| "( " $ph ... " /\\ " $ps ... " /\\ " $ch ... " )" |]
+        }
+        { expr "( ph \\/ ps )" // } { $_
+          [| "( " $ph ... " \\/ " $ps ... " )" |]
+        }
+        { expr "( ph \\/ ps \\/ ch )" // } { $_
+          [| "( " $ph ... " \\/ " $ps ... " \\/ " $ch ... " )" |]
+        }
+        { expr "( A u. B )" // } { $_
+          [| "( " $A ... " u. " $B ... " )" |]
+        }
+        { expr "-. ph" // } { $_
+          [| "-. " $ph ... |]
+        }
+        { expr "A R B" // } { $_
+          [| $A ... " " $R ... " " $B ... |]
+        }
+        { expr "( A F B )" // } { $_
+          [| "( " $A ... " " $F ... " " $B ... " )" |]
+        }
+        { expr "( F ` A )" // } { $_
+          [| "( " $F ... " ` " $A ... " )" |]
+        }
+        { expr "; A B" // } { $_
+          [| "; " $A ... " " $B ... |]
+        }
+        { expr "A e. B" // } { $_
+          [| $A ... " e. " $B ... |]
+        }
+        { expr "A. x ph" // } { $_
+          1 $x nonfreeVars =[]
+          [| "A. " $x " " $ph ... |]
+        }
+        { expr "A. x e. A ph" // } { $_
+          1 $x nonfreeVars =[]
+          [| "A. " $x " e. " $A ... " " $ph ... |]
+        }
+        { expr "E. x e. A ph" // } { $_
+          1 $x nonfreeVars =[]
+          [| "E. " $x " e. " $A ... " " $ph ... |]
+        }
+        { expr "{ x | ph }" // } { $_
+          1 $x nonfreeVars =[]
+          [| "{ " $x " | " $ph ... " }" |]
+        }
+        { expr "{ x e. A | ph }" // } { $_
+          1 $x nonfreeVars =[]
+          [| "{ " $x " e. " $A ... " | " $ph ... " }" |]
+        }
+        { expr "[ A / x ] ph" // } { $_
+          1 $x nonfreeVars =[]
+          [| "[ " $A ... " / " $x " ] " $ph ... |]
+        }
+        { expr "if ( ph , A , B )" // } { $_
+          [| "if ( " $ph ... " , " $A ... " , " $B ... " )" |]
+        }
+        { expr "( x e. A |-> B )" // } { $_
+          1 $x nonfreeVars =[]
+          [| "( " $x " e. " $A ... " |-> " $B ... " )" |]
+        }
+        { expr "A =/= B" // } { $_
+          [| $A ... " =/= " $B ... |]
+        }
+        { expr "A = B" // } { $_
+          $A from eq $B to eq and
+          $B from eq $A to eq and or {
+            expr
+          } {
+            [| $A ... " = " $B ... |]
+          } ? *
+        }
+        { 1 } {
+          [| "No rewriteFull rule known for: " expr |] warn
+          expr
+        }
+      ] conds
+    } '000.0 /rewriteRecursiveFull deffst
+
+    { ==goal ==pattern
+      "" ==from "" ==to
+      [
+        { pattern "( ph <-> ps )" // } {
+          $ph =from $ps =to
+        }
+        { pattern "A = B" // } {
+          $A =from $B =to
+        }
+      ] conds
+
+      from "" neq {
+        map ==nonfreeVars
+
+        [
+            [
+              goal .antes { ==ante
+                nonfreeVars ante from to rewriteRecursiveFull ==newAnte
+                newAnte ante neq {
+                  newAnte splitConjunction _ len dearray
+                } {
+                  ante
+                } ? *
+              } each
+            ]
+              nonfreeVars goal .thm from to rewriteRecursiveFull ==newThm
+            newThm goal .thm neq newThm goal .thm ?
+          newGoal
+
+            [
+              goal .antes { ==ante
+                [ ante " " str .split { nonfreeVars .has } each ] any not {
+                  ante
+                } rep
+              } each
+            ]
+            pattern
+          newGoal
+
+          -01
+        ] /children goal .set
+
+        [| "(rewrite:" pattern ")" |] /resolution goal .set
+        strategyRewrite /strategy goal .set
+        from /from goal .setExtra
+        to /to goal .setExtra
       } {
-        pattern goal conclude
-
-        goal .isopen not {
-          goal openGoals ==open
-          open len 0 gt {
-            pattern 1 neg open * rewrite
-          } rep
-        } rep
+        [| "Could not parse replacement pattern: " pattern |] err
       } ? *
     } τrewrite /rewrite deffst
 
@@ -9242,6 +9472,15 @@
               resolutionName assertions * ==a
 
               skippingInSeenThm not {
+                # DEBUGGING ONLY
+                substitution dom { ==v
+                  v substitution * "" eq any {
+                    step dump
+                    [| "Empty token in substition of variable: " v |] err
+                  } rep
+                } each
+                # END DEBUGGING
+
                 [| "" a .thm substitution applySubstitution expandMeta { " " } each -- |] ==shownThm
                 # DEBUGGING ONLY
                 requiredThm "" neq { requiredThm 1 shownThm str .postfix neq } andif {
