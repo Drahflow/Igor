@@ -6100,7 +6100,7 @@
         [| $A " = " $B |] $=ph [| $B " = " $A |] $=ps
         [ /biimpi $$ ] pushStep
 
-        |pushStep [| "( " $A " = " $B " <-> " $B " = " $A " )" |] constructRewrite
+        |pushStep pattern [| "( " $A " = " $B " <-> " $B " = " $A " )" |] constructRewrite
       } rep
 
       applied not { thm "( ps -> A = A )" // } andif {
@@ -6109,7 +6109,7 @@
         [| $A " = " $A |] $=ph
         [ /a1i $$ ] pushStep
 
-        |pushStep [| $A " = " $A |] constructRewrite
+        |pushStep pattern [| $A " = " $A |] constructRewrite
       } rep
 
       applied not { thm "( ps -> x e. _V )" // } andif {
@@ -6178,21 +6178,6 @@
         /vex /fvex
       ] ==theoremsToTry
 
-      theoremsToTry { ==name
-        applied not {
-          name assertions * ==a
-          thm [| a .thm { " " } each -- |] 3 -01 str .postfix // { $_
-            1 =applied
-
-            [ name $$ ] pushStep
-            a .hyps { a .ctx isEHyp } grep { ==hyp
-              [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==child
-              |pushStep pattern child constructRewrite
-            } each
-          } rep
-        } rep
-      } each
-
       pattern _ .strategy .usedAntecedent ==patternAnte
       thm "( ph -> ps )" // { $ph patternAnte eq } andif {
         $ps ==conclusion
@@ -6204,18 +6189,20 @@
             thmWithPattern [| a .thm { " " } each -- |] 3 -01 str .postfix // { $_
               1 =applied
 
-              # patternAnte -> conclusion
-              [ /syl$HERE99 <$
-                patternAnte ==ph
-                pattern .thm ==ps
-                conclusion ==ch
-              $> ] pushStep
+              patternAnte pattern .thm neq {
+                # patternAnte -> conclusion
+                [ /syl$HERE99 <$
+                  patternAnte ==ph
+                  pattern .thm ==ps
+                  conclusion ==ch
+                $> ] pushStep
 
-              # patternAnte -> pattern .thm
-              patternAnte "" eq {
-                [ /a1i <$ patternAnte ==ps pattern .thm ==ph $> ] pushStep
+                # patternAnte -> pattern .thm
+                patternAnte "" eq {
+                  [ /a1i <$ patternAnte ==ps pattern .thm ==ph $> ] pushStep
+                } rep
+                |pushStep pattern _ .strategy .construct
               } rep
-              |pushStep pattern _ .strategy .construct
 
               # pattern .thm -> conclusion
               [ name $$ ] pushStep
@@ -6236,6 +6223,21 @@
           |pushStep pattern _ .strategy .construct
         } rep
       } rep
+
+      theoremsToTry { ==name
+        applied not {
+          name assertions * ==a
+          thm [| a .thm { " " } each -- |] 3 -01 str .postfix // { $_
+            1 =applied
+
+            [ name $$ ] pushStep
+            a .hyps { a .ctx isEHyp } grep { ==hyp
+              [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==child
+              |pushStep pattern child constructRewrite
+            } each
+          } rep
+        } rep
+      } each
 
       applied not { thm "( ph -> A. x ph )" // } andif
                   { $ph " " str .split $x eq any not } andif {
@@ -6836,6 +6838,34 @@
       ] conds
     } /rewriteAsSubstitution deffst
 
+    { ==goal ==to ==expr
+      [| expr " " str .split useLastMetas expandMeta { " " } each -- |] =expr
+
+      expr "[ A / x ] ph" // { $_
+        [| "( "
+          "[ " $A " / " $x " ] " $ph
+        " <-> "
+          "[ " $A " / " to " ] " $ph $x to rewriteRecursive
+        " )" |] goal rewrite
+        goal openGoals |normalizeGoal each
+        goal openGoals ==open
+        open len 0 gt {
+          /cbvsbcv 0 open * useTheorem
+          0 open * openGoals |normalizeGoal each
+          [ "_V" ] "$V" let
+          0 open * openGoals |normalizeGoal each
+          0 open * openGoals ==open2
+          open2 len 0 gt {
+            0 open2 * .antes [| $x " = " to |] eq all {
+              0 open2 * andRewrite
+            } rep
+          } rep
+        } rep
+      } {
+        [| "Expression not in expected [ A / x ] ph format." |] err
+      } ? *
+    } /rewriteSubstitutionVariable deffst
+
     { ==goal ==name
       name assertions .has {
         [| name assertions * .thm { " " } each -- |] 3 -01 str .postfix ==thm
@@ -7335,6 +7365,52 @@
         [| "Not a well-formed formula: " pattern |] err
       } ? *
     } /match deffst
+
+    { ==goal ==pattern
+      map ==variables
+      [| [
+        pattern " " str .split { ==tok
+          1 tok str .prefix "$" eq {
+              1 tok str .postfix _ # left on stack
+            1 -01 variables =[]
+          } {
+            tok
+          } ? *
+        } each
+      ] { " " } each -- |] =pattern
+
+      0 ==assigned
+      { ==mapping
+        1 ==matching
+        mapping dom { ==var
+          var variables .has not {
+            var mapping * [ var ] arrEq not {
+              0 =matching
+            } rep
+          } rep
+        } each
+
+        matching {
+          assigned { [| "Multiple matches for: " pattern |] err } rep
+          1 =assigned
+
+          mapping dom { ==var
+            var variables .has {
+              var mapping * var newMetaVariable let
+            } rep
+          } each
+        } rep
+      } /assignVariables deffst
+
+      [
+        goal .thm pattern allMatchingSubparses
+        goal .antes { pattern allMatchingSubparses } each
+      ] |cat fold |assignVariables each
+
+      assigned not {
+        [| "Did not match anywhere: " pattern |] err
+      } rep
+    } /matchAnywhere deffst
 
     { 1 -01 str .postfix ==metaVar
       metaVar lastMetaVariables * =metaVar
@@ -10007,6 +10083,7 @@
           selectedGoal goals * normalizeGoal
         } unlessSolved
         { cmd "match" eq } { args selectedGoal goals * match } unlessSolved
+        { cmd "match:anywhere" eq } { args selectedGoal goals * matchAnywhere } unlessSolved
         { cmd "instantiate" eq { args "(.*) for (.*)" regex } andif } { selectedGoal goals * instantiate } unlessSolved
         { cmd "conclude" eq } { args selectedGoal goals * conclude } unlessSolved
         { cmd "conclude:only" eq } { args selectedGoal goals * concludeOnly } unlessSolved
@@ -10028,6 +10105,11 @@
             { args "(.*) as (.) in (.*)" regex } andif } {
           # ==extracted  ==var ==expr
           selectedGoal goals * rewriteAsSubstitution
+        } unlessSolved
+        { cmd "rewrite:substitution:variable:to" eq
+            { args "(.) in (.*)" regex } andif } {
+          # ==to ==expr
+          selectedGoal goals * rewriteSubstitutionVariable
         } unlessSolved
         { cmd "expand" eq } { args selectedGoal goals * expand } unlessSolved
         { cmd "take:any" eq } { selectedGoal goals * takeAny } unlessSolved
