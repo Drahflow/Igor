@@ -6641,6 +6641,8 @@
     } '000.0 /rewriteRecursiveFull deffst
 
     { ==goal ==pattern
+      [| pattern " " str .split useLastMetas expandMeta { " " } each -- |] =pattern
+
       "" ==from "" ==to
       [
         { pattern "( ph <-> ps )" // } {
@@ -6671,7 +6673,16 @@
 
             [
               goal .antes { ==ante
-                [ ante " " str .split { nonfreeVars .has } each ] any not {
+                1 ==ok
+                nonfreeVars dom { ==v
+                  v ante requiredDisjuncts {
+                    v mayDisjunct not { 0 =ok } rep
+                  } each
+                } each
+                ok {
+                  nonfreeVars dom { ==v
+                    v ante requiredDisjuncts { v markDisj } each
+                  } each
                   ante
                 } rep
               } each
