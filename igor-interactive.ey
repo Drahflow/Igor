@@ -6100,7 +6100,7 @@
         [| $A " = " $B |] $=ph [| $B " = " $A |] $=ps
         [ /biimpi $$ ] pushStep
 
-        |pushStep pattern [| "( " $A " = " $B " <-> " $B " = " $A " )" |] constructRewrite
+        |pushStep pattern [| "( " $A " = " $B " <-> " $B " = " $A " )" |] constructRewriteFull
       } rep
 
       applied not { thm "( ps -> A = A )" // } andif {
@@ -6109,7 +6109,7 @@
         [| $A " = " $A |] $=ph
         [ /a1i $$ ] pushStep
 
-        |pushStep pattern [| $A " = " $A |] constructRewrite
+        |pushStep pattern [| $A " = " $A |] constructRewriteFull
       } rep
 
       applied not { thm "( ps -> x e. _V )" // } andif {
@@ -6208,7 +6208,7 @@
               [ name $$ ] pushStep
               a .hyps { a .ctx isEHyp } grep { ==hyp
                 [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==child
-                |pushStep pattern child constructRewrite
+                |pushStep pattern child constructRewriteFull
               } each
             } rep
           } rep
@@ -6233,7 +6233,7 @@
             [ name $$ ] pushStep
             a .hyps { a .ctx isEHyp } grep { ==hyp
               [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==child
-              |pushStep pattern child constructRewrite
+              |pushStep pattern child constructRewriteFull
             } each
           } rep
         } rep
@@ -6258,6 +6258,20 @@
     } /constructRewriteImpl deffst
     { ==thm ==pattern =*pushStep
       [ "*" thm { |pushStep pattern thm constructRewriteImpl } ] pushStep
+    } /constructRewriteFull deffst
+
+    # Compatibility layer for other strategies directly invoking constructRewrite
+    { ==thm =*pushStep
+      thm "( ph -> ( ps <-> ch ) )" // { $_
+        [ $ph ] $ph newGoal ==pattern
+        <
+          { -- $ph } /usedAntecedent deffst
+          { -- =*pushStep [ /id <$ $ph ==ph $> ] pushStep } /construct deffst
+        > /strategy pattern .set
+        |pushStep pattern thm constructRewriteFull
+      } {
+        [| "Unexpected theorem format during constructRewrite." |] err
+      } ? *
     } /constructRewrite deffst
 
     <
@@ -6366,7 +6380,7 @@
           [| "( " patternAnte " -> "
                "( ( " usedByChild " -> " goal .thm " ) <-> "
                "( " usedByChildRewritten " -> " child .thm " ) ) )" |]
-        constructRewrite
+        constructRewriteFull
       } /construct deffst
     > ==strategyRewrite
 
@@ -6520,7 +6534,12 @@
     } '000.0 /rewriteRecursive deffst
 
     { ==to ==from ==expr ==nonfreeVars
-      { nonfreeVars -01 from to rewriteRecursiveFull } "..." deffst
+      [ ] ==nonfree
+      { ==expr
+        nonfreeVars expr from to rewriteRecursiveFull _ expr neq {
+          nonfree { 1 -01 nonfreeVars =[] } each
+        } rep
+      } "..." deffst
 
       [
         { expr from eq } {
@@ -6592,34 +6611,34 @@
           [| $A ... " e. " $B ... |]
         }
         { expr "A. x ph" // } { $_
-          1 $x nonfreeVars =[]
+          [ $x ] =nonfree
           [| "A. " $x " " $ph ... |]
         }
         { expr "A. x e. A ph" // } { $_
-          1 $x nonfreeVars =[]
+          [ $x ] =nonfree
           [| "A. " $x " e. " $A ... " " $ph ... |]
         }
         { expr "E. x e. A ph" // } { $_
-          1 $x nonfreeVars =[]
+          [ $x ] =nonfree
           [| "E. " $x " e. " $A ... " " $ph ... |]
         }
         { expr "{ x | ph }" // } { $_
-          1 $x nonfreeVars =[]
+          [ $x ] =nonfree
           [| "{ " $x " | " $ph ... " }" |]
         }
         { expr "{ x e. A | ph }" // } { $_
-          1 $x nonfreeVars =[]
+          [ $x ] =nonfree
           [| "{ " $x " e. " $A ... " | " $ph ... " }" |]
         }
         { expr "[ A / x ] ph" // } { $_
-          1 $x nonfreeVars =[]
+          [ $x ] =nonfree
           [| "[ " $A ... " / " $x " ] " $ph ... |]
         }
         { expr "if ( ph , A , B )" // } { $_
           [| "if ( " $ph ... " , " $A ... " , " $B ... " )" |]
         }
         { expr "( x e. A |-> B )" // } { $_
-          1 $x nonfreeVars =[]
+          [ $x ] =nonfree
           [| "( " $x " e. " $A ... " |-> " $B ... " )" |]
         }
         { expr "A =/= B" // } { $_
