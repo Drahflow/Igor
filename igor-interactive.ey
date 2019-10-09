@@ -3998,12 +3998,13 @@
       }
     } /buildGrammarMatcher deffst
 
+    map ==patternMatchCache
     { ==pattern
-      pattern grammarMatchCache .has not {
-        pattern buildGrammarMatcher pattern grammarMatchCache =[]
+      pattern patternMatchCache .has not {
+        pattern buildGrammarMatcher pattern patternMatchCache =[]
       } rep
 
-      pattern grammarMatchCache * *
+      pattern patternMatchCache * *
     } "//" τ "//" deffst
 
     { cachedPatternParse ==pattern ==subject
@@ -5353,6 +5354,8 @@
         /children goal .set
         $ps /deduced goal .setExtra
         $ph /source goal .setExtra
+
+        0 goal .children * =goal
       } rep } each
     } τwithinAntes /withinAntes deffst
 
@@ -5433,6 +5436,10 @@
           ] { =*resolution
             goal .isopen { goal resolution } rep
           } each
+        } rep
+
+        goal .isopen not {
+          goal openGoals |normalizeGoal each
         } rep
       } ? *
     } τnormalizeGoal /normalizeGoal deffst
@@ -5526,7 +5533,7 @@
       } /construct deffst
     > ==strategyUseEHypLiterally
 
-    { ==goal ==thmName
+    { ==goal ==proposedSubstitution ==thmName
       [
         { thmName collectedEHyps .has } {
           [ "|-" ] goal .thm " " str .split cat thmName collectedEHyps * arrEq {
@@ -5555,10 +5562,18 @@
             debugPossibleSubstitutionsForToks
           } rep
 
+          { ==substitution
+            proposedSubstitution dom { ==v
+              v substitution .has not {
+                v proposedSubstitution * v substitution =[]
+              } rep
+            } each substitution
+          } /addProposedVariables deffst
+
           legit {
             0 possibleSubstitutions * ==substitution
 
-            a substitution introduceMetaVariables
+            a substitution addProposedVariables introduceMetaVariables
 
             [
               a .ctx collectEHyps _ =*hyps dom {
@@ -5922,7 +5937,7 @@
       } /construct deffst
     > ==strategyUseTheoremAsTransformation
 
-    { ==goal ==thmName
+    { ==goal ==proposedSubstitution ==thmName
       [
         { thmName collectedEHyps .has } {
           [| thmName collectedEHyps * { " " } each -- |] 3 -01 str .postfix _ ==thm ==rawThm
@@ -5946,7 +5961,7 @@
 
               strategyUseEHyp /strategy goal .set
 
-              thmName 0 goal .children * useTheoremLiterally
+              thmName proposedSubstitution 0 goal .children * useTheoremLiterally
             } rep
           } {
             [| "$e-hypothesis does not match current goal: " thmName |] err
@@ -5963,11 +5978,21 @@
             thm splitConjunction makeConjunction " " str .split
           /wff 0 possibleSubstitutionsForToks ==possibleSubstitutions
 
+          { ==substitution
+            proposedSubstitution dom { ==v
+              v substitution .has {
+                [| "Determined substitution for " v " also given externally." |] err
+              } {
+                v proposedSubstitution * v substitution =[]
+              } ? *
+            } each substitution
+          } /addProposedVariables deffst
+
           [
             { possibleSubstitutions len 1 eq } {
               0 possibleSubstitutions * ==substitution
 
-              a substitution introduceMetaVariables
+              a substitution addProposedVariables introduceMetaVariables
               a substitution hasDisjunctionViolations not {
                 a substitution markDisjunctions
 
@@ -5988,7 +6013,7 @@
                 0 goal .children * ==executionGoal
                 {
                   executionGoal .thm "$" str .split len 1 eq {
-                    thmName executionGoal useTheoremLiterally
+                    thmName proposedSubstitution executionGoal useTheoremLiterally
                   } rep
                 } /delayedResolution executionGoal .setExtra
               } rep
@@ -6001,7 +6026,7 @@
               possibleSubstitutions len 1 eq {
                 0 possibleSubstitutions * ==substitution
 
-                a substitution introduceMetaVariables
+                a substitution addProposedVariables introduceMetaVariables
                 a substitution hasDisjunctionViolations not {
                   a substitution markDisjunctions
 
@@ -6026,7 +6051,7 @@
                   0 goal .children * ==executionGoal
                   {
                     executionGoal .thm "$" str .split len 1 eq {
-                      thmName executionGoal useTheoremLiterally
+                      thmName proposedSubstitution executionGoal useTheoremLiterally
                     } rep
                   } /delayedResolution executionGoal .setExtra
                 } rep
@@ -6038,7 +6063,7 @@
                 possibleSubstitutions len 1 eq {
                   0 possibleSubstitutions * ==substitution
 
-                  a substitution introduceMetaVariables
+                  a substitution addProposedVariables introduceMetaVariables
                   a substitution hasDisjunctionViolations not {
                     a substitution markDisjunctions
 
@@ -6063,7 +6088,7 @@
                     0 goal .children * ==executionGoal
                     {
                       executionGoal .thm "$" str .split len 1 eq {
-                        thmName executionGoal useTheoremLiterally
+                        thmName proposedSubstitution executionGoal useTheoremLiterally
                       } rep
                     } /delayedResolution executionGoal .setExtra
                   } rep
@@ -6090,7 +6115,11 @@
           ] conds
         }
       ] conds
-    } τuseTheorem /useTheorem deffst
+    } τuseTheoremWithSubstitution /useTheoremWithSubstitution deffst
+
+    { ==goal ==thmName
+      thmName map goal useTheoremWithSubstitution
+    } /useTheorem deffst
 
     { ==thm ==pattern =*pushStep
       0 ==applied
@@ -6902,7 +6931,7 @@
         thm goal rewrite
         goal openGoals ==open
         open len 2 ge {
-          name 0 open * useTheoremLiterally
+          name map 0 open * useTheoremLiterally
           1 neg open * andRewrite
         } rep
       } {
@@ -8764,20 +8793,22 @@
                   } ? *
                 }
               ]
-              [
-                0 o "<" [| "( " 0 o off " )" |]
-                [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
-                { =*pushStep
-                  [ /ltaddrp <$ 0 o ==A 3 off str .postfix ==B $> ] pushStep
-                }
-              ]
-              [
-                2 o "<" [| "( " 2 o off " )" |]
-                [| "( " 2 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
-                { =*pushStep
-                  [ /ltaddrp <$ 2 o ==A 3 off str .postfix ==B $> ] pushStep
-                }
-              ]
+              3 off str .postfix "0" neq {
+                [
+                  0 o "<" [| "( " 0 o off " )" |]
+                  [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
+                  { =*pushStep
+                    [ /ltaddrp <$ 0 o ==A 3 off str .postfix ==B $> ] pushStep
+                  }
+                ]
+                [
+                  2 o "<" [| "( " 2 o off " )" |]
+                  [| "( " 2 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
+                  { =*pushStep
+                    [ /ltaddrp <$ 2 o ==A 3 off str .postfix ==B $> ] pushStep
+                  }
+                ]
+              } rep
             } each
           }
           { 1 off * 0 "-" * eq } {
@@ -8826,20 +8857,22 @@
                   } ? *
                 }
               ]
-              [
-                [| "( " 0 o off " )" |] "<" 0 o
-                [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
-                { =*pushStep
-                  [ /ltsubrp <$ 0 o ==A 3 off str .postfix ==B $> ] pushStep
-                }
-              ]
-              [
-                [| "( " 2 o off " )" |] "<" 2 o
-                [| "( " 2 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
-                { =*pushStep
-                  [ /ltsubrp <$ 2 o ==A 3 off str .postfix ==B $> ] pushStep
-                }
-              ]
+              3 off str .postfix "0" neq {
+                [
+                  [| "( " 0 o off " )" |] "<" 0 o
+                  [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
+                  { =*pushStep
+                    [ /ltsubrp <$ 0 o ==A 3 off str .postfix ==B $> ] pushStep
+                  }
+                ]
+                [
+                  [| "( " 2 o off " )" |] "<" 2 o
+                  [| "( " 2 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
+                  { =*pushStep
+                    [ /ltsubrp <$ 2 o ==A 3 off str .postfix ==B $> ] pushStep
+                  }
+                ]
+              } rep
             } each
           }
           { 1 } { /ASSERT:strategyRange3 die }
@@ -10025,7 +10058,7 @@
     } each
 
       [ ] proposition .thm [| -01 { " " } each -- |] 3 -01 str .postfix
-    newGoal _ normalizeGoal ==mainGoal
+    newGoal _ ==mainGoal normalizeGoal
 
     0 ==shownMessages
 
