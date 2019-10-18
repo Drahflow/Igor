@@ -4467,6 +4467,13 @@
     } τknownAntes /knownAntes deffst
 
     { ==thm =*pushStep
+      thm dump
+      {
+        [| "Could not deduce decimal class membership for:" |] err
+        [| 0 thm renderNicely "\n" |] out
+        /TODO:constructDecimal die
+      } ==failed
+
       [
         { thm "A e. CC" // { $A parseNumber } andif } { --
           [ /nn0cni $$ ] pushStep
@@ -4606,11 +4613,16 @@
 
           [ /modcl $$ ] pushStep
         }
-        { 1 } {
-          [| "Could not deduce decimal class membership for:" |] err
-          [| 0 thm renderNicely "\n" |] out
-          /TODO:constructDecimal die
+        { thm "A e. C" // } { $_
+          $A evaluateArithmetics { ==A
+            [| A printNumber { " " } each -- |] ==Astr
+            [ /eqeltri <$ $A ==A $C ==C Astr ==B $> ] pushStep
+
+            |pushStep [| $A " = " Astr |] constructArithmetics
+            |pushStep [| Astr " e. " $C |] constructDecimal
+          } failed ? *
         }
+        { 1 } failed
       ] conds
     } /constructDecimalImpl deffst
     { ==thm =*pushStep
@@ -4736,6 +4748,7 @@
                 0
               } ? *
             }
+            loadedArithmetics "*" | each
             { 1 } { 0 }
           ] conds
         ]
@@ -4747,6 +4760,7 @@
     } τevaluateArithmetics /evaluateArithmetics deffst
 
     { ==thm =*pushStep
+      thm dump
       {
         [| "Failed to construct arithmetic proof." |] err
         [| 0 thm renderNicely "\n" |] out
@@ -4887,23 +4901,24 @@
             } failed ? *
           } ? *
         }
-        { thm "( M + N ) = ; E F" // } { $_
-          $M parseNumber { ==M
-            $N parseNumber { ==N
-              { ==name [| -01 printNumber { " " } each -- |] name $= } "$=#" deffst
+        { thm "( M + N ) = ; E F" //
+            { $M parseNumber } andif { -- 1 } andif
+            { $N parseNumber } andif { -- 1 } andif } { $_
+          $M parseNumber -- ==M
+          $N parseNumber -- ==N
 
-              M _ 10 div $=#A 10 mod _ ==B $=#B
-              N _ 10 div $=#C 10 mod _ ==D $=#D
-              B D add 10 ge /decaddc /decadd ? ==name
+          { ==name [| -01 printNumber { " " } each -- |] name $= } "$=#" deffst
 
-              [ name $$ ] pushStep
-              name assertions * ==a
-              a .hyps { a .ctx isEHyp } grep { ==hyp
-                [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==thm
-                |pushStep thm _ "A e. NN0" // |constructDecimal |constructArithmetics ? *
-              } each
-            } failed ? *
-          } failed ? *
+          M _ 10 div $=#A 10 mod _ ==B $=#B
+          N _ 10 div $=#C 10 mod _ ==D $=#D
+          B D add 10 ge /decaddc /decadd ? ==name
+
+          [ name $$ ] pushStep
+          name assertions * ==a
+          a .hyps { a .ctx isEHyp } grep { ==hyp
+            [| hyp a .ctx getEHyp $$ applySubstitution { " " } each -- |] 3 -01 str .postfix ==thm
+            |pushStep thm _ "A e. NN0" // |constructDecimal |constructArithmetics ? *
+          } each
         }
         { thm "( A - B ) = C" //
             { $A parseNumber } andif { -- 1 } andif
@@ -5114,6 +5129,61 @@
         { thm "10 = ; 1 0" // } { $_
           [ /dec10 map ] pushStep
         }
+
+        # Here, because later on follow generic transformations
+        loadedArithmeticConstructions "*" | each
+
+        { thm "( A F B ) = C" //
+            {
+              $A parseNumber { -- 0 } { 1 } ? *
+              $B parseNumber { -- 0 } { 1 } ? *
+              or
+            } andif
+          } { $_
+          $A evaluateArithmetics { ==A
+            $B evaluateArithmetics { ==B
+              [ /eqtri <$
+                [| "( " $A " " $F " " $B " )" |] ==A $C ==C
+                [| "( " A printNumber { " " } each $F " " B printNumber { " " } each -- " )" |] ==B
+              $> ] pushStep
+
+              [ /oveq12i <$
+                $A ==A $F ==F $B ==C
+                [| A printNumber { " " } each -- |] ==B
+                [| B printNumber { " " } each -- |] ==D
+              $> ] pushStep
+
+              |pushStep [| $A " = " A printNumber { " " } each -- |] constructArithmetics
+              |pushStep [| $B " = " B printNumber { " " } each -- |] constructArithmetics
+              |pushStep [| "( "
+                A printNumber { " " } each $F " " B printNumber { " " } each --
+              " ) = " $C |] constructArithmetics
+            } {
+              failed *
+              [| "Could not evaluate: " $B |] err
+            } ? *
+          } {
+            failed *
+            [| "Could not evaluate: " $A |] err
+          } ? *
+        }
+        { thm "( F ` A ) = B" // } { $_
+          # |- ( F ` A ) = B
+          $A evaluateArithmetics { ==A
+            [ /eqtri <$
+              [| "( " $F " ` " $A " )" |] ==A
+              [| "( " $F " ` " $B " )" |] ==B
+              $B ==C
+            $> ] pushStep
+
+            [ /fveq2i $$ ] pushStep
+            |pushStep [| $A " = " $B |] constructArithmetics
+            |pushStep [| "( " $F " ` " $B " ) = " $B |] constructArithmetics
+          } {
+            failed *
+            [| "Failed to evaluate: " $A |] err
+          } ? *
+        }
         { thm "A = B" // } { $_
           $A evaluateArithmetics { ==A
             $B evaluateArithmetics { ==B
@@ -5128,11 +5198,11 @@
               |pushStep [| $B " = " result |] constructArithmetics
             } {
               failed *
-              [| "Could not evaluate second term." |] err
+              [| "Could not evaluate: " $B |] err
             } ? *
           } {
             failed *
-            [| "Could not evaluate first term." |] err
+            [| "Could not evaluate: " $A |] err
           } ? *
         }
         { 1 } todo
@@ -7349,13 +7419,15 @@
         x disj .has {
           y x disj * .has {
             1 =disjunctionsViolated
-            [| "Proposed let would violate\e[0m " x renderName " <!> " y renderName |] err
+            [| "Proposed let of " metaVar " = " tokens { " " } each --
+              " would violate\e[0m " x renderName " <!> " y renderName |] err
           } rep
         } rep
         x nonDisj .has {
           y x nonDisj * .has {
             1 =disjunctionsViolated
-            [| "Proposed let would violate " x renderName " <=> " y renderName |] err
+            [| "Proposed let of " metaVar " = " tokens { " " } each --
+              " would violate " x renderName " <=> " y renderName |] err
           } rep
         } rep
       } each
@@ -9891,8 +9963,14 @@
 
       { ==line
         [
-          { line "^<!> (.*) <!> (.*)$" regex } |markDisj
-          { line "^<=> (.*) <=> (.*)$" regex } |markNonDisj
+          { line "^<!> (.*) <!> (.*)$" regex } {
+            ==y ==x
+            0 x * 0 "$" * eq not 0 y * 0 "$" * eq not and { x y markDisj } rep
+          }
+          { line "^<=> (.*) <=> (.*)$" regex } {
+            ==y ==x
+            0 x * 0 "$" * eq not 0 y * 0 "$" * eq not and { x y markNonDisj } rep
+          }
           { line "^\\* (.*)$" regex } { [ -01 ] antes -01 cat =antes }
           { line "^\\|- (.*)$" regex } { =thm }
           { line "^----" regex } { }
@@ -9956,8 +10034,13 @@
           indent 3 add $ph renderNicely
         }
         { thing "[ A / x ] ph" // } { $_
-          "[ " $A renderName " / " $x renderName " ] "
+          "[ " indent 2 add $A renderNicely  " / " $x renderName " ] "
           indent 2 add $ph renderNicely
+        }
+        { thing "if ( ph , A , B )" // } { $_
+          "if ( " indent 5 add $ph renderNicely "\n" indent { " " } rep
+          "   , " indent 5 add $A renderNicely "\n" indent { " " } rep
+          "   , " indent 5 add $B renderNicely " )"
         }
         { thing "ph" // } { $_
           thing " " str .split { _ "" eq { -- } { renderName } ? * " " } each --
@@ -10042,6 +10125,8 @@
     [ ] ==loadedCommands
     [ ] ==loadedAutomations
     [ ] ==loadedDisplays
+    [ ] ==loadedArithmetics
+    [ ] ==loadedArithmeticConstructions
     { include }' /load deffst
 
     1 ==running
