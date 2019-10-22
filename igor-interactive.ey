@@ -5525,7 +5525,108 @@
           |pushStep 0 goal .children * _ .strategy .construct
         } ? *
       } /construct deffst
-    > ==strategyWithinAntes
+    > ==strategyImplicationWithinAntes
+    <
+      { ==goal
+        0 goal .children * _ .strategy .usedAntecedent ==childAnte
+
+        map ==needed
+        childAnte splitConjunction { 1 -01 needed =[] } each
+        [| "-. " goal .deduced |] needed .has {
+          1 [| "-. if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " ) = " goal .trueValue |] needed =[]
+          0 [| "-. " goal .deduced |] needed =[]
+
+          needed dom { needed * } grep makeConjunction
+        } {
+          childAnte
+        } ? *
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        goal _ .strategy .usedAntecedent ==usedAntecedent
+        0 goal .children * _ .strategy .usedAntecedent ==childAnte
+        [| "-. if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " ) = " goal .trueValue |] ==usedIf
+
+        usedAntecedent childAnte neq {
+          usedAntecedent len not {
+            /TODO:strategyNegativeIfWithinAntes die
+          } rep
+
+          # |- usedAntecedent -> goal .thm
+          [ /mpdan <$
+            usedAntecedent ==ph
+            [| "-. " goal .deduced |] ==ps
+            goal .thm ==ch
+          $> ] pushStep
+
+          # |- usedAntecedent -> -. deduced
+          [ /syl <$
+            usedAntecedent ==ph
+            usedIf ==ps
+            [| "-. " goal .deduced |] ==ch
+          $> ] pushStep
+          |pushStep usedAntecedent usedIf transformConjunct
+
+          # |- usedIf -> -. deduced
+          # |- -. if ( deduced , trueValue , falseValue ) = trueValue -> -. deduced
+          [ /syl <$
+            usedIf ==ph
+            [| "-. " goal .trueValue " = if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " )" |] ==ps
+            [| "-. " goal .deduced |] ==ch
+          $> ] pushStep
+
+          # |- -. if ( deduced , trueValue , falseValue ) = trueValue -> -. trueValue = if ( deduced , trueValue , falseValue )
+          [ /3imtr3i <$
+            [| "-. if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " ) = " goal .trueValue |] ==ch
+            [| "-. " goal .trueValue " = if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " )" |] ==th
+            [| "if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " ) =/= " goal .trueValue |] ==ph
+            [| goal .trueValue " =/= if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " )" |] ==ps
+          $> ] pushStep
+
+          # |- if ( deduced , trueValue , falseValue ) =/= trueValue -> trueValue =/= if ( deduced , trueValue , falseValue )
+          [ /biimpi <$
+            [| "if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " ) =/= " goal .trueValue |] ==ph
+            [| goal .trueValue " =/= if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " )" |] ==ps
+          $> ] pushStep
+          # |- if ( deduced , trueValue , falseValue ) =/= trueValue <-> trueValue =/= if ( deduced , trueValue , falseValue )
+          [ /necom <$
+            [| "if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " )" |] ==A
+            goal .trueValue ==B
+          $> ] pushStep
+
+          # |- if ( deduced , trueValue , falseValue ) =/= trueValue <-> -. if ( deduced , trueValue , falseValue ) = trueValue
+          [ /df-ne <$
+            [| "if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " )" |] ==A
+            goal .trueValue ==B
+          $> ] pushStep
+          # |- trueValue =/= if ( deduced , trueValue , falseValue ) <-> -. trueValue = if ( deduced , trueValue , falseValue )
+          [ /df-ne <$
+            goal .trueValue ==A
+            [| "if ( " goal .deduced " , " goal .trueValue " , " goal .falseValue " )" |] ==B
+          $> ] pushStep
+
+          # |- -. trueValue = if ( deduced , trueValue , falseValue ) -> -. deduced
+          [ /neqif3 <$
+            goal .trueValue ==A
+            goal .falseValue ==B
+            goal .deduced ==ph
+          $> ] pushStep
+
+          # |- ( usedAntecedent /\ -. deduced ) -> goal .thm
+          0 goal .children * _ .strategy .usedAntecedent ==childAnte
+          [ /syl$HERE117 <$
+            [| "( " usedAntecedent " /\\ -. " goal .deduced " )" |] ==ph
+            childAnte ==ps
+            goal .thm ==ch
+          $> ] pushStep
+
+          |pushStep [| "( " usedAntecedent " /\\ -. " goal .deduced " )" |] childAnte transformConjunct
+          |pushStep 0 goal .children * _ .strategy .construct
+        } {
+          |pushStep 0 goal .children * _ .strategy .construct
+        } ? *
+      } /construct deffst
+    > ==strategyNegativeIfWithinAntes
     { ==goal
       map ==allAntes
       goal .antes { 1 -01 allAntes =[] } each
@@ -5534,11 +5635,24 @@
           { $ph splitConjunction { allAntes .has } '*0.0 all } andif
           { $ps allAntes .has not } andif {
         "... (within antes)" /resolution goal .set
-        strategyWithinAntes /strategy goal .set
+        strategyImplicationWithinAntes /strategy goal .set
           [ goal .antes [ $ps ] cat goal .thm newGoal ]
         /children goal .set
         $ps /deduced goal .setExtra
         $ph /source goal .setExtra
+
+        0 goal .children * =goal
+      } rep } each
+
+      goal .antes { "-. if ( ph , A , B ) = A" // $_
+          { [| "-. " $ph |] allAntes .has not } andif {
+        "... (within antes)" /resolution goal .set
+        strategyNegativeIfWithinAntes /strategy goal .set
+          [ goal .antes [ [| "-. " $ph |] ] cat goal .thm newGoal ]
+        /children goal .set
+        $ph /deduced goal .setExtra
+        $A /trueValue goal .setExtra
+        $B /falseValue goal .setExtra
 
         0 goal .children * =goal
       } rep } each
