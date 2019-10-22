@@ -213,11 +213,15 @@
     } loop
   } /readNumber deffd
 
-  { txt .produce .u ==s
-    [
-      s len 1 sub { ";" } rep
-      s { [ -01 ] str .fromArray } each
-    ]
+  { ==n n 0 lt {
+      [ "-u" ] n neg printNumber cat
+    } {
+      n txt .produce .u ==s
+      [
+        s len 1 sub { ";" } rep
+        s { [ -01 ] str .fromArray } each
+      ]
+    } ? *
   } /printNumber deffd
 
   0 ==debuggingPossibleSubstitutions
@@ -4748,6 +4752,24 @@
                 0
               } ? *
             }
+            { expr "( A ^ B )" // } { $_
+              $A evaluateArithmetics {
+                $B evaluateArithmetics {
+                  exp 1
+                } {
+                  -- 0
+                } ? *
+              } {
+                0
+              } ? *
+            }
+            { expr "-u A" // } { $_
+              $A evaluateArithmetics {
+                neg 1
+              } {
+                0
+              } ? *
+            }
             loadedArithmetics "*" | each
             { 1 } { 0 }
           ] conds
@@ -5128,6 +5150,99 @@
         }
         { thm "10 = ; 1 0" // } { $_
           [ /dec10 map ] pushStep
+        }
+        { thm "( A + -u B ) = C" // } { $_
+          [ /eqtri <$
+            [| "( " $A " + -u " $B " )" |] ==A
+            [| "( " $A " - " $B " )" |] ==B
+            $C ==C
+          $> ] pushStep
+
+          [ /negsubi $$ ] pushStep
+          |pushStep [| $A " e. CC" |] constructDecimal
+          |pushStep [| $B " e. CC" |] constructDecimal
+
+          |pushStep [| "( " $A " - " $B " ) = " $C |] constructArithmetics
+        }
+        { thm "( A - B ) = -u C" // } { $_
+          [ /negsubcomi $$ ] pushStep
+          |pushStep [| $A " e. CC" |] constructDecimal
+          |pushStep [| $B " e. CC" |] constructDecimal
+          |pushStep [| $C " e. CC" |] constructDecimal
+
+          |pushStep [| "( " $B " - " $A " ) = " $C |] constructArithmetics
+        }
+        { thm "( A ^ 1 ) = A" //
+            { $A parseNumber } andif } { -- $_
+          [ /numexp1 $$ ] pushStep
+          |pushStep [| $A " e. NN0" |] constructDecimal
+        }
+        { thm "( A ^ B ) = C" //
+            { $B parseNumber } andif } { -- $_
+          $A evaluateArithmetics { ==A
+            $B evaluateArithmetics { ==B
+              $C evaluateArithmetics { ==C
+                0 ==D
+                B 2 mod 0 eq {
+                  B 2 div =D
+                } {
+                  B 2 div 1 add =D
+                } ? *
+
+                [| D printNumber { " " } each -- |] ==Dstr
+                [| B D sub printNumber { " " } each -- |] ==Estr
+
+                # |- ( A ^ B ) = C
+                [ /eqtri <$
+                  [| "( " $A " ^ " $B " )" |] ==A
+                  [| "( " $A " ^ ( " Dstr " + " Estr " ) )" |] ==B
+                  $C ==C
+                $> ] pushStep
+
+                # |- ( A ^ B ) = ( A ^ ( D + E ) )
+                [ /oveq2i <$
+                  $A ==C
+                  "^" ==F
+                  [| $B |] ==A
+                  [| "( " Dstr " + " Estr " )" |] ==B
+                $> ] pushStep
+
+                # |- B = ( D + E )
+                |pushStep [| $B " = ( " Dstr " + " Estr " )" |] constructArithmetics
+
+                # |- ( A ^ ( D + E ) ) = C
+                [ /eqtri <$
+                  [| "( " $A " ^ ( " Dstr " + " Estr " ) )" |] ==A
+                  [| "( ( " $A " ^ " Dstr " ) x. " "( " $A " ^ " Estr " ) )" |] ==B
+                  $C ==C
+                $> ] pushStep
+
+                # |- ( A ^ ( D + E ) ) = ( ( A ^ D ) x. ( A ^ E  ) )
+                [ /ax-mp <$
+                  [| "( " $A " e. CC /\\ " Dstr " e. NN0 /\\ " Estr " e. NN0 )" |] ==ph
+                  [| "( " $A " ^ ( " Dstr " + " Estr " ) ) = "
+                     "( ( " $A " ^ " Dstr " ) x. " "( " $A " ^ " Estr " ) )" |] ==ps
+                $> ] pushStep
+
+                # |- ( A e. CC /\ D e. NN* /\ E e. NN* )
+                [ /3pm3.2i <$
+                  [| $A " e. CC" |] ==ph
+                  [| Dstr " e. NN0" |] ==ps
+                  [| Estr " e. NN0" |] ==ch
+                $> ] pushStep
+
+                |pushStep [| $A " e. CC" |] constructDecimal
+                |pushStep [| Dstr " e. NN0" |] constructDecimal
+                |pushStep [| Estr " e. NN0" |] constructDecimal
+
+                # |- ( A e. CC /\ D e. NN* /\ E e. NN* ) -> ( A ^ ( D + E ) ) = ( ( A ^ D ) x. ( A ^ E  ) )
+                [ /expadd <$ $A ==A Dstr ==M Estr ==N $> ] pushStep
+
+                # |- ( ( A ^ D ) x. ( A ^ E  ) ) = C
+                |pushStep [| "( ( " $A " ^ " Dstr " ) x. " "( " $A " ^ " Estr " ) ) = " $C |] constructArithmetics
+              } failed ? *
+            } failed ? *
+          } failed ? *
         }
 
         # Here, because later on follow generic transformations
@@ -6614,6 +6729,9 @@
             [| "( " $x " e. " $A ... " |-> " $B ... " )" |]
           } ? *
         }
+        { expr "-u A" // } { $_
+          [| "-u " $A ... |]
+        }
         { expr "A =/= B" // } { $_
           [| $A ... " =/= " $B ... |]
         }
@@ -6739,6 +6857,9 @@
         { expr "( x e. A |-> B )" // } { $_
           [ $x ] =nonfree
           [| "( " $x " e. " $A ... " |-> " $B ... " )" |]
+        }
+        { expr "-u A" // } { $_
+          [| "-u " $A ... |]
         }
         { expr "A =/= B" // } { $_
           [| $A ... " =/= " $B ... |]
@@ -7000,14 +7121,13 @@
         [| name assertions * .thm { " " } each -- |] 3 -01 str .postfix ==thm
         thm goal rewrite
         goal openGoals ==open
-        open len 2 ge {
+        open len 1 ge {
           name map 0 open * useTheoremLiterally
-          1 neg open * andRewrite
         } rep
       } {
         [| "No such theorem or axiom: " name |] err
       } ? *
-    } /expand deffst
+    } τexpand /expand deffst
 
     <
       { ==goal
@@ -7511,6 +7631,7 @@
       ] { " " } each -- |] =pattern
 
       0 ==assigned
+      map ==assignedMapping
       { ==mapping
         1 ==matching
         mapping dom { ==var
@@ -7522,14 +7643,26 @@
         } each
 
         matching {
-          assigned { [| "Multiple matches for: " pattern |] err } rep
-          1 =assigned
+          assigned {
+            mapping dom assignedMapping dom eq all {
+              [ mapping dom { ==v
+                v mapping * v assignedMapping * arrEq
+              } each ] all not {
+                [| "Multiple matches for: " pattern |] err
+              } rep
+            } {
+              [| "Multiple matches for: " pattern |] err
+            } ? *
+          } {
+            1 =assigned
+            mapping =assignedMapping
 
-          mapping dom { ==var
-            var variables .has {
-              var mapping * var newMetaVariable let
-            } rep
-          } each
+            mapping dom { ==var
+              var variables .has {
+                var mapping * var newMetaVariable let
+              } rep
+            } each
+          } ? *
         } rep
       } /assignVariables deffst
 
@@ -8865,7 +8998,7 @@
                   } ? *
                 }
               ]
-              3 off str .postfix "0" neq {
+              3 off str .postfix evaluateArithmetics { 0 gt } andif {
                 [
                   0 o "<" [| "( " 0 o off " )" |]
                   [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
@@ -8929,7 +9062,7 @@
                   } ? *
                 }
               ]
-              3 off str .postfix "0" neq {
+              3 off str .postfix evaluateArithmetics { 0 gt } andif {
                 [
                   [| "( " 0 o off " )" |] "<" 0 o
                   [| "( " 0 o " e. RR /\\ " 3 off str .postfix " e. RR+ )" |]
