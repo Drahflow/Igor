@@ -5942,7 +5942,9 @@
 
     { ==children ==requestedAntes ==thm ==goalThm =*pushStep
       map ==availableAntes
-      1 children len range children * { _ .thm availableAntes =[] } each
+      1 children len range children * { ==child
+        child [| child .thm " " str .split expandMeta { " " } each -- |] availableAntes =[]
+      } each
 
       [ { thm "( ph -> ps )" // } { $ps =thm $ph } loop ] { ==ante
         [| ante " " str .split expandMeta { " " } each -- |]
@@ -9715,6 +9717,48 @@
         } '*0.0 /children goal .set
       } rep
     } τranges /ranges deffst
+
+    <
+      { ==goal
+        goal .duplicate _ .strategy .usedAntecedent
+      } /usedAntecedent deffst
+      { ==goal =*pushStep
+        goal _ .strategy .usedAntecedent ==usedAnte
+
+        [ "*"
+          usedAnte "" eq {
+            goal .thm
+          } {
+            [| "( " usedAnte " -> " goal .thm " )" |]
+          } ? *
+
+          { |pushStep goal .duplicate _ .strategy .construct }
+        ] pushStep
+      } /construct deffst
+    > ==strategyDeduplicate
+    { ==goal ==solvedGoal
+      solvedGoal .thm goal .thm eq {
+        map ==availableAntes
+        goal .antes { 1 -01 availableAntes =[] } each
+
+        1 ==allAntesExist
+        solvedGoal .antes { ==ante
+          ante availableAntes .has not {
+            0 =allAntesExist
+            [| "The solved goal relied has an antecedent not available here:" |] err
+            [| 0 ante renderNicely "\n" |] out
+          } rep
+        } each
+
+        allAntesExist {
+          "(duplicate)" /resolution goal .set
+          strategyDeduplicate /strategy goal .set
+          solvedGoal /duplicate goal .setExtra
+        } rep
+      } {
+        [| "The two goals are for different theorems." |] err
+      } ? *
+    } τdeduplicate /deduplicate deffst
 
     { ==goal ==ante
       goal .antes { ante neq } grep /antes goal .set
