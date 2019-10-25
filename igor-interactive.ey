@@ -1,4 +1,9 @@
 <
+  # For debugging where unclear crash is from:
+  # { ==name ==f
+  #   { name dump } f ; { "/" name cat dump } ; name
+  # } |deffst ; /deffst deffst
+
   # OPTIMIZATION ONLY
   { "{ =*p [ -01 { _ p not \"--\" | rep }' each ] } *" includeLine } /grep defq
   # END OF OPTIMIZATION
@@ -812,7 +817,7 @@
     [ ] ==allOpenGoals 0 ==allOpenGoalsValid
     { # ==goal
       objset ==goals
-      {
+      { _ dump _ keys dump
         _ .isopen { goals .put } { .resolution .hypotheses |collect each } ? *
       } /collect deffst
       collect goals dom
@@ -5701,46 +5706,52 @@
     } τautomations /automations deffst
 
     { _ ==goal _ .thm ==thm .antes ==antes
-      sys .asm .remainingCallStack 1000 lt {
-        [| "Low call stack." |] err
-      } rep
+      [
+        sys .asm .remainingCallStack 1000 lt {
+          [| "Low call stack." |] err
+        } rep
 
-      # meta variable expansion in-place
-      [| thm " " str .split { "" neq } grep expandMeta { " " } each -- |] ==expandedThm
-      thm expandedThm neq { expandedThm _ =thm /thm goal .set } rep
+        # meta variable expansion in-place
+        [| thm " " str .split { "" neq } grep expandMeta { " " } each -- |] ==expandedThm
+        thm expandedThm neq { expandedThm _ =thm /thm goal .set } rep
 
-      antes dom { _ ==i antes * ==ante
-        [| ante " " str .split expandMeta { " " } each -- |] ==expandedAnte
-        ante expandedAnte neq { expandedAnte i -1010 goal .antes =[] antes =[] } rep
-      } each
+        antes dom { _ ==i antes * ==ante
+          [| ante " " str .split expandMeta { " " } each -- |] ==expandedAnte
+          ante expandedAnte neq { expandedAnte i -1010 goal .antes =[] antes =[] } rep
+        } each
 
-      goal .?delayedResolution {
-        goal .isopen goal .delayedResolution rep
-      } {
-        [
-          thm "$" str .split len 1 eq
-          antes { "$" str .split len 1 eq } each
-        ] all {
+        goal .?delayedResolution {
+          goal .isopen goal .delayedResolution rep
+        } {
           [
-            |unusedVariable
-            |knownAntes
-            |decimal
-            |arithmetics
-            |trivialities
-            |extractAntes
-            |fromAntes
-            |withinAntes
-            |automations
-            loadedAutomations "*" | each
-          ] { =*resolution
-            goal .isopen { goal resolution } rep
-          } each
-        } rep
+            thm "$" str .split len 1 eq
+            antes { "$" str .split len 1 eq } each
+          ] all {
+            [
+              |unusedVariable
+              |knownAntes
+              |decimal
+              |arithmetics
+              |trivialities
+              |extractAntes
+              |fromAntes
+              |withinAntes
+              |automations
+              loadedAutomations "*" | each
+            ] { =*resolution
+              goal .isopen { goal resolution } rep
+            } each
+          } rep
 
-        goal .isopen not {
-          goal openGoals |normalizeGoal each
-        } rep
-      } ? *
+          goal .isopen not {
+            goal openGoals |normalizeGoal each
+          } rep
+        } ? *
+      ] ==litter
+      litter len 0 gt {
+        [| "normalizeGoal left stuff on the stack:" |] err
+        litter dump
+      } rep
     } τnormalizeGoal /normalizeGoal deffst
 
     # takes variable name, either wff, set or class
@@ -10437,6 +10448,7 @@
     newGoal _ ==mainGoal normalizeGoal
 
     0 ==shownMessages
+    0 ==shortenDisplay
 
     { running } { [
       {
@@ -10499,7 +10511,12 @@
             # goal .autohint "" neq { " \e[32m(hint: " goal .autohint ")" } rep
             "\e[0m\n"
           |] out
-          [| "|- " 3 goal .thm renderNicely "\n" |] out
+          shortenDisplay goal .thm len 120 gt and {
+            [| 3 goal .thm renderNicely |] ==goalThm
+            [| "|- " 600 goalThm str .prefix "\e[0m...\n" |] out
+          } {
+            [| "|- " 3 goal .thm renderNicely "\n" |] out
+          } ? *
         } unlessSolved *
       } /display deffst
       messages shownMessages eq |display rep
@@ -10567,6 +10584,8 @@
         { cmd "freeze" eq } { { _ { * }_ args sys .freeze * } !! * }
         { cmd "save:goal" eq } { args selectedGoal goals * saveGoal } unlessSolved
         { cmd "load:goal" eq } { args loadGoal }
+        { cmd "display:full" eq } { 0 =shortenDisplay }
+        { cmd "display:short" eq } { 1 =shortenDisplay }
         loadedCommands "*" | each
       ] conds
     ] _ ==residue len 0 gt {
