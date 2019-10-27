@@ -9756,7 +9756,7 @@
         solvedGoal .antes { ==ante
           ante availableAntes .has not {
             0 =allAntesExist
-            [| "The solved goal relied has an antecedent not available here:" |] err
+            [| "The solved goal has an antecedent not available here:" |] err
             [| 0 ante renderNicely "\n" |] out
           } rep
         } each
