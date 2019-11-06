@@ -4041,8 +4041,8 @@
     } "$=[]" deffd
 
     # <$ "x e. A" ==ph "y e. B" ==ps $> as inline-map constructor for pushStep
-    { < map ==m { m $=[] } "==" =* }" "<$" deffst
-    { m > -- }" "$>" deffst
+    { < map ==mmm { mmm $=[] } "==" =* }" "<$" deffst
+    { mmm > -- }" "$>" deffst
 
     # <$ [| "a b c" |] ==ph $> "$$$" viaForInterpolation ... $$$ph => "a" "b" "c"
     { ==name =*map
@@ -5665,41 +5665,6 @@
 
     # Things which could be a strategy maybe, but for now just call high-level commands
     { _ ==goal .thm ==thm
-      map ==equalities
-      { ==A A equalities .has { A equalities * } { A } ? * } /eqmin deffst
-
-      goal .antes { ==ante
-        ante "A = B" // {
-          1 ante equalities =[]
-          $A eqmin $B eqmin min _ $A equalities =[]
-                                  $B equalities =[]
-        } rep
-      } each
-
-      "" ==x "" ==y
-      goal .antes { ==ante
-        ante "[ x / y ] ph" // {
-          $ph thm eq {
-            $x eqmin $y eqmin eq { $_
-              /stdpc7 goal useTheorem
-              [ $x ] "$x" let
-              [ $y ] "$y" let
-            } rep
-          } rep
-        } rep
-      } each
-
-      thm "( A F C ) = ( B F C )" // {
-        $A eqmin $B eqmin eq { $_
-          [| $A " = " $B |] equalities .has not {
-            [| $A " = " $B |] goal conclude
-          } {
-            /oveq1d goal useTheorem
-            [| $A " = " $B |] " " str .split "$ph" let
-          } ? *
-        } rep
-      } rep
-
       thm "( ( A + B ) + C ) = ( A + ( B + C ) )" // {
         /addass goal useTheorem
       } rep
@@ -9729,6 +9694,379 @@
       } rep
     } τranges /ranges deffst
 
+    { _ ==goal .thm ==thm
+      # From expression to "minimum"
+      map ==equalities
+      # Discovered theorems, including proofs for all maps in equalities
+      map ==truths
+      { ==thm ==strategy
+        thm truths .has not {
+          strategy thm truths =[]
+        } rep
+      } /newTruth deffst
+
+      { ==A A equalities .has { A equalities * } { A } ? * } /eqmin deffst
+
+      goal .antes { ==ante
+        <
+          { ==goal
+            ante
+          } /UsedAntecedent deffst
+          { ==goal =*pushStep
+            [ /id <$ ante ==ph $> ] pushStep
+          } /Construct deffst
+        > ante newTruth
+      } each
+
+      [
+        goal .thm "A" allMatchingSubparses
+        goal .antes { "A" allMatchingSubparses } each
+      ] |cat fold { =*substitution
+        [| /A substitution { " " } each -- |] ==Astr
+
+        [| Astr " = " Astr |] "ph" // {
+          <
+            { ==goal
+              [| "Unexpected construction call for A = A." |] err
+            } /UsedAntecedent deffst
+          > [| Astr " = " Astr |] newTruth
+        } rep
+      } each
+
+      {
+        equalities dom len truths dom len add ==oldLen
+
+        truths dom { ==ante
+          ante "A = B" // { $A $B neq } andif { $_
+            $A eqmin ==Amin $B eqmin ==Bmin
+            [
+              { Amin len Bmin len lt } { Amin }
+              { Amin len Bmin len gt } { Bmin }
+              { Amin Bmin lt } { Amin }
+              { 1 } { Bmin }
+            ] conds ==m
+
+            $A eqmin m neq {
+              <
+                { ==goal
+                  $B $B eqmin neq {
+                    [| "( " ante " /\\ " goal [| $B " = " $B eqmin |] truths * .UsedAntecedent " )" |]
+                  } {
+                    ante
+                  } ? *
+                } /UsedAntecedent deffst
+                { ==goal =*pushStep
+                  goal UsedAntecedent ==usedAnte
+                  # usedAnte -> A = m
+                  $B $B eqmin neq {
+                    goal [| $B " = " $B eqmin |] truths * .UsedAntecedent ==neededAnte
+                    # ( A = B /\ neededAnte ) -> A = m
+                    [ /sylan2 <$
+                      neededAnte ==ph
+                      [| $B " = " $B eqmin |] ==ch
+                      ante ==ps
+                      [| $A " = " m |] ==th
+                    $> ] pushStep
+
+                    # neededAnte -> B = m
+                    |pushStep goal [| $B " = " $B eqmin |] truths * .Construct
+
+                    # ( A = B /\ B = m ) -> A = m
+                    [ /eqtr <$ $A ==A $B ==B m ==C $> ] pushStep
+                  } {
+                    # A = m -> A = m
+                    [ /id <$ [| $A " = " m |] ==ph $> ] pushStep
+                  } ? *
+                } /Construct deffst
+              > [| $A " = " m |] newTruth
+            } rep
+
+            $B eqmin m neq {
+              <
+                { ==goal
+                  $A $A eqmin neq {
+                    [| "( " goal [| $A " = " $A eqmin |] truths * .UsedAntecedent " /\\ " ante " )" |]
+                  } {
+                    ante
+                  } ? *
+                } /UsedAntecedent deffst
+                { ==goal =*pushStep
+                  goal UsedAntecedent ==usedAnte
+                  # usedAnte -> B = m
+                  $A $A eqmin neq {
+                    goal [| $A " = " $A eqmin |] truths * .UsedAntecedent ==neededAnte
+                    # ( neededAnte /\ A = B ) -> B = m
+                    [ /sylan <$
+                      neededAnte ==ph
+                      [| $A " = " $A eqmin |] ==ps
+                      ante ==ch
+                      [| $B " = " m |] ==th
+                    $> ] pushStep
+
+                    # neededAnte -> A = m
+                    |pushStep goal [| $A " = " $A eqmin |] truths * .Construct
+
+                    # ( A = m /\ A = B ) -> B = m
+                    [ /syl$HERE119 <$
+                      [| "( " $A " = " m " /\\ " $A " = " $B " )" |] ==ph
+                      [| m " = " $B |] ==ps
+                      [| $B " = " m |] ==ch
+                    $> ] pushStep
+
+                    # ( A = m /\ A = B ) -> m = B
+                    [ /eqtr2 <$ $A ==A m ==B $B ==C $> ] pushStep
+                  } rep
+
+                  # m = B -> B = m
+                  [ /biimpi$HERE119 <$
+                    [| m " = " $B |] ==ph
+                    [| $B " = " m |] ==ps
+                  $> ] pushStep
+
+                  # m = B <-> B = m
+                  [ /eqcom $$ ] pushStep
+                } /Construct deffst
+              > [| $B " = " m |] newTruth
+            } rep
+
+            m $A equalities =[]
+            m $B equalities =[]
+          } rep
+
+          ante "[ A / x ] ph" // {
+            $A eqmin $x eqmin eq { $_
+              <
+                { ==goal
+                  [
+                    $A $A eqmin neq { goal [| $A " = " $A eqmin |] truths * .UsedAntecedent } rep
+                    $x $x eqmin neq { goal [| $x " = " $x eqmin |] truths * .UsedAntecedent } rep
+                    ante
+                  ] makeConjunction
+                } /UsedAntecedent deffst
+                { ==goal =*pushStep
+                  goal UsedAntecedent ==usedAnte
+                  # usedAnte -> $ph
+                  [ /mpbid <$
+                    usedAnte ==ph
+                    $ph ==ch
+                    [| "[ " $A " / " $x " ] " $ph |] ==ps
+                  $> ] pushStep
+
+                  # usedAnte -> [ A / x ] ph
+                  |pushStep usedAnte [| "[ " $A " / " $x " ] " $ph |] transformConjunct
+
+                  # usedAnte -> ( [ A / x ] ph <-> ph )
+                  [ /syl$HERE177 <$
+                    usedAnte ==ph
+                    [| $A " = " $x |] ==ps
+                    [| "( [ " $A " / " $x " ] " $ph " <-> " $ph " )" |] ==ch
+                  $> ] pushStep
+
+                  # usedAnte -> A = x
+                  $A $A eqmin neq $x $x eqmin neq or {
+                    [ /eqtr4d <$
+                      usedAnte ==ph
+                      $A ==A
+                      $A eqmin ==B
+                      $x ==C
+                    $> ] pushStep
+
+                    # usedAnte -> A = A eqmin
+                    $A $A eqmin eq {
+                      [ /eqidd <$
+                        usedAnte ==ph
+                        $A ==A
+                      $> ] pushStep
+                    } {
+                      goal [| $A " = " $A eqmin |] truths * .UsedAntecedent ==neededAnte
+                      [ /syl$HERE178 <$
+                        usedAnte ==ph neededAnte ==ps [| $A " = " $A eqmin |] ==ch
+                      $> ] pushStep
+
+                      |pushStep usedAnte neededAnte transformConjunct
+                      |pushStep goal [| $A " = " $A eqmin |] truths * .Construct
+                    } ? *
+
+                    # usedAnte -> x = x eqmin
+                    $x $x eqmin eq {
+                      [ /eqidd <$
+                        usedAnte ==ph
+                        $x ==A
+                      $> ] pushStep
+                    } {
+                      goal [| $x " = " $x eqmin |] truths * .UsedAntecedent ==neededAnte
+                      [ /syl$HERE179 <$
+                        usedAnte ==ph neededAnte ==ps [| $x " = " $x eqmin |] ==ch
+                      $> ] pushStep
+
+                      |pushStep usedAnte neededAnte transformConjunct
+                      |pushStep goal [| $x " = " $x eqmin |] truths * .Construct
+                    } ? *
+                  } {
+                    [ /eqidd <$
+                      usedAnte ==ph
+                      $A ==A
+                    $> ] pushStep
+                  } ? *
+
+                  # A = x -> ( [ A / x ] ph <-> ph )
+                  [ /sbceq1d $$ ] pushStep
+                } /Construct deffst
+              > $ph newTruth
+            } rep
+          } rep
+        } each
+
+        [
+          goal .thm "( A F B )" allMatchingSubparses
+          goal .antes { "( A F B )" allMatchingSubparses } each
+        ] |cat fold { =*substitution
+          [| /A substitution { " " } each -- |] ==Astr
+          [| /B substitution { " " } each -- |] ==Bstr
+          [| /F substitution { " " } each -- |] ==Fstr
+
+          Astr _ eqmin neq {
+            [| "( " Astr eqmin " " Fstr " " Bstr " )" |] [| "( " Astr " " Fstr " " Bstr " )" |] equalities =[]
+            <
+              { ==goal
+                goal [| Astr " = " Astr eqmin |] truths * .UsedAntecedent
+              } /UsedAntecedent deffst
+              { ==goal =*pushStep
+                goal [| Astr " = " Astr eqmin |] truths * .UsedAntecedent ==usedAnte
+
+                # usedAnte -> ( A F B ) = ( Amin F B )
+                [ /syl <$
+                  usedAnte ==ph
+                  [| Astr " = " Astr eqmin |] ==ps
+                  [| "( " Astr eqmin " " Fstr " " Bstr " ) = ( " Astr " " Fstr " " Bstr " )" |] ==ch
+                $> ] pushStep
+                |pushStep goal [| Astr " = " Astr eqmin |] truths * .Construct
+
+                # A = Amin -> ( A F B ) = ( Amin F B )
+                [ /oveq1 <$
+                  Astr ==A Astr eqmin ==B
+                  Fstr ==F Bstr ==C
+                $> ] pushStep
+              } /Construct deffst
+            > [| "( " Astr eqmin " " Fstr " " Bstr " ) = ( " Astr " " Fstr " " Bstr " )" |] newTruth
+          } rep
+          Bstr _ eqmin neq {
+            [| "( " Astr " " Fstr " " Bstr eqmin " )" |] [| "( " Astr " " Fstr " " Bstr " )" |] equalities =[]
+            <
+              { ==goal
+                goal [| Bstr " = " Bstr eqmin |] truths * .UsedAntecedent
+              } /UsedAntecedent deffst
+              { ==goal =*pushStep
+                goal [| Bstr " = " Bstr eqmin |] truths * .UsedAntecedent ==usedAnte
+
+                # usedAnte -> ( A F B ) = ( A F Bmin )
+                [ /syl <$
+                  usedAnte ==ph
+                  [| Bstr " = " Bstr eqmin |] ==ps
+                  [| "( " Astr " " Fstr " " Bstr eqmin " ) = ( " Astr " " Fstr " " Bstr " )" |] ==ch
+                $> ] pushStep
+                |pushStep goal [| Bstr " = " Bstr eqmin |] truths * .Construct
+
+                # B = Bmin -> ( A F B ) = ( A F Bmin )
+                [ /oveq2 <$
+                  Bstr ==A Bstr eqmin ==B
+                  Fstr ==F Astr ==C
+                $> ] pushStep
+              } /Construct deffst
+            > [| "( " Astr " " Fstr " " Bstr eqmin " ) = ( " Astr " " Fstr " " Bstr " )" |] newTruth
+          } rep
+        } each
+
+        equalities dom len truths dom len add oldLen neq
+      } { } loop
+
+      thm truths .has not {
+        thm "A = B" // { $_
+          $A eqmin $B eqmin eq {
+            <
+              { ==goal
+                [
+                  $A $A eqmin neq { goal [| $A " = " $A eqmin |] truths * .UsedAntecedent } rep
+                  $B $B eqmin neq { goal [| $A " = " $A eqmin |] truths * .UsedAntecedent } rep
+                ] _ len 0 eq {
+                  [| "Unexpectedly, no antecedents were required for equality proof." |] err
+                } rep makeConjunction
+              } /UsedAntecedent deffst
+              { ==goal =*pushStep
+                goal UsedAntecedent ==usedAnte
+
+                # usedAnte -> A = B
+                [ /syl <$
+                  usedAnte ==ph
+                  [| "( " $A " = " $A eqmin " /\\ " $B " = " $B eqmin " )" |] ==ps
+                  [| $A " = " $B |] ==ch
+                $> ] pushStep
+
+                # usedAnte -> ( A = Amin /\ B = Bmin )
+                [ /jca <$
+                  usedAnte ==ph
+                  [| $A " = " $A eqmin |] ==ps
+                  [| $B " = " $B eqmin |] ==ch
+                $> ] pushStep
+
+                # usedAnte -> A = Amin
+                $A $A eqmin eq {
+                  [ /eqidd <$ usedAnte ==ph $A ==A $> ] pushStep
+                } {
+                  goal [| $A " = " $A eqmin |] truths * .UsedAntecedent ==neededAnte
+                  neededAnte usedAnte neq {
+                    [ /syl <$ usedAnte ==ph neededAnte ==ps [| $A " = " $A eqmin |] ==ch $> ] pushStep
+                    |pushStep usedAnte neededAnte transformConjunct
+                  } rep
+                  |pushStep goal [| $A " = " $A eqmin |] truths * .Construct
+                } ? *
+
+                # usedAnte -> B = Bmin
+                $B $B eqmin eq {
+                  [ /eqidd <$ usedAnte ==ph $B ==A $> ] pushStep
+                } {
+                  goal [| $B " = " $B eqmin |] truths * .UsedAntecedent ==neededAnte
+                  neededAnte usedAnte neq {
+                    [ /syl <$ usedAnte ==ph neededAnte ==ps [| $B " = " $B eqmin |] ==ch $> ] pushStep
+                    |pushStep usedAnte neededAnte transformConjunct
+                  } rep
+                  |pushStep goal [| $B " = " $B eqmin |] truths * .Construct
+                } ? *
+
+                # ( A = Amin /\ B = Bmin ) -> A = B
+                [ /eqtr3 <$ $A ==A $B ==B Amin ==C $> ] pushStep
+              } /Construct deffst
+            > thm newTruth
+          } rep
+        } rep
+      } rep
+
+      truths dom dump
+      truths
+    } /buildEqualityGraph deffst
+
+    <
+      { ==goal
+        goal buildEqualityGraph ==truths
+        goal _ .thm truths * .UsedAntecedent
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        goal buildEqualityGraph ==truths
+        |pushStep goal _ .thm truths * .Construct
+      } /construct deffst
+    > ==strategyEquality
+    { _ ==goal .thm ==thm
+      goal buildEqualityGraph ==truths
+
+      thm truths .has {
+        strategyEquality /strategy goal .set
+        "(equality)" /resolution goal .set
+      } {
+        [| "No equalities proof found for this goal." |] err
+      } ? *
+    } τequalities /equalities deffst
+
     <
       { ==goal
         goal .duplicate _ .strategy .usedAntecedent
@@ -10572,6 +10910,7 @@
         { cmd "namely" eq } { args selectedGoal goals * namely } unlessSolved
         { cmd "rename" eq { args "(.) to (.)" regex } andif } { selectedGoal goals * rename } unlessSolved
         { cmd "range" eq } { selectedGoal goals * ranges } unlessSolved
+        { cmd "equalities" eq } { selectedGoal goals * equalities } unlessSolved
         { cmd "function:type" eq } { selectedGoal goals * functionType } unlessSolved
         { cmd "drop" eq { args "all matching (.*)" regex } andif } { selectedGoal goals * dropMatching } unlessSolved
         { cmd "drop" eq } { args selectedGoal goals * drop } unlessSolved
