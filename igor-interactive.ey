@@ -10025,6 +10025,27 @@
               } /Construct deffst
             > [| "( " Astr " " Fstr " " Bstr " ) = ( " Astr " " Fstr " " Bmin " )" |] newTruth
           } rep
+
+          [| "( " Astr " " Fstr " " Bstr " )" |] evaluateArithmetics { ==E
+            <
+              { ==goal
+                # Need something here
+                goal .antes len 0 eq {
+                  [| "Goal unexpectedly had no antecedents." |] die
+                } rep
+
+                0 goal .antes *
+              } /UsedAntecedent deffst
+              { ==goal =*pushStep
+                # ante -> ( A F B ) = E
+                goal UsedAntecedent ==ante
+                [| "( " Astr " " Fstr " " Bstr " ) = " E printNumber { " " } each -- |] ==truth
+
+                [ /a1i <$ ante ==ps truth ==ph $> ] pushStep
+                |pushStep truth constructArithmetics
+              } /Construct deffst
+            > [| "( " Astr " " Fstr " " Bstr " ) = " E printNumber { " " } each -- |] newTruth
+          } rep
         } each
 
         [
