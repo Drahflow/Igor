@@ -1,7 +1,11 @@
 <
   # For debugging where unclear crash is from:
+  # 0 ==debugIndent
   # { ==name ==f
-  #   { name dump } f ; { "/" name cat dump } ; name
+  #   { [| debugIndent _ 1 add =debugIndent { " " } rep name |] dump }
+  #   f ;
+  #   { [| debugIndent 1 sub _ =debugIndent { " " } rep "/" name |] dump } ;
+  #   name
   # } |deffst ; /deffst deffst
 
   # OPTIMIZATION ONLY
@@ -4502,6 +4506,11 @@
           [ /elexi $$ ] pushStep
           |pushStep [| $A " e. NN0" |] constructDecimal
         }
+        { thm "A e. _V" // { $A evaluateArithmetics } andif { $A 1 } andif } { ==A --
+          "CC" $=B
+          [ /elexi $$ ] pushStep
+          |pushStep [| A " e. CC" |] constructDecimal
+        }
         { thm "; A B e. NN" // } { $_
           $B parseNumber { 0 eq } andif {
             [ /decnnclb $$ ] pushStep
@@ -4621,6 +4630,18 @@
           |pushStep [| $B " e. RR+" |] constructDecimal
 
           [ /modcl $$ ] pushStep
+        }
+        { thm "-u N e. ZZ" // } { $_
+          [ /nn0negzi $$ ] pushStep
+          |pushStep [| $N " e. NN0" |] constructDecimal
+        }
+        { thm "N e. ZZ" // { $N parseNumber } andif { 0 ge } andif } { $_
+          [ /nn0zi $$ ] pushStep
+          |pushStep [| $N " e. NN0" |] constructDecimal
+        }
+        { thm "-u A e. RR" // } { $_
+          [ /renegcli $$ ] pushStep
+          |pushStep [| $A " e. RR" |] constructDecimal
         }
         { thm "A e. C" // } { $_
           $A evaluateArithmetics { ==A
@@ -6568,16 +6589,25 @@
 
     # Compatibility layer for other strategies directly invoking constructRewrite
     { ==thm =*pushStep
-      thm "( ph -> ( ps <-> ch ) )" // { $_
-        [ $ph ] $ph newGoal ==pattern
-        <
-          { -- $ph } /usedAntecedent deffst
-          { -- =*pushStep [ /id <$ $ph ==ph $> ] pushStep } /construct deffst
-        > /strategy pattern .set
-        |pushStep pattern thm constructRewriteFull
-      } {
-        [| "Unexpected theorem format during constructRewrite." |] err
-      } ? *
+      [
+        { thm "( ph -> ( ps <-> ch ) )" // } { $_
+          [ $ph ] $ph newGoal ==pattern
+          <
+            { -- $ph } /usedAntecedent deffst
+            { -- =*pushStep [ /id <$ $ph ==ph $> ] pushStep } /construct deffst
+          > /strategy pattern .set
+          |pushStep pattern thm constructRewriteFull
+        }
+        { thm "( ph -> A = B )" // } { $_
+          [ $ph ] $ph newGoal ==pattern
+          <
+            { -- $ph } /usedAntecedent deffst
+            { -- =*pushStep [ /id <$ $ph ==ph $> ] pushStep } /construct deffst
+          > /strategy pattern .set
+          |pushStep pattern thm constructRewriteFull
+        }
+        { 1 } { [| "Unexpected theorem format during constructRewrite: " thm |] err }
+      ] conds
     } /constructRewrite deffst
 
     <
@@ -7466,9 +7496,8 @@
           }
           { goal .thm "E. x e. A ph" // } { $_
             [
-              [
-                goal .antes [| value " e. " $A |] newGoal
-                goal .antes $ph $x value rewriteRecursive newGoal
+              goal .antes [| value " e. " $A |] newGoal
+              goal .antes $ph $x value rewriteRecursive newGoal
             ] /children goal .set
 
             /namely /resolution goal .set
