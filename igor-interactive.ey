@@ -4335,8 +4335,14 @@
           |pushStep [| "( " $ps " -> A. " $x " " $ps " )" |] constructUnused
         }
         { thm "( [ y / x ] ph -> A. x [ y / x ] ph )" // } {
-          [ /hbsb3 $$ ] pushStep
-          |pushStep [| "( " $ph " -> A. " $y " " $ph " )" |] constructUnused
+          $y $x mayDisjunct {
+            $y $x checkMarkedDisjunct
+
+            [ /hbs1 $$ ] pushStep
+          } {
+            [ /hbsb3 $$ ] pushStep
+            |pushStep [| "( " $ph " -> A. " $y " " $ph " )" |] constructUnused
+          } ? *
         }
         { thm "( A = B -> A. x A = B )" // } {
           [| $x " " $A " " $B |] 2 freshVariables $=y $=z
@@ -5775,10 +5781,14 @@
                 xTok yTok eq {
                   1 =disjunctionsViolated
                   [| "Proposed application would violate\e[0m " x renderName " <!> " y renderName |] err
+                  [| x substitution * { " " } each -- " <!> " y substitution * { " " } each -- |] err
+                  [| xTok " <!> " yTok |] err
                 } rep
                 xTok yTok mustNotDisj {
                   1 =disjunctionsViolated
                   [| "Proposed application would violate\e[0m " x renderName " <=> " y renderName |] err
+                  [| x substitution * { " " } each -- " <=> " y substitution * { " " } each -- |] err
+                  [| xTok " <=> " yTok |] err
                 } rep
               } rep
             } each
