@@ -10952,6 +10952,9 @@
       x y eq { [| "Can not mark disjunct: " x |] err } rep
       x y gt { x y =x =y } rep
       x disj .has not { map x disj =[] } rep
+      x nonDisj .has {
+        y x nonDisj * .has { [| "Marked disjunct, but was disallowed: " x " <!> " y |] err } rep
+      } rep
       1 y x disj * =[]
     } /markDisj deffst
 
@@ -11024,7 +11027,6 @@
 
     1 ==running
     0 ==selectedGoal
-    proposition .disj { 2 dearray markDisj } each
     proposition .ctx _ =proofContext
     map ==proofEHyps
     proofContext collectEHyps _ ==collectedEHyps dom {
