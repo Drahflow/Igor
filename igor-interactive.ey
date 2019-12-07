@@ -10207,6 +10207,65 @@
         } each
 
         [
+          goal .thm "A = B" allMatchingSubparses
+          truths dom { "A = B" allMatchingSubparses } each
+        ] |cat fold { =*substitution
+          [| /A substitution { " " } each -- |] _ ==Astr eqmin ==Amin
+          [| /B substitution { " " } each -- |] _ ==Bstr eqmin ==Bmin
+
+          Astr Amin neq {
+            <
+              { ==goal
+                goal [| Astr " = " Amin |] truths * .UsedAntecedent
+              } /UsedAntecedent deffst
+
+              { ==goal =*pushStep
+                goal [| Astr " = " Amin |] truths * .UsedAntecedent ==usedAnte
+
+                # usedAnte -> ( A = B <-> Amin = B )
+                [ /syl <$
+                  usedAnte ==ph
+                  [| Astr " = " Amin |] ==ps
+                  [| "( " Astr " = " Bstr " <-> " Amin " = " Bstr " )" |] ==ch
+                $> ] pushStep
+                |pushStep goal [| Astr " = " Amin |] truths * .Construct
+
+                # A = Amin -> ( A = B <-> Amin = B )
+                [ /eqeq1 <$
+                  Astr ==A Amin ==B
+                  Bstr ==C
+                $> ] pushStep
+              } /Construct deffst
+            > [| "( " Astr " = " Bstr " <-> " Amin " = " Bstr " )" |] newTruth
+          } rep
+          Bstr Bmin neq {
+            <
+              { ==goal
+                goal [| Bstr " = " Bmin |] truths * .UsedAntecedent
+              } /UsedAntecedent deffst
+
+              { ==goal =*pushStep
+                goal [| Bstr " = " Bmin |] truths * .UsedAntecedent ==usedAnte
+
+                # usedAnte -> ( A = B <-> A = Bmin )
+                [ /syl <$
+                  usedAnte ==ph
+                  [| Bstr " = " Bmin |] ==ps
+                  [| "( " Astr " = " Bstr " <-> " Astr " = " Bmin " )" |] ==ch
+                $> ] pushStep
+                |pushStep goal [| Bstr " = " Bmin |] truths * .Construct
+
+                # B = Bmin -> ( A = B <-> A = Bmin )
+                [ /eqeq2 <$
+                  Bstr ==A Bmin ==B
+                  Astr ==C
+                $> ] pushStep
+              } /Construct deffst
+            > [| "( " Astr " = " Bstr " <-> " Astr " = " Bmin " )" |] newTruth
+          } rep
+        } each
+
+        [
           goal .thm "if ( ph , A , B )" allMatchingSubparses
           truths dom { "if ( ph , A , B )" allMatchingSubparses } each
         ] |cat fold { =*substitution
