@@ -5690,6 +5690,64 @@
       } rep } each
     } τwithinAntes /withinAntes deffst
 
+    <
+      { ==goal
+        goal .ante
+      } /usedAntecedent deffst
+
+      { ==goal =*pushStep
+        # A. x e. A ph -> A. y e. A ps
+        [ /biimpi <$
+          goal .ante ==ph
+          goal .thm ==ps
+        $> ] pushStep
+
+        goal .ante "A. x e. A ph" // -- $x ==x $A ==A $ph ==ph
+        goal .thm "A. y e. A ps" // -- $y ==y $ps ==ps
+        [| "( " goal .ante " -> " goal .thm " )" |] 1 freshVariables ==z
+
+        # A. x e. A ph <-> A. y e. A ps
+        [ /cbvralf <$ x ==x A ==A ph ==ph y ==y ps ==ps z ==z $> ] pushStep
+
+        # ( z e. A -> A. x z e. A )
+        |pushStep [| "( " z " e. " A " -> A. " x " " z " e. " A " )" |] constructUnused
+        # ( z e. A -> A. y z e. A )
+        |pushStep [| "( " z " e. " A " -> A. " y " " z " e. " A " )" |] constructUnused
+        # ( ph -> A. y ph )
+        |pushStep [| "( " ph " -> A. " y " " ph " )" |] constructUnused
+        # ( ps -> A. x ps )
+        |pushStep [| "( " ps " -> A. " x " " ps " )" |] constructUnused
+
+        # ( x = y -> ( ph <-> ps ) )
+        |pushStep [| "( " x " = " y " -> ( " ph " <-> " ps " ) )" |] constructRewrite
+      } /construct deffst
+    > ==strategyRenameBoundVariables
+    { _ ==goal .thm ==thm
+      thm "A. x e. A ph" // {
+        $x ==x $A ==A $ph ==ph
+        goal .antes { ==ante
+          ante "A. y e. B ps" // { $_
+            $B A eq {
+              ph x $y rewriteRecursive $ps eq {
+                $y ph requiredDisjuncts ==requiredPh
+                requiredPh $y eq any not {
+                  x $ps requiredDisjuncts ==requiredPs
+                  requiredPs x eq any not {
+                    "(... renameBoundVariables)" /resolution goal .set
+                    strategyRenameBoundVariables /strategy goal .set
+                    ante /ante goal .setExtra
+
+                    requiredPh { $y markDisj } each
+                    requiredPs { x markDisj } each
+                  } rep
+                } rep
+              } rep
+            } rep
+          } rep
+        } each
+      } rep
+    } τrenameBoundVariables /renameBoundVariables deffst
+
     # Things which could be a strategy maybe, but for now just call high-level commands
     { _ ==goal .thm ==thm
       thm "( ( A + B ) + C ) = ( A + ( B + C ) )" // {
@@ -5728,6 +5786,7 @@
               |extractAntes
               |fromAntes
               |withinAntes
+              |renameBoundVariables
               |automations
               loadedAutomations "*" | each
             ] { =*resolution
